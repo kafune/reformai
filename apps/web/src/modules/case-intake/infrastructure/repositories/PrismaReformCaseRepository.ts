@@ -1,0 +1,108 @@
+import type { ReformCase } from "@reformai/database"
+import { prisma } from "@/infrastructure/database/prisma"
+import { TenantIsolationError } from "@/shared/errors/DomainError"
+import type {
+  CreateCaseInput,
+  ReformCaseRepository,
+  UpdateScopeInput,
+} from "../../domain/repositories/ReformCaseRepository"
+
+export class PrismaReformCaseRepository implements ReformCaseRepository {
+  async create(input: CreateCaseInput): Promise<ReformCase> {
+    return prisma.reformCase.create({
+      data: {
+        tenantId: input.tenantId,
+        condominiumId: input.condominiumId,
+        unitId: input.unitId,
+        clientId: input.clientId,
+        protocol: input.protocol,
+        status: "DRAFT",
+      },
+    })
+  }
+
+  async findById(id: string, tenantId: string): Promise<ReformCase | null> {
+    const row = await prisma.reformCase.findFirst({ where: { id, tenantId } })
+    return row
+  }
+
+  async listByTenant(
+    tenantId: string,
+    filters?: { clientId?: string },
+  ): Promise<ReformCase[]> {
+    return prisma.reformCase.findMany({
+      where: { tenantId, ...(filters?.clientId ? { clientId: filters.clientId } : {}) },
+      orderBy: { createdAt: "desc" },
+    })
+  }
+
+  async applyScopeClassification(
+    caseId: string,
+    tenantId: string,
+    input: UpdateScopeInput,
+  ): Promise<ReformCase> {
+    return prisma.$transaction(async (tx) => {
+      const existing = await tx.reformCase.findFirst({ where: { id: caseId, tenantId } })
+      if (!existing) throw new TenantIsolationError()
+
+      const updated = await tx.reformCase.update({
+        where: { id: caseId },
+        data: {
+          status: input.newStatus,
+          riskLevel: input.riskLevel,
+          requiresART: input.requiresART,
+          triageScore: input.triageScore,
+          reformScope: input.scope as object,
+          evaluationResult: input.evaluationResult as object,
+        },
+      })
+
+      await tx.caseTransitionLog.create({
+        data: {
+          caseId,
+          fromStatus: input.previousStatus,
+          toStatus: input.newStatus,
+          triggeredBy: input.triggeredBy,
+          reason: input.reason,
+        },
+      })
+
+      await tx.auditLog.create({
+        data: {
+          tenantId,
+          caseId,
+          action: "case.scope.classified",
+          triggeredBy: input.triggeredBy,
+          aiReasoning: input.evaluationResult as object,
+        },
+      })
+
+      return updated
+    })
+  }
+
+  async appendMessage(
+    caseId: string,
+    tenantId: string,
+    role: "USER" | "ASSISTANT" | "SYSTEM",
+    content: string,
+    metadata?: unknown,
+  ): Promise<void> {
+    const existing = await prisma.reformCase.findFirst({ where: { id: caseId, tenantId } })
+    if (!existing) throw new TenantIsolationError()
+    await prisma.chatMessage.create({
+      data: { caseId, role, content, metadata: metadata as object | undefined },
+    })
+  }
+
+  async listMessages(caseId: string, tenantId: string) {
+    const existing = await prisma.reformCase.findFirst({ where: { id: caseId, tenantId } })
+    if (!existing) throw new TenantIsolationError()
+    const rows = await prisma.chatMessage.findMany({
+      where: { caseId },
+      orderBy: { createdAt: "asc" },
+      select: { id: true, role: true, content: true, createdAt: true },
+    })
+    return rows.map((r) => ({ ...r, role: String(r.role) }))
+  }
+}
