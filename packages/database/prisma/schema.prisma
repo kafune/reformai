@@ -1,0 +1,431 @@
+generator client {
+  provider        = "prisma-client-js"
+  output          = "../generated/client"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [pgvector(map: "vector")]
+}
+
+// ─── TENANCY ──────────────────────────────────────────────────
+
+model Tenant {
+  id           String     @id @default(cuid())
+  name         String
+  slug         String     @unique
+  type         TenantType
+  logoUrl      String?
+  primaryColor String?
+  active       Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+
+  condominiums Condominium[]
+  users        User[]
+  policies     Policy[]
+  partners     Partner[]
+  plans        CommercialPlan[]
+  cases        ReformCase[]
+}
+
+enum TenantType {
+  ADMIN
+  ADMINISTRADORA
+  STANDALONE
+}
+
+model Condominium {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  cnpj      String?
+  address   String
+  city      String
+  state     String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  tenant      Tenant              @relation(fields: [tenantId], references: [id])
+  units       Unit[]
+  cases       ReformCase[]
+  policyLinks CondominiumPolicy[]
+  users       User[]              @relation("CondominiumUsers")
+}
+
+model Unit {
+  id            String  @id @default(cuid())
+  condominiumId String
+  identifier    String
+  floor         String?
+  ownerName     String?
+  ownerEmail    String?
+  ownerPhone    String?
+
+  condominium Condominium  @relation(fields: [condominiumId], references: [id])
+  cases       ReformCase[]
+}
+
+// ─── IDENTITY ─────────────────────────────────────────────────
+
+model User {
+  id             String    @id @default(cuid())
+  tenantId       String
+  condominiumId  String?
+  email          String    @unique
+  name           String
+  passwordHash   String
+  role           UserRole
+  active         Boolean   @default(true)
+  lgpdConsentAt  DateTime?
+  createdAt      DateTime  @default(now())
+
+  tenant        Tenant          @relation(fields: [tenantId], references: [id])
+  condominium   Condominium?    @relation("CondominiumUsers", fields: [condominiumId], references: [id])
+  cases         ReformCase[]    @relation("ClientCases")
+  auditLogs     AuditLog[]
+  partner       Partner?
+  notifications Notification[]
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  MANAGER
+  CONDOMINIUM
+  CLIENT
+  PARTNER
+}
+
+// ─── CASE ─────────────────────────────────────────────────────
+
+model ReformCase {
+  id               String     @id @default(cuid())
+  protocol         String     @unique
+  tenantId         String
+  condominiumId    String
+  unitId           String
+  clientId         String
+  status           CaseStatus @default(DRAFT)
+  riskLevel        RiskLevel?
+  requiresART      Boolean?
+  triageScore      Int?
+  reformScope      Json?
+  evaluationResult Json?
+  partnerId        String?
+  commercialPlanId String?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  condominium Condominium @relation(fields: [condominiumId], references: [id])
+  unit        Unit        @relation(fields: [unitId], references: [id])
+  client      User        @relation("ClientCases", fields: [clientId], references: [id])
+  partner     Partner?    @relation(fields: [partnerId], references: [id])
+
+  messages    ChatMessage[]
+  documents   Document[]
+  reports     Report[]
+  inspections Inspection[]
+  transitions CaseTransitionLog[]
+  auditLogs   AuditLog[]
+}
+
+enum CaseStatus {
+  DRAFT
+  AWAITING_SCOPE_DETAILS
+  SCOPE_CLASSIFIED
+  AWAITING_DOCUMENTS
+  DOCUMENTS_UNDER_REVIEW
+  PENDING_CORRECTIONS
+  ELIGIBLE_FOR_RELEASE
+  RELEASED_WITH_CONDITIONS
+  HUMAN_REVIEW_REQUIRED
+  COMMERCIAL_OFFER_SENT
+  AWAITING_PAYMENT
+  ASSIGNED_TO_PARTNER
+  ART_RRT_PENDING
+  INSPECTIONS_SCHEDULED
+  IN_EXECUTION
+  CONCLUDED
+  ARCHIVED
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model CaseTransitionLog {
+  id          String     @id @default(cuid())
+  caseId      String
+  fromStatus  CaseStatus
+  toStatus    CaseStatus
+  triggeredBy String
+  reason      String?
+  metadata    Json?
+  createdAt   DateTime   @default(now())
+
+  case ReformCase @relation(fields: [caseId], references: [id])
+}
+
+// ─── CHAT ─────────────────────────────────────────────────────
+
+model ChatMessage {
+  id        String      @id @default(cuid())
+  caseId    String
+  role      MessageRole
+  content   String
+  metadata  Json?
+  createdAt DateTime    @default(now())
+
+  case ReformCase @relation(fields: [caseId], references: [id])
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+// ─── DOCUMENTS ────────────────────────────────────────────────
+
+model Document {
+  id              String       @id @default(cuid())
+  caseId          String
+  tenantId        String
+  type            DocumentType
+  version         Int          @default(1)
+  fileName        String
+  storageKey      String
+  mimeType        String
+  status          DocStatus    @default(PENDING)
+  origin          DocOrigin
+  extractedText   String?
+  extractedData   Json?
+  inconsistencies Json?
+  pendencies      Json?
+  uploadedAt      DateTime     @default(now())
+
+  case ReformCase @relation(fields: [caseId], references: [id])
+}
+
+enum DocumentType {
+  ART_RRT
+  MEMORIAL
+  PROJECT
+  SCHEDULE
+  WORKFORCE
+  WORKER_DOCS
+  AUTHORIZATION
+  PHOTOS
+  INSPECTION_REPORT
+  ART_RRT_FINAL
+  OTHER
+}
+
+enum DocStatus {
+  PENDING
+  PROCESSING
+  VALID
+  VALID_WITH_CAVEATS
+  INVALID
+  MISSING
+}
+
+enum DocOrigin {
+  CLIENT
+  PARTNER
+  SYSTEM
+}
+
+// ─── REPORTS ──────────────────────────────────────────────────
+
+model Report {
+  id          String     @id @default(cuid())
+  caseId      String
+  tenantId    String
+  type        ReportType
+  content     String
+  skillFileId String?
+  version     Int        @default(1)
+  generatedAt DateTime   @default(now())
+
+  case ReformCase @relation(fields: [caseId], references: [id])
+}
+
+enum ReportType {
+  ANALYSIS
+  TECHNICAL_OPINION
+  COMMERCIAL_PROPOSAL
+  SERVICE_ORDER
+  INSPECTION_SUMMARY
+  RELEASE_OPINION
+  MEMORIAL_DESCRITIVO
+  CRONOGRAMA
+}
+
+model ReportSkill {
+  id        String     @id @default(cuid())
+  type      ReportType @unique
+  skillId   String
+  name      String
+  active    Boolean    @default(true)
+  updatedAt DateTime   @updatedAt
+}
+
+// ─── RULE ENGINE ──────────────────────────────────────────────
+
+model Policy {
+  id            String   @id @default(cuid())
+  tenantId      String?
+  name          String
+  description   String?
+  version       Int      @default(1)
+  effectiveFrom DateTime @default(now())
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  tenant       Tenant?             @relation(fields: [tenantId], references: [id])
+  rules        Rule[]
+  condominiums CondominiumPolicy[]
+}
+
+model Rule {
+  id          String  @id @default(cuid())
+  policyId    String
+  name        String
+  description String
+  condition   Json
+  action      Json
+  priority    Int
+  active      Boolean @default(true)
+  version     Int     @default(1)
+
+  policy Policy @relation(fields: [policyId], references: [id])
+}
+
+model CondominiumPolicy {
+  condominiumId String
+  policyId      String
+  overrides     Json?
+
+  condominium Condominium @relation(fields: [condominiumId], references: [id])
+  policy      Policy      @relation(fields: [policyId], references: [id])
+
+  @@id([condominiumId, policyId])
+}
+
+// ─── PARTNERS ─────────────────────────────────────────────────
+
+model Partner {
+  id          String      @id @default(cuid())
+  tenantId    String
+  userId      String      @unique
+  creaNumber  String
+  type        PartnerType
+  specialties String[]
+  cities      String[]
+  states      String[]
+  basePrice   Decimal
+  rating      Decimal?
+  slaHours    Int?
+  active      Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id])
+  user        User         @relation(fields: [userId], references: [id])
+  cases       ReformCase[]
+  inspections Inspection[]
+}
+
+enum PartnerType {
+  ENGINEER
+  ARCHITECT
+}
+
+// ─── INSPECTIONS ──────────────────────────────────────────────
+
+model Inspection {
+  id          String           @id @default(cuid())
+  caseId      String
+  partnerId   String
+  tenantId    String
+  type        InspectionType
+  scheduledAt DateTime?
+  completedAt DateTime?
+  status      InspectionStatus @default(SCHEDULED)
+  notes       String?
+  photoKeys   String[]
+  reportId    String?
+  extraCharge Decimal?
+
+  case    ReformCase @relation(fields: [caseId], references: [id])
+  partner Partner    @relation(fields: [partnerId], references: [id])
+}
+
+enum InspectionType {
+  INITIAL
+  INTERMEDIATE
+  FINAL
+  EXTRA
+  CRITICAL_SYSTEM
+}
+
+enum InspectionStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+  RESCHEDULED
+}
+
+// ─── COMMERCIAL ───────────────────────────────────────────────
+
+model CommercialPlan {
+  id                   String  @id @default(cuid())
+  tenantId             String
+  name                 String
+  description          String
+  basePrice            Decimal
+  extraInspectionPrice Decimal
+  includes             Json
+  active               Boolean @default(true)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+}
+
+// ─── AUDIT ────────────────────────────────────────────────────
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  tenantId    String
+  caseId      String?
+  userId      String?
+  action      String
+  triggeredBy String
+  details     Json?
+  aiReasoning Json?
+  createdAt   DateTime @default(now())
+
+  case ReformCase? @relation(fields: [caseId], references: [id])
+  user User?       @relation(fields: [userId], references: [id])
+}
+
+// ─── NOTIFICATIONS ────────────────────────────────────────────
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  tenantId  String
+  title     String
+  body      String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, read])
+}

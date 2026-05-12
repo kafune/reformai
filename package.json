@@ -1,0 +1,23 @@
+{
+  "name": "reformai",
+  "version": "0.0.1",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "test": "turbo run test",
+    "test:e2e": "turbo run test:e2e",
+    "lint": "turbo run lint",
+    "db:migrate": "bun run --cwd packages/database db:migrate",
+    "db:seed": "bun run --cwd packages/database db:seed",
+    "db:generate": "bun run --cwd packages/database db:generate",
+    "db:studio": "bun run --cwd packages/database db:studio"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.3"
+  }
+}
