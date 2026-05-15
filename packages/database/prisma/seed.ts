@@ -1,108 +1,8 @@
 import { PrismaClient } from "../generated/client";
+import { DEFAULT_RULES } from "../data/policies";
 import { hash } from "./seed-utils";
 
 const prisma = new PrismaClient();
-
-const DEFAULT_RULES = [
-  {
-    name: "Pintura simples",
-    description: "Obra de pintura simples sem alterações estruturais",
-    condition: { field: "services", operator: "contains", value: "Pintura simples" },
-    action: { riskDelta: 5, requiresART: false, requiresHumanReview: false, mandatoryInspection: false },
-    priority: 10,
-  },
-  {
-    name: "Troca de piso sem demolição",
-    description: "Troca de revestimento de piso sem demolição da base",
-    condition: { field: "services", operator: "contains", value: "Troca de piso sem demolição" },
-    action: { riskDelta: 10, requiresART: false, requiresHumanReview: false, mandatoryInspection: false },
-    priority: 20,
-  },
-  {
-    name: "Troca de piso com demolição",
-    description: "Troca de piso com demolição da base existente",
-    condition: { field: "services", operator: "contains", value: "Troca de piso com demolição" },
-    action: { riskDelta: 25, requiresART: true, requiresHumanReview: false, mandatoryInspection: false },
-    priority: 30,
-  },
-  {
-    name: "Instalação elétrica",
-    description: "Serviços de instalação ou modificação elétrica",
-    condition: { field: "services", operator: "contains", value: "Elétrica" },
-    action: { riskDelta: 30, requiresART: true, requiresHumanReview: false, mandatoryInspection: false },
-    priority: 40,
-  },
-  {
-    name: "Instalação hidráulica",
-    description: "Serviços de instalação ou modificação hidráulica",
-    condition: { field: "services", operator: "contains", value: "Hidráulica" },
-    action: { riskDelta: 30, requiresART: true, requiresHumanReview: false, mandatoryInspection: false },
-    priority: 50,
-  },
-  {
-    name: "Instalação de gás",
-    description: "Serviços relacionados a instalação ou modificação de gás",
-    condition: { field: "services", operator: "contains", value: "Gás" },
-    action: { riskDelta: 40, requiresART: true, requiresHumanReview: false, mandatoryInspection: true },
-    priority: 60,
-  },
-  {
-    name: "Impermeabilização",
-    description: "Serviços de impermeabilização — exige vistoria antes da cobertura",
-    condition: { field: "services", operator: "contains", value: "Impermeabilização" },
-    action: { riskDelta: 35, requiresART: true, requiresHumanReview: false, mandatoryInspection: true },
-    priority: 70,
-  },
-  {
-    name: "Ar-condicionado (split)",
-    description: "Instalação de ar-condicionado tipo split",
-    condition: { field: "services", operator: "contains", value: "Ar-condicionado (split)" },
-    action: { riskDelta: 15, requiresART: false, requiresHumanReview: false, mandatoryInspection: false },
-    priority: 80,
-  },
-  {
-    name: "Mudança de layout",
-    description: "Alteração do layout interno da unidade",
-    condition: { field: "services", operator: "contains", value: "Mudança de layout" },
-    action: { riskDelta: 20, requiresART: true, requiresHumanReview: false, mandatoryInspection: false },
-    priority: 90,
-  },
-  {
-    name: "Demolição de alvenaria",
-    description: "Demolição de paredes de alvenaria não estruturais",
-    condition: { field: "services", operator: "contains", value: "Demolição de alvenaria" },
-    action: { riskDelta: 40, requiresART: true, requiresHumanReview: true, mandatoryInspection: false },
-    priority: 100,
-  },
-  {
-    name: "Impacto estrutural ou prumadas",
-    description: "Obras com impacto estrutural ou nas prumadas do edifício",
-    condition: { field: "services", operator: "contains", value: "Impacto estrutural/prumadas" },
-    action: { riskDelta: 60, requiresART: true, requiresHumanReview: true, mandatoryInspection: true },
-    priority: 110,
-  },
-  {
-    name: "Fachada",
-    description: "Obras na fachada do edifício",
-    condition: { field: "services", operator: "contains", value: "Fachada" },
-    action: { riskDelta: 45, requiresART: true, requiresHumanReview: true, mandatoryInspection: false },
-    priority: 120,
-  },
-  {
-    name: "Esquadrias externas",
-    description: "Substituição ou modificação de esquadrias externas",
-    condition: { field: "services", operator: "contains", value: "Esquadrias externas" },
-    action: { riskDelta: 20, requiresART: true, requiresHumanReview: false, mandatoryInspection: false },
-    priority: 130,
-  },
-  {
-    name: "Equipamentos fixos pesados",
-    description: "Instalação de equipamentos fixos de grande porte",
-    condition: { field: "services", operator: "contains", value: "Equipamentos fixos pesados" },
-    action: { riskDelta: 25, requiresART: true, requiresHumanReview: false, mandatoryInspection: false },
-    priority: 140,
-  },
-];
 
 async function main() {
   console.log("🌱 Iniciando seed...\n");
@@ -110,9 +10,13 @@ async function main() {
   // ─── TENANT ───────────────────────────────────────────────────
   const tenant = await prisma.tenant.upsert({
     where: { slug: "demo" },
-    update: {},
+    update: {
+      name: "Demo Administradora",
+      type: "ADMINISTRADORA",
+      active: true,
+    },
     create: {
-      name: "Administradora Demo",
+      name: "Demo Administradora",
       slug: "demo",
       type: "ADMINISTRADORA",
       primaryColor: "#2563eb",
@@ -124,13 +28,21 @@ async function main() {
   // ─── CONDOMÍNIO ───────────────────────────────────────────────
   const condominium = await prisma.condominium.upsert({
     where: { id: "condo-demo-001" },
-    update: {},
+    update: {
+      tenantId: tenant.id,
+      name: "Condomínio Edifício Central",
+      cnpj: "12.345.678/0001-00",
+      address: "Rua das Flores, 123",
+      city: "São Paulo",
+      state: "SP",
+      active: true,
+    },
     create: {
       id: "condo-demo-001",
       tenantId: tenant.id,
-      name: "Condomínio Residencial Parque das Flores",
-      cnpj: "12.345.678/0001-90",
-      address: "Rua das Acácias, 100",
+      name: "Condomínio Edifício Central",
+      cnpj: "12.345.678/0001-00",
+      address: "Rua das Flores, 123",
       city: "São Paulo",
       state: "SP",
       active: true,
@@ -139,34 +51,74 @@ async function main() {
   console.log(`✅ Condomínio: ${condominium.name}`);
 
   // ─── UNIDADES ─────────────────────────────────────────────────
-  const unit = await prisma.unit.upsert({
-    where: { id: "unit-demo-101" },
-    update: {},
-    create: {
+  const unitsToSeed = [
+    {
       id: "unit-demo-101",
-      condominiumId: condominium.id,
-      identifier: "101",
+      identifier: "Apt 101",
       floor: "1",
-      ownerName: "João da Silva",
+      ownerName: "Morador Demo",
       ownerEmail: "morador@demo.com",
     },
-  });
-  console.log(`✅ Unidade: ${unit.identifier}`);
+    {
+      id: "unit-demo-201",
+      identifier: "Apt 201",
+      floor: "2",
+      ownerName: null,
+      ownerEmail: null,
+    },
+    {
+      id: "unit-demo-301",
+      identifier: "Apt 301",
+      floor: "3",
+      ownerName: null,
+      ownerEmail: null,
+    },
+  ];
+
+  let unitCount = 0;
+  for (const u of unitsToSeed) {
+    await prisma.unit.upsert({
+      where: { id: u.id },
+      update: {
+        condominiumId: condominium.id,
+        identifier: u.identifier,
+        floor: u.floor,
+        ownerName: u.ownerName ?? undefined,
+        ownerEmail: u.ownerEmail ?? undefined,
+      },
+      create: {
+        id: u.id,
+        condominiumId: condominium.id,
+        identifier: u.identifier,
+        floor: u.floor,
+        ownerName: u.ownerName ?? undefined,
+        ownerEmail: u.ownerEmail ?? undefined,
+      },
+    });
+    unitCount++;
+    console.log(`✅ Unidade: ${u.identifier}`);
+  }
 
   // ─── USUÁRIOS ─────────────────────────────────────────────────
   const users = [
     { id: "user-admin", email: "admin@demo.com", name: "Admin Demo", role: "SUPER_ADMIN" as const },
     { id: "user-sindico", email: "sindico@demo.com", name: "Síndico Demo", role: "CONDOMINIUM" as const },
-    { id: "user-morador", email: "morador@demo.com", name: "João da Silva", role: "CLIENT" as const },
-    { id: "user-parceiro", email: "parceiro@demo.com", name: "Eng. Carlos Oliveira", role: "PARTNER" as const },
+    { id: "user-morador", email: "morador@demo.com", name: "Morador Demo", role: "CLIENT" as const },
+    { id: "user-parceiro", email: "parceiro@demo.com", name: "Parceiro Demo", role: "PARTNER" as const },
   ];
 
   const passwordHash = await hash("senha123");
 
+  let userCount = 0;
   for (const u of users) {
     await prisma.user.upsert({
       where: { email: u.email },
-      update: {},
+      update: {
+        tenantId: tenant.id,
+        name: u.name,
+        role: u.role,
+        active: true,
+      },
       create: {
         id: u.id,
         tenantId: tenant.id,
@@ -178,53 +130,66 @@ async function main() {
         lgpdConsentAt: new Date(),
       },
     });
+    userCount++;
     console.log(`✅ Usuário: ${u.email} (${u.role})`);
   }
 
   // ─── PARCEIRO ─────────────────────────────────────────────────
   await prisma.partner.upsert({
     where: { userId: "user-parceiro" },
-    update: {},
+    update: {
+      tenantId: tenant.id,
+      creaNumber: "SP-123456",
+      type: "ENGINEER",
+      specialties: ["Elétrica", "Hidráulica", "Estrutural"],
+      cities: ["São Paulo"],
+      states: ["SP"],
+      basePrice: 500.0,
+      slaHours: 48,
+      active: true,
+    },
     create: {
       tenantId: tenant.id,
       userId: "user-parceiro",
-      creaNumber: "CREA-SP-123456",
+      creaNumber: "SP-123456",
       type: "ENGINEER",
-      specialties: ["eletrica", "hidraulica", "estrutural"],
-      cities: ["São Paulo", "Guarulhos"],
+      specialties: ["Elétrica", "Hidráulica", "Estrutural"],
+      cities: ["São Paulo"],
       states: ["SP"],
-      basePrice: 1500.0,
-      rating: 4.8,
+      basePrice: 500.0,
       slaHours: 48,
       active: true,
     },
   });
-  console.log(`✅ Parceiro: Eng. Carlos Oliveira`);
+  console.log(`✅ Parceiro: Parceiro Demo (CREA SP-123456)`);
 
-  // ─── POLÍTICA GLOBAL ──────────────────────────────────────────
+  // ─── POLÍTICA GLOBAL PADRÃO ───────────────────────────────────
   const existingPolicy = await prisma.policy.findFirst({
-    where: { tenantId: null, name: "Política Global Padrão" },
+    where: { tenantId: null, name: "Política Padrão Global" },
   });
 
-  let policy = existingPolicy;
-  if (!policy) {
-    policy = await prisma.policy.create({
+  const policy =
+    existingPolicy ??
+    (await prisma.policy.create({
       data: {
         tenantId: null,
-        name: "Política Global Padrão",
-        description: "Regras padrão do sistema para classificação de risco de obras",
+        name: "Política Padrão Global",
+        description: "Regras padrão do sistema para classificação de risco de obras (CLAUDE.md §7).",
         version: 1,
         active: true,
         effectiveFrom: new Date(),
       },
-    });
-  }
+    }));
 
   await prisma.rule.deleteMany({ where: { policyId: policy.id } });
   await prisma.rule.createMany({
     data: DEFAULT_RULES.map((r) => ({
-      policyId: policy!.id,
-      ...r,
+      policyId: policy.id,
+      name: r.name,
+      description: r.description,
+      condition: r.condition,
+      action: r.action,
+      priority: r.priority,
       version: 1,
       active: true,
     })),
@@ -236,28 +201,39 @@ async function main() {
     where: { tenantId: tenant.id, name: "Plano Essencial" },
   });
 
-  if (!existingPlan) {
-    await prisma.commercialPlan.create({
+  if (existingPlan) {
+    await prisma.commercialPlan.update({
+      where: { id: existingPlan.id },
       data: {
-        tenantId: tenant.id,
-        name: "Plano Essencial",
-        description: "Acompanhamento técnico com 3 vistorias inclusas",
-        basePrice: 2500.0,
-        extraInspectionPrice: 450.0,
+        description: "Acompanhamento técnico essencial com 3 vistorias inclusas.",
+        basePrice: 990.0,
+        extraInspectionPrice: 250.0,
         includes: {
           inspections: 3,
-          artAnalysis: true,
-          documentReview: true,
-          technicalReport: true,
-          onlineSupport: true,
+          reports: ["ANALYSIS", "TECHNICAL_OPINION"],
         },
         active: true,
       },
     });
-    console.log(`✅ Plano comercial: Plano Essencial`);
+  } else {
+    await prisma.commercialPlan.create({
+      data: {
+        tenantId: tenant.id,
+        name: "Plano Essencial",
+        description: "Acompanhamento técnico essencial com 3 vistorias inclusas.",
+        basePrice: 990.0,
+        extraInspectionPrice: 250.0,
+        includes: {
+          inspections: 3,
+          reports: ["ANALYSIS", "TECHNICAL_OPINION"],
+        },
+        active: true,
+      },
+    });
   }
+  console.log(`✅ Plano comercial: Plano Essencial`);
 
-  // ─── POLÍTICA PARA O CONDOMÍNIO ───────────────────────────────
+  // ─── POLÍTICA → CONDOMÍNIO ────────────────────────────────────
   const condoPolicyLink = await prisma.condominiumPolicy.findFirst({
     where: { condominiumId: condominium.id, policyId: policy.id },
   });
@@ -269,8 +245,8 @@ async function main() {
         policyId: policy.id,
       },
     });
-    console.log(`✅ Política vinculada ao condomínio`);
   }
+  console.log(`✅ Política vinculada ao condomínio`);
 
   // ─── REPORT SKILLS ────────────────────────────────────────────
   await prisma.reportSkill.upsert({
@@ -285,12 +261,33 @@ async function main() {
   });
   console.log(`✅ ReportSkill: Memorial Descritivo (skill_01NmYp1UkBieZQfd23cxPYri)`);
 
+  // ─── RESUMO ───────────────────────────────────────────────────
+  const [tenantCount, condoCount, totalUnits, totalUsers, ruleCount, partnerCount, planCount] =
+    await Promise.all([
+      prisma.tenant.count(),
+      prisma.condominium.count(),
+      prisma.unit.count(),
+      prisma.user.count(),
+      prisma.rule.count(),
+      prisma.partner.count(),
+      prisma.commercialPlan.count(),
+    ]);
+
+  console.log("\n📊 Resumo do seed:");
+  console.log(`  Tenants:         ${tenantCount}`);
+  console.log(`  Condomínios:     ${condoCount}`);
+  console.log(`  Unidades:        ${totalUnits} (target: ${unitCount} novas/atualizadas nesta execução)`);
+  console.log(`  Usuários:        ${totalUsers} (target: ${userCount} nesta execução)`);
+  console.log(`  Regras:          ${ruleCount}`);
+  console.log(`  Parceiros:       ${partnerCount}`);
+  console.log(`  Planos:          ${planCount}`);
+
   console.log("\n🎉 Seed concluído com sucesso!\n");
-  console.log("Credenciais de acesso:");
-  console.log("  admin@demo.com     / senha123 (SUPER_ADMIN)");
-  console.log("  sindico@demo.com   / senha123 (CONDOMINIUM)");
-  console.log("  morador@demo.com   / senha123 (CLIENT)");
-  console.log("  parceiro@demo.com  / senha123 (PARTNER)");
+  console.log("Credenciais de acesso (senha: senha123):");
+  console.log("  admin@demo.com     SUPER_ADMIN");
+  console.log("  sindico@demo.com   CONDOMINIUM");
+  console.log("  morador@demo.com   CLIENT");
+  console.log("  parceiro@demo.com  PARTNER");
 }
 
 main()
