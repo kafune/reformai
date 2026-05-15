@@ -41,6 +41,7 @@ function LoginForm() {
           onChange={(e) => setEmail(e.target.value)}
           className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm"
           required
+          data-testid="login-email"
         />
       </label>
       <label className="block">
@@ -51,13 +52,15 @@ function LoginForm() {
           onChange={(e) => setPassword(e.target.value)}
           className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm"
           required
+          data-testid="login-password"
         />
       </label>
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-red-600" data-testid="login-error">{error}</p>}
       <button
         type="submit"
         disabled={loading}
         className="w-full rounded bg-brand-accent text-white py-2 text-sm font-medium disabled:opacity-50"
+        data-testid="login-submit"
       >
         {loading ? "Entrando…" : "Entrar"}
       </button>

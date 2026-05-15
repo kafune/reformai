@@ -83,7 +83,7 @@ export function DocumentList({ caseId, initialDocuments }: { caseId: string; ini
   return (
     <ul className="bg-white border border-slate-200 rounded-lg divide-y divide-slate-200">
       {documents.map((doc) => (
-        <li key={doc.id} className="p-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+        <li key={doc.id} className="p-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4" data-testid="document-list-item">
           <div className="flex-1 min-w-0">
             <p className="font-medium text-sm text-slate-900 truncate" title={doc.fileName}>
               {doc.fileName}

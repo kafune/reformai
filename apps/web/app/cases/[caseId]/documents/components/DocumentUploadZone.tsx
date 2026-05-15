@@ -96,17 +96,19 @@ export function DocumentUploadZone({ caseId }: { caseId: string }) {
           accept={ALLOWED_MIME.join(",")}
           onChange={(e) => pickFile(e.target.files?.[0] ?? null)}
           className="hidden"
+          data-testid="document-file-input"
         />
         <p className="mt-2 text-xs text-slate-500">PDF, JPEG, PNG, WEBP — máx. 20 MB</p>
         {file && <p className="mt-2 text-xs text-slate-800">Selecionado: {file.name}</p>}
       </div>
 
-      {error && <p className="text-xs text-red-600">{error}</p>}
+      {error && <p className="text-xs text-red-600" data-testid="document-upload-error">{error}</p>}
 
       <button
         type="submit"
         disabled={uploading || !file}
         className="w-full sm:w-auto rounded bg-brand-accent px-4 py-2 text-sm text-white disabled:opacity-50"
+        data-testid="document-upload-submit"
       >
         {uploading ? "Enviando…" : "Enviar documento"}
       </button>

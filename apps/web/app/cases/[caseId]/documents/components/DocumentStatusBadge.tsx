@@ -12,7 +12,10 @@ const STATUS_MAP: Record<DocStatus, { label: string; className: string }> = {
 export function DocumentStatusBadge({ status }: { status: DocStatus }) {
   const entry = STATUS_MAP[status]
   return (
-    <span className={`inline-block rounded-full border px-2 py-0.5 text-xs font-medium ${entry.className}`}>
+    <span
+      className={`inline-block rounded-full border px-2 py-0.5 text-xs font-medium ${entry.className}`}
+      data-testid="document-status-badge"
+    >
       {entry.label}
     </span>
   )

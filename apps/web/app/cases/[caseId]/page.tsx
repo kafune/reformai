@@ -62,7 +62,7 @@ export default function CaseDetailPage() {
       <header className="mb-6 flex items-center justify-between">
         <div>
           <Link href="/cases" className="text-sm text-slate-500 underline">← Voltar</Link>
-          <h1 className="text-2xl font-semibold mt-1">{data.protocol}</h1>
+          <h1 className="text-2xl font-semibold mt-1" data-testid="case-protocol">{data.protocol}</h1>
           <Link
             href={`/cases/${caseId}/documents`}
             className="mt-2 inline-block text-sm text-brand-accent underline"
@@ -71,8 +71,8 @@ export default function CaseDetailPage() {
           </Link>
         </div>
         <div className="text-right text-sm space-y-1">
-          <p><span className="font-medium">Status:</span> {data.status}</p>
-          {data.riskLevel && <p><span className="font-medium">Risco:</span> {data.riskLevel} ({data.triageScore})</p>}
+          <p><span className="font-medium">Status:</span> <span data-testid="case-status">{data.status}</span></p>
+          {data.riskLevel && <p><span className="font-medium">Risco:</span> <span data-testid="case-risk-level">{data.riskLevel}</span> ({data.triageScore})</p>}
           {data.requiresART !== null && (
             <p><span className="font-medium">Exige ART:</span> {data.requiresART ? "Sim" : "Não"}</p>
           )}
@@ -92,6 +92,7 @@ export default function CaseDetailPage() {
               return (
                 <div
                   key={m.id}
+                  data-testid={isUser ? "chat-message-user" : "chat-message-assistant"}
                   className={`max-w-[80%] rounded-lg px-3 py-2 text-sm whitespace-pre-wrap ${
                     isUser ? "ml-auto bg-brand-accent text-white" : "bg-slate-100"
                   }`}
@@ -109,11 +110,13 @@ export default function CaseDetailPage() {
               placeholder="Descreva a reforma…"
               className="flex-1 rounded border border-slate-300 px-3 py-2 text-sm"
               disabled={sending}
+              data-testid="chat-input"
             />
             <button
               type="submit"
               disabled={sending || !input.trim()}
               className="rounded bg-brand-accent px-4 py-2 text-sm text-white disabled:opacity-50"
+              data-testid="chat-send"
             >
               {sending ? "Enviando…" : "Enviar"}
             </button>
@@ -121,7 +124,7 @@ export default function CaseDetailPage() {
         </section>
 
         <aside className="space-y-4">
-          <div className="bg-white border border-slate-200 rounded-lg p-4">
+          <div className="bg-white border border-slate-200 rounded-lg p-4" data-testid="evaluation-result">
             <h2 className="font-medium mb-2 text-sm">Regras disparadas</h2>
             {triggered.length === 0 ? (
               <p className="text-xs text-slate-500">Aguardando classificação</p>

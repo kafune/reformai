@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useSession } from "next-auth/react"
+import { signOut, useSession } from "next-auth/react"
 
 interface CaseRow {
   id: string
@@ -57,7 +57,14 @@ export default function CasesPage() {
           <h1 className="text-2xl font-semibold">Meus casos</h1>
           <p className="text-sm text-slate-500">{session?.user?.name} · {session?.user?.email}</p>
         </div>
-        <Link href="/api/auth/signout" className="text-sm text-slate-600 underline">Sair</Link>
+        <button
+          type="button"
+          onClick={() => signOut({ callbackUrl: "/login" })}
+          className="text-sm text-slate-600 underline"
+          data-testid="logout-link"
+        >
+          Sair
+        </button>
       </header>
 
       <section className="bg-white border border-slate-200 rounded-lg p-4 mb-6">
@@ -67,6 +74,7 @@ export default function CasesPage() {
             value={selectedUnit}
             onChange={(e) => setSelectedUnit(e.target.value)}
             className="flex-1 rounded border border-slate-300 px-3 py-2 text-sm"
+            data-testid="unit-select"
           >
             {units.length === 0 && <option value="">Nenhuma unidade disponível</option>}
             {units.map((u) => (
@@ -79,6 +87,7 @@ export default function CasesPage() {
             onClick={createCase}
             disabled={!selectedUnit || creating}
             className="rounded bg-brand-accent px-4 py-2 text-sm text-white disabled:opacity-50"
+            data-testid="create-case-button"
           >
             {creating ? "Criando…" : "Iniciar triagem"}
           </button>
@@ -92,10 +101,11 @@ export default function CasesPage() {
             key={c.id}
             href={`/cases/${c.id}`}
             className="block bg-white border border-slate-200 rounded-lg px-4 py-3 hover:border-slate-300"
+            data-testid="case-list-item"
           >
             <div className="flex justify-between items-center">
               <div>
-                <p className="font-medium">{c.protocol}</p>
+                <p className="font-medium" data-testid="case-protocol">{c.protocol}</p>
                 <p className="text-xs text-slate-500">{new Date(c.createdAt).toLocaleString("pt-BR")}</p>
               </div>
               <div className="text-right text-xs">
