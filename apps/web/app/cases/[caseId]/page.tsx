@@ -63,6 +63,12 @@ export default function CaseDetailPage() {
         <div>
           <Link href="/cases" className="text-sm text-slate-500 underline">← Voltar</Link>
           <h1 className="text-2xl font-semibold mt-1">{data.protocol}</h1>
+          <Link
+            href={`/cases/${caseId}/documents`}
+            className="mt-2 inline-block text-sm text-brand-accent underline"
+          >
+            Documentos do caso →
+          </Link>
         </div>
         <div className="text-right text-sm space-y-1">
           <p><span className="font-medium">Status:</span> {data.status}</p>
