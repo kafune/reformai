@@ -1,0 +1,5 @@
+-- AlterEnum
+ALTER TYPE "ReportType" ADD VALUE 'MEMORIAL_DESCRITIVO';
+
+-- AlterEnum
+ALTER TYPE "ReportType" ADD VALUE 'CRONOGRAMA';
