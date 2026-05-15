@@ -1,0 +1,39 @@
+# syntax=docker/dockerfile:1.7
+FROM oven/bun:1.3.10 AS base
+WORKDIR /app
+
+# ─── deps ──────────────────────────────────────────────────────
+FROM base AS deps
+COPY package.json bun.lock turbo.json ./
+COPY apps/web/package.json ./apps/web/package.json
+COPY packages/database/package.json ./packages/database/package.json
+RUN bun install --frozen-lockfile
+
+# ─── build ─────────────────────────────────────────────────────
+FROM base AS build
+ENV NEXT_TELEMETRY_DISABLED=1
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules
+COPY . .
+RUN bun run --cwd packages/database db:generate
+RUN bun run --cwd apps/web build
+
+# ─── runtime ───────────────────────────────────────────────────
+FROM base AS runtime
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV PORT=3000
+
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/apps/web/node_modules ./apps/web/node_modules
+COPY --from=build /app/apps/web/.next ./apps/web/.next
+COPY --from=build /app/apps/web/public ./apps/web/public
+COPY --from=build /app/apps/web/package.json ./apps/web/package.json
+COPY --from=build /app/apps/web/next.config.mjs ./apps/web/next.config.mjs
+COPY --from=build /app/packages/database ./packages/database
+COPY --from=build /app/package.json ./package.json
+
+EXPOSE 3000
+
+# Roda migrations idempotentes antes de subir o servidor
+CMD ["sh", "-c", "bun run --cwd packages/database db:migrate:deploy && bun run --cwd apps/web start -p ${PORT}"]

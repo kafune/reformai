@@ -1,0 +1,29 @@
+# syntax=docker/dockerfile:1.7
+FROM oven/bun:1.3.10 AS base
+WORKDIR /app
+
+# ─── deps ──────────────────────────────────────────────────────
+FROM base AS deps
+COPY package.json bun.lock turbo.json ./
+COPY apps/web/package.json ./apps/web/package.json
+COPY packages/database/package.json ./packages/database/package.json
+RUN bun install --frozen-lockfile
+
+# ─── build (gera Prisma client) ────────────────────────────────
+FROM base AS build
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules
+COPY . .
+RUN bun run --cwd packages/database db:generate
+
+# ─── runtime ───────────────────────────────────────────────────
+FROM base AS runtime
+ENV NODE_ENV=production
+
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/apps/web ./apps/web
+COPY --from=build /app/packages ./packages
+COPY --from=build /app/package.json ./package.json
+
+# Worker é um processo de longa duração; sem porta exposta.
+CMD ["bun", "run", "--cwd", "apps/web", "src/workers/document-worker.ts"]
