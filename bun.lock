@@ -54,6 +54,15 @@
         "prisma": "^6.6.0",
       },
     },
+    "packages/templates": {
+      "name": "@reformai/templates",
+      "version": "0.0.1",
+      "devDependencies": {
+        "@types/node": "^22.9.0",
+        "typescript": "^5.6.3",
+        "vitest": "^2.1.5",
+      },
+    },
   },
   "packages": {
     "@alloc/quick-lru": ["@alloc/quick-lru@5.2.0", "", {}, "sha512-UrcABB+4bUrFABwbluTIBErXwvbsU/V7TZWfmbgJfbkwiBuziS9gxdODUyuiecfdGQ85jglMW6juS3+z5TsKLw=="],
@@ -307,6 +316,8 @@
     "@prisma/get-platform": ["@prisma/get-platform@6.19.3", "", { "dependencies": { "@prisma/debug": "6.19.3" } }, "sha512-xFj1VcJ1N3MKooOQAGO0W5tsd0W2QzIvW7DD7c/8H14Zmp4jseeWAITm+w2LLoLrlhoHdPPh0NMZ8mfL6puoHA=="],
 
     "@reformai/database": ["@reformai/database@workspace:packages/database"],
+
+    "@reformai/templates": ["@reformai/templates@workspace:packages/templates"],
 
     "@reformai/web": ["@reformai/web@workspace:apps/web"],
 
