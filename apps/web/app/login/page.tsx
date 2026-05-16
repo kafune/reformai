@@ -46,25 +46,25 @@ function LoginForm() {
 
   return (
     <div
-      className="rai min-h-screen"
+      className="rai h-screen overflow-hidden"
       style={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}
     >
       {/* Left — form */}
-      <div className="flex flex-col bg-paper px-20 py-16">
+      <div className="flex flex-col overflow-y-auto bg-paper px-16 py-10">
         <Logo size={32} variant="lockup" />
 
         <div className="flex flex-1 flex-col justify-center" style={{ maxWidth: 360 }}>
           <p className="font-mono text-xs uppercase tracking-caps text-green-700">
             Entrar
           </p>
-          <h1 className="mt-2.5 text-3xl font-semibold tracking-tight text-ink-900">
+          <h1 className="mt-2 text-2xl font-semibold tracking-tight text-ink-900">
             Bem-vindo de volta.
           </h1>
-          <p className="mb-7 mt-1.5 text-base text-ink-500">
+          <p className="mb-5 mt-1.5 text-base text-ink-500">
             Sua reforma começa aqui. A IA conduz, mas você decide.
           </p>
 
-          <form onSubmit={onSubmit} className="flex flex-col gap-4">
+          <form onSubmit={onSubmit} className="flex flex-col gap-3">
             <Input
               label="E-mail"
               type="email"
@@ -128,7 +128,7 @@ function LoginForm() {
             </Button>
           </form>
 
-          <div className="mt-10 border-t border-divider pt-5 text-xs leading-relaxed text-ink-500">
+          <div className="mt-6 border-t border-divider pt-4 text-xs leading-relaxed text-ink-500">
             Ao continuar, você concorda com os{" "}
             <a href="#" className="text-ink-700 underline">
               Termos
@@ -151,7 +151,7 @@ function LoginForm() {
 
       {/* Right — concreto verde */}
       <div
-        className="relative flex flex-col justify-between overflow-hidden px-16 py-16"
+        className="relative flex flex-col justify-between overflow-hidden px-14 py-10"
         style={{ background: "var(--rai-green-900)", color: "var(--rai-bone-50)" }}
       >
         {/* decorative circles */}
@@ -196,7 +196,7 @@ function LoginForm() {
             Liberação por regra.
           </h2>
 
-          <div className="mt-8 grid gap-[18px]" style={{ maxWidth: 420 }}>
+          <div className="mt-6 grid gap-3" style={{ maxWidth: 420 }}>
             {[
               [
                 "01",
