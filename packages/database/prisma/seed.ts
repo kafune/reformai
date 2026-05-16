@@ -118,6 +118,7 @@ async function main() {
         name: u.name,
         role: u.role,
         active: true,
+        condominiumId: u.role === "CONDOMINIUM" ? condominium.id : null,
       },
       create: {
         id: u.id,
@@ -128,6 +129,7 @@ async function main() {
         role: u.role,
         active: true,
         lgpdConsentAt: new Date(),
+        condominiumId: u.role === "CONDOMINIUM" ? condominium.id : null,
       },
     });
     userCount++;

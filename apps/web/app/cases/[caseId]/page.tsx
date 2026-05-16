@@ -12,7 +12,6 @@ import {
   AIMessage,
   UserMessage,
   Button,
-  Badge,
   Icon,
   Eyebrow,
 } from "@/interfaces/components/ui"
@@ -79,9 +78,7 @@ export default function CaseDetailPage() {
         subtitle="Triagem do caso — IA conduz, você decide."
         actions={
           <>
-            <Badge tone="azulejo" dot>
-              {data.status.replace(/_/g, " ").toLowerCase()}
-            </Badge>
+            <StatusChip status={data.status} />
             <Link href={`/cases/${caseId}/documents`}>
               <Button variant="secondary" icon="doc" size="sm">
                 Documentos

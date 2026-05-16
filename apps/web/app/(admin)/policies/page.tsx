@@ -12,8 +12,9 @@ export default async function PoliciesPage() {
   if (!user) redirect("/login")
   if (!ADMIN_ROLES.has(user.role)) redirect("/cases")
 
+  // Inclui políticas do tenant E as globais (tenantId null governam todos).
   const policies = await prisma.policy.findMany({
-    where: { tenantId: user.tenantId },
+    where: { OR: [{ tenantId: user.tenantId }, { tenantId: null }] },
     include: { rules: true },
     orderBy: { createdAt: "desc" },
   })
@@ -52,7 +53,12 @@ export default async function PoliciesPage() {
                   className="grid grid-cols-[1fr_80px_80px_140px_100px] items-center gap-4 px-5 py-4 transition-colors hover:bg-bone-50"
                 >
                   <div>
-                    <div className="text-sm font-medium text-ink-900">{policy.name}</div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-ink-900">{policy.name}</span>
+                      {policy.tenantId === null && (
+                        <Badge tone="azulejo">Global</Badge>
+                      )}
+                    </div>
                     {policy.description && (
                       <div className="mt-0.5 text-xs text-ink-500">{policy.description}</div>
                     )}
