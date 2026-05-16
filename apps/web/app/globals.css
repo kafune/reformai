@@ -2,5 +2,150 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================
+   ReformAI — Design Tokens · "Concreto Verde"
+   Modernismo brasileiro × precisão de canteiro.
+   Fonte: handoff do Claude Design (tokens.css).
+   ============================================================ */
+
+:root {
+  /* ── Verde-canteiro (primária) ───────────────────────────── */
+  --rai-green-950: #0A1812;
+  --rai-green-900: #0F2419;
+  --rai-green-800: #163528;
+  --rai-green-700: #1F4A37;
+  --rai-green-600: #2A6249;
+  --rai-green-500: #3A8163;
+  --rai-green-400: #6BAA8B;
+  --rai-green-300: #9FC9B3;
+  --rai-green-200: #CCE2D6;
+  --rai-green-100: #E5F0EA;
+  --rai-green-50:  #F2F8F4;
+
+  /* ── Bone / Concreto (neutros quentes) ───────────────────── */
+  --rai-bone-50:   #FBF8F1;
+  --rai-bone-100:  #F5F0E4;
+  --rai-bone-200:  #EBE4D0;
+  --rai-bone-300:  #D8CFB5;
+  --rai-bone-400:  #B7AC8B;
+  --rai-bone-500:  #8B8163;
+
+  /* ── Ink (escuros quentes) ───────────────────────────────── */
+  --rai-ink-900:   #14130D;
+  --rai-ink-800:   #1E1C14;
+  --rai-ink-700:   #2A271C;
+  --rai-ink-600:   #3E3A2D;
+  --rai-ink-500:   #5C5742;
+  --rai-ink-400:   #7E7860;
+  --rai-ink-300:   #A5A089;
+  --rai-ink-200:   #C9C5B0;
+  --rai-ink-100:   #E2DECB;
+
+  /* ── Acentos brasileiros ─────────────────────────────────── */
+  --rai-clay-600:  #B0532A;
+  --rai-clay-500:  #C96A3D;
+  --rai-clay-400:  #DA8D62;
+  --rai-clay-300:  #EBB28F;
+  --rai-clay-100:  #F8E4D5;
+
+  --rai-ochre-700: #8C6618;
+  --rai-ochre-600: #A77E1F;
+  --rai-ochre-500: #C49830;
+  --rai-ochre-400: #DDB75A;
+  --rai-ochre-300: #ECCF8A;
+  --rai-ochre-100: #F7EBC4;
+
+  --rai-iron-700:  #832220;
+  --rai-iron-600:  #9C2D2A;
+  --rai-iron-500:  #B43F3A;
+  --rai-iron-300:  #E6A8A4;
+  --rai-iron-100:  #F4D8D5;
+
+  --rai-azulejo-700: #1F4F6A;
+  --rai-azulejo-600: #2A6A8A;
+  --rai-azulejo-500: #4286A5;
+  --rai-azulejo-300: #9FC1D3;
+  --rai-azulejo-100: #DCEAF1;
+
+  --rai-violet-600: #5A4596;
+  --rai-violet-500: #7864B0;
+  --rai-violet-300: #BDB1D8;
+  --rai-violet-100: #E4DEF0;
+
+  /* ── Semânticos · superfície ─────────────────────────────── */
+  --rai-bg:           var(--rai-bone-50);
+  --rai-surface:      #FFFFFF;
+  --rai-surface-2:    var(--rai-bone-100);
+  --rai-surface-3:    var(--rai-bone-200);
+  --rai-overlay:      rgba(20, 19, 13, 0.55);
+
+  --rai-text:         var(--rai-ink-900);
+  --rai-text-muted:   var(--rai-ink-500);
+  --rai-text-faint:   var(--rai-ink-400);
+  --rai-text-on-dark: var(--rai-bone-50);
+
+  --rai-border:        rgba(20, 19, 13, 0.10);
+  --rai-border-strong: rgba(20, 19, 13, 0.18);
+  --rai-divider:       rgba(20, 19, 13, 0.06);
+
+  /* ── Risco (state-driven) ────────────────────────────────── */
+  --rai-risk-low-bg:   var(--rai-green-100);
+  --rai-risk-low-fg:   var(--rai-green-800);
+  --rai-risk-low-edge: var(--rai-green-500);
+
+  --rai-risk-med-bg:   var(--rai-ochre-100);
+  --rai-risk-med-fg:   var(--rai-ochre-700);
+  --rai-risk-med-edge: var(--rai-ochre-500);
+
+  --rai-risk-high-bg:   var(--rai-clay-100);
+  --rai-risk-high-fg:   var(--rai-clay-600);
+  --rai-risk-high-edge: var(--rai-clay-500);
+
+  --rai-risk-crit-bg:   var(--rai-iron-100);
+  --rai-risk-crit-fg:   var(--rai-iron-700);
+  --rai-risk-crit-edge: var(--rai-iron-600);
+
+  /* ── Status do caso (8 famílias visuais) ─────────────────── */
+  --rai-status-draft-bg:    var(--rai-bone-200);
+  --rai-status-draft-fg:    var(--rai-ink-600);
+  --rai-status-progress-bg: var(--rai-azulejo-100);
+  --rai-status-progress-fg: var(--rai-azulejo-700);
+  --rai-status-review-bg:   var(--rai-violet-100);
+  --rai-status-review-fg:   var(--rai-violet-600);
+  --rai-status-attention-bg:var(--rai-ochre-100);
+  --rai-status-attention-fg:var(--rai-ochre-700);
+  --rai-status-blocked-bg:  var(--rai-iron-100);
+  --rai-status-blocked-fg:  var(--rai-iron-700);
+  --rai-status-ok-bg:       var(--rai-green-100);
+  --rai-status-ok-fg:       var(--rai-green-800);
+  --rai-status-done-bg:     var(--rai-green-800);
+  --rai-status-done-fg:     var(--rai-bone-50);
+  --rai-status-archived-bg: var(--rai-ink-100);
+  --rai-status-archived-fg: var(--rai-ink-500);
+
+  /* ── Tipografia (famílias via next/font) ─────────────────── */
+  --rai-font-sans: var(--font-plex-sans), -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --rai-font-mono: var(--font-plex-mono), ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* ── Sombra (matte, "concreto") ──────────────────────────── */
+  --rai-shadow-1: 0 1px 0 rgba(20,19,13,.04), 0 1px 2px rgba(20,19,13,.04);
+  --rai-shadow-2: 0 1px 0 rgba(20,19,13,.04), 0 4px 12px rgba(20,19,13,.06);
+  --rai-shadow-3: 0 2px 0 rgba(20,19,13,.04), 0 12px 28px rgba(20,19,13,.10);
+  --rai-shadow-4: 0 2px 0 rgba(20,19,13,.04), 0 24px 56px rgba(20,19,13,.16);
+}
+
 html, body { height: 100%; }
-body { @apply bg-slate-50 text-slate-900 antialiased; }
+
+body {
+  background: var(--rai-bg);
+  color: var(--rai-text);
+  font-family: var(--rai-font-sans);
+  font-feature-settings: "ss01", "cv11";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: var(--rai-green-200);
+  color: var(--rai-green-900);
+}
