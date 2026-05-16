@@ -3,24 +3,11 @@ import { redirect } from "next/navigation"
 import { getSessionUser } from "@/infrastructure/auth/getSessionUser"
 import { prisma } from "@/infrastructure/database/prisma"
 import { RiskLevel } from "@reformai/database"
+import { TopBar, RiskBadge, StatusChip, Eyebrow } from "@/interfaces/components/ui"
 
 export const dynamic = "force-dynamic"
 
 const ADMIN_ROLES = new Set(["SUPER_ADMIN", "ADMIN"])
-
-const RISK_BADGE: Record<RiskLevel, string> = {
-  LOW: "bg-green-100 text-green-700",
-  MEDIUM: "bg-amber-100 text-amber-700",
-  HIGH: "bg-orange-100 text-orange-700",
-  CRITICAL: "bg-red-100 text-red-700",
-}
-
-const RISK_LABELS: Record<RiskLevel, string> = {
-  LOW: "Baixo",
-  MEDIUM: "Médio",
-  HIGH: "Alto",
-  CRITICAL: "Crítico",
-}
 
 export default async function ReviewQueuePage() {
   const user = await getSessionUser()
@@ -43,66 +30,80 @@ export default async function ReviewQueuePage() {
   })
 
   return (
-    <div className="p-8 max-w-5xl mx-auto">
-      <header className="mb-6">
-        <h1 className="text-2xl font-semibold text-zinc-900">Fila de Revisão Humana</h1>
-        <p className="text-sm text-zinc-500 mt-1">{cases.length} caso(s) aguardando revisão</p>
-      </header>
+    <>
+      <TopBar
+        title="Fila de Revisão Humana"
+        subtitle={`${cases.length} caso(s) aguardando revisão`}
+      />
 
-      {cases.length === 0 ? (
-        <div className="bg-white border border-slate-200 rounded-lg p-8 text-center text-slate-500">
-          Nenhum caso aguardando revisão humana.
-        </div>
-      ) : (
-        <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 border-b border-slate-200">
-              <tr>
-                <th className="text-left px-4 py-3 font-medium text-slate-600">Protocolo</th>
-                <th className="text-left px-4 py-3 font-medium text-slate-600">Condomínio · Unidade</th>
-                <th className="text-left px-4 py-3 font-medium text-slate-600">Risco</th>
-                <th className="text-left px-4 py-3 font-medium text-slate-600">Score</th>
-                <th className="text-left px-4 py-3 font-medium text-slate-600">Criado em</th>
-                <th className="px-4 py-3"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
+      <div className="flex-1 overflow-auto bg-bone-50 px-8 py-8">
+        {cases.length === 0 ? (
+          <div className="rounded-lg bg-surface p-12 text-center shadow-hair">
+            <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-green-100">
+              <span className="h-3 w-3 rounded-full bg-green-500" />
+            </div>
+            <p className="text-sm font-medium text-ink-700">Fila vazia</p>
+            <p className="mt-1 text-sm text-ink-400">Nenhum caso aguardando revisão humana.</p>
+          </div>
+        ) : (
+          <div className="overflow-hidden rounded-lg bg-surface shadow-hair">
+            {/* Table header */}
+            <div className="grid grid-cols-[120px_1fr_160px_80px_120px_80px] items-center gap-4 border-b border-divider bg-bone-50 px-5 py-3">
+              <Eyebrow>Protocolo</Eyebrow>
+              <Eyebrow>Condomínio · Unidade</Eyebrow>
+              <Eyebrow>Risco</Eyebrow>
+              <Eyebrow>Score</Eyebrow>
+              <Eyebrow>Criado em</Eyebrow>
+              <span />
+            </div>
+
+            {/* Table rows */}
+            <div className="divide-y divide-divider">
               {cases.map((c) => (
-                <tr key={c.id} className="hover:bg-slate-50 transition-colors" data-testid="review-queue-item">
-                  <td className="px-4 py-3 font-mono text-xs font-medium">{c.protocol}</td>
-                  <td className="px-4 py-3 text-slate-600">
-                    {c.condominium.name} &middot; Un.&nbsp;{c.unit.identifier}
-                  </td>
-                  <td className="px-4 py-3">
+                <div
+                  key={c.id}
+                  className="grid grid-cols-[120px_1fr_160px_80px_120px_80px] items-center gap-4 px-5 py-4 transition-colors hover:bg-bone-50"
+                  data-testid="review-queue-item"
+                >
+                  <span className="font-mono text-xs font-medium text-ink-500">
+                    {c.protocol}
+                  </span>
+                  <div>
+                    <div className="text-sm font-medium text-ink-900">{c.condominium.name}</div>
+                    <div className="mt-0.5 text-xs text-ink-500">Un.&nbsp;{c.unit.identifier}</div>
+                  </div>
+                  <div>
                     {c.riskLevel ? (
-                      <span
-                        className={`px-2 py-0.5 rounded text-xs font-medium ${RISK_BADGE[c.riskLevel as RiskLevel]}`}
-                      >
-                        {RISK_LABELS[c.riskLevel as RiskLevel]}
-                      </span>
+                      <RiskBadge
+                        level={c.riskLevel as RiskLevel}
+                        score={c.triageScore ?? undefined}
+                        size="sm"
+                      />
                     ) : (
-                      <span className="text-slate-400">—</span>
+                      <span className="text-sm text-ink-300">—</span>
                     )}
-                  </td>
-                  <td className="px-4 py-3 text-slate-600">{c.triageScore ?? "—"}</td>
-                  <td className="px-4 py-3 text-slate-500">
+                  </div>
+                  <span className="font-mono text-sm text-ink-600">
+                    {c.triageScore ?? "—"}
+                  </span>
+                  <span className="font-mono text-xs text-ink-500">
                     {new Date(c.createdAt).toLocaleDateString("pt-BR")}
-                  </td>
-                  <td className="px-4 py-3 text-right">
+                  </span>
+                  <div className="flex justify-end">
                     <Link
                       href={`/review-queue/${c.id}`}
-                      className="text-xs font-medium text-blue-600 hover:text-blue-800"
+                      className="inline-flex h-8 items-center gap-1.5 rounded-sm border border-ink-900 px-3 text-xs font-medium text-ink-900 transition-colors hover:bg-ink-900 hover:text-bone-50"
                       data-testid="review-queue-link"
                     >
-                      Revisar &rarr;
+                      Revisar →
                     </Link>
-                  </td>
-                </tr>
+                  </div>
+                </div>
               ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </>
   )
 }

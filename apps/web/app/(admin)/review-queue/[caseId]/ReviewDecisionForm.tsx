@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { Button } from "@/interfaces/components/ui"
 
 interface ReviewDecisionFormProps {
   caseId: string
@@ -59,30 +60,57 @@ export function ReviewDecisionForm({ caseId }: ReviewDecisionFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-5">
+      {/* Decision options */}
       <fieldset>
-        <legend className="text-sm font-medium text-zinc-700 mb-2">Decisão</legend>
-        <div className="space-y-2">
-          {DECISION_OPTIONS.map((opt) => (
-            <label key={opt.value} className="flex items-start gap-2 cursor-pointer">
-              <input
-                type="radio"
-                name="decision"
-                value={opt.value}
-                checked={decision === opt.value}
-                onChange={() => setDecision(opt.value)}
-                className="mt-0.5"
-                data-testid={`review-decision-${opt.value}`}
-              />
-              <span className="text-sm text-zinc-700">{opt.label}</span>
-            </label>
-          ))}
+        <legend className="mb-3 text-sm font-medium text-ink-700">Decisão</legend>
+        <div className="flex flex-col gap-2">
+          {DECISION_OPTIONS.map((opt) => {
+            const selected = decision === opt.value
+            return (
+              <label
+                key={opt.value}
+                className={`flex cursor-pointer items-center gap-3 rounded-sm border px-4 py-3 transition-colors ${
+                  selected
+                    ? "border-green-700 bg-green-50"
+                    : "border-line-strong bg-surface hover:bg-bone-50"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="decision"
+                  value={opt.value}
+                  checked={selected}
+                  onChange={() => setDecision(opt.value)}
+                  className="sr-only"
+                  data-testid={`review-decision-${opt.value}`}
+                />
+                {/* Custom radio indicator */}
+                <span
+                  className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
+                    selected ? "border-green-700 bg-green-700" : "border-ink-300 bg-surface"
+                  }`}
+                >
+                  {selected && (
+                    <span className="h-1.5 w-1.5 rounded-full bg-bone-50" />
+                  )}
+                </span>
+                <span
+                  className={`text-sm ${selected ? "font-medium text-green-800" : "text-ink-700"}`}
+                >
+                  {opt.label}
+                </span>
+              </label>
+            )
+          })}
         </div>
       </fieldset>
 
-      <div>
-        <label htmlFor="notes" className="block text-sm font-medium text-zinc-700 mb-1">
-          Justificativa <span className="text-slate-400">(mínimo 10 caracteres)</span>
+      {/* Notes */}
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="notes" className="text-sm font-medium text-ink-700">
+          Justificativa{" "}
+          <span className="font-normal text-ink-400">(mínimo 10 caracteres)</span>
         </label>
         <textarea
           id="notes"
@@ -90,26 +118,45 @@ export function ReviewDecisionForm({ caseId }: ReviewDecisionFormProps) {
           onChange={(e) => setNotes(e.target.value)}
           rows={4}
           placeholder="Descreva a justificativa para a decisão..."
-          className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full rounded-sm border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink-900 placeholder:text-ink-300 focus:border-green-700 focus:outline-none focus:ring-1 focus:ring-green-700"
           data-testid="review-notes"
         />
-        <p className="text-xs text-slate-400 mt-1">{notes.trim().length} / 10 caracteres mínimos</p>
+        <p className="font-mono text-xs text-ink-400">
+          {notes.trim().length} / 10 caracteres mínimos
+        </p>
       </div>
 
+      {/* Error */}
       {error && (
-        <div className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-          {error}
+        <div className="flex gap-2.5 rounded-sm border border-iron-200 bg-iron-50 px-3 py-2.5">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 16 16"
+            fill="none"
+            stroke="var(--rai-iron-600)"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="mt-0.5 shrink-0"
+            aria-hidden="true"
+          >
+            <path d="M8 2l6 12H2L8 2zM8 6v3M8 11v1" />
+          </svg>
+          <p className="text-sm text-iron-700">{error}</p>
         </div>
       )}
 
-      <button
+      {/* Submit */}
+      <Button
         type="submit"
+        variant="primary"
+        size="md"
         disabled={loading || !decision || notes.trim().length < 10}
-        className="rounded bg-blue-600 px-5 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
         data-testid="review-submit"
       >
         {loading ? "Registrando…" : "Registrar decisão"}
-      </button>
+      </Button>
     </form>
   )
 }

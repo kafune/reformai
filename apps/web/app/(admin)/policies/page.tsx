@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation"
 import { getSessionUser } from "@/infrastructure/auth/getSessionUser"
 import { prisma } from "@/infrastructure/database/prisma"
+import { TopBar, Eyebrow, Badge } from "@/interfaces/components/ui"
 
 export const dynamic = "force-dynamic"
 
@@ -18,59 +19,60 @@ export default async function PoliciesPage() {
   })
 
   return (
-    <div className="p-8 max-w-5xl mx-auto">
-      <header className="mb-6">
-        <h1 className="text-2xl font-semibold text-zinc-900">Políticas</h1>
-        <p className="text-sm text-zinc-500 mt-1">{policies.length} política(s) cadastrada(s)</p>
-      </header>
+    <>
+      <TopBar
+        title="Políticas"
+        subtitle={`${policies.length} política(s) cadastrada(s)`}
+      />
 
-      {policies.length === 0 ? (
-        <div className="bg-white border border-slate-200 rounded-lg p-8 text-center text-slate-500">
-          Nenhuma política cadastrada para este tenant.
-        </div>
-      ) : (
-        <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 border-b border-slate-200">
-              <tr>
-                <th className="text-left px-4 py-3 font-medium text-slate-600">Nome</th>
-                <th className="text-left px-4 py-3 font-medium text-slate-600">Versão</th>
-                <th className="text-left px-4 py-3 font-medium text-slate-600">Regras</th>
-                <th className="text-left px-4 py-3 font-medium text-slate-600">Vigência</th>
-                <th className="text-left px-4 py-3 font-medium text-slate-600">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
+      <div className="flex-1 overflow-auto bg-bone-50 px-8 py-8">
+        {policies.length === 0 ? (
+          <div className="rounded-lg bg-surface p-12 text-center shadow-hair">
+            <p className="text-sm font-medium text-ink-700">Nenhuma política cadastrada</p>
+            <p className="mt-1 text-sm text-ink-400">
+              Nenhuma política cadastrada para este tenant.
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-hidden rounded-lg bg-surface shadow-hair">
+            {/* Table header */}
+            <div className="grid grid-cols-[1fr_80px_80px_140px_100px] items-center gap-4 border-b border-divider bg-bone-50 px-5 py-3">
+              <Eyebrow>Nome</Eyebrow>
+              <Eyebrow>Versão</Eyebrow>
+              <Eyebrow>Regras</Eyebrow>
+              <Eyebrow>Vigência</Eyebrow>
+              <Eyebrow>Status</Eyebrow>
+            </div>
+
+            {/* Table rows */}
+            <div className="divide-y divide-divider">
               {policies.map((policy) => (
-                <tr key={policy.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-4 py-3">
-                    <p className="font-medium text-zinc-900">{policy.name}</p>
+                <div
+                  key={policy.id}
+                  className="grid grid-cols-[1fr_80px_80px_140px_100px] items-center gap-4 px-5 py-4 transition-colors hover:bg-bone-50"
+                >
+                  <div>
+                    <div className="text-sm font-medium text-ink-900">{policy.name}</div>
                     {policy.description && (
-                      <p className="text-xs text-slate-500 mt-0.5">{policy.description}</p>
+                      <div className="mt-0.5 text-xs text-ink-500">{policy.description}</div>
                     )}
-                  </td>
-                  <td className="px-4 py-3 text-slate-600">v{policy.version}</td>
-                  <td className="px-4 py-3 text-slate-600">{policy.rules.length}</td>
-                  <td className="px-4 py-3 text-slate-500">
+                  </div>
+                  <span className="font-mono text-sm text-ink-600">v{policy.version}</span>
+                  <span className="font-mono text-sm text-ink-600">{policy.rules.length}</span>
+                  <span className="font-mono text-xs text-ink-500">
                     {new Date(policy.effectiveFrom).toLocaleDateString("pt-BR")}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`px-2 py-0.5 rounded text-xs font-medium ${
-                        policy.active
-                          ? "bg-green-100 text-green-700"
-                          : "bg-slate-100 text-slate-500"
-                      }`}
-                    >
+                  </span>
+                  <div>
+                    <Badge tone={policy.active ? "green" : "neutral"}>
                       {policy.active ? "Ativa" : "Inativa"}
-                    </span>
-                  </td>
-                </tr>
+                    </Badge>
+                  </div>
+                </div>
               ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </>
   )
 }
