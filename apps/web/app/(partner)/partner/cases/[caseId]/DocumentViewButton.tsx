@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { Button } from "@/interfaces/components/ui"
 
 interface DocumentViewButtonProps {
   caseId: string
@@ -30,13 +31,14 @@ export function DocumentViewButton({ caseId, documentId, isReport = false }: Doc
   }
 
   return (
-    <button
-      type="button"
+    <Button
+      variant="ghost"
+      size="sm"
+      icon="eye"
       onClick={handleOpen}
       disabled={loading}
-      className="rounded border border-slate-300 bg-white px-3 py-1.5 text-xs hover:bg-slate-50 disabled:opacity-50"
     >
-      {loading ? "Abrindo…" : "Ver →"}
-    </button>
+      {loading ? "Abrindo…" : "Ver"}
+    </Button>
   )
 }

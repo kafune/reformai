@@ -13,6 +13,7 @@
 
 import { useRef, useState } from "react"
 import { useRouter } from "next/navigation"
+import { Button, Icon } from "@/interfaces/components/ui"
 
 const MAX_PHOTOS = 10
 const ALLOWED_PHOTO_MIME = ["image/jpeg", "image/png"]
@@ -32,6 +33,7 @@ export function CompleteInspectionForm({ caseId, inspectionId }: CompleteInspect
   const [error, setError] = useState<string | null>(null)
 
   const notesValid = notes.trim().length >= 50
+  const notesLen = notes.trim().length
 
   function handlePhotosChange(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? [])
@@ -116,12 +118,12 @@ export function CompleteInspectionForm({ caseId, inspectionId }: CompleteInspect
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form onSubmit={handleSubmit} className="space-y-6">
       {/* Notes */}
-      <div>
-        <label htmlFor="notes" className="block text-sm font-medium text-zinc-700 mb-1">
+      <div className="space-y-1.5">
+        <label htmlFor="notes" className="text-sm font-medium text-ink-700">
           Notas técnicas{" "}
-          <span className="text-slate-400 font-normal">(mínimo 50 caracteres)</span>
+          <span className="text-ink-400 font-normal">(mínimo 50 caracteres)</span>
         </label>
         <textarea
           id="notes"
@@ -130,21 +132,53 @@ export function CompleteInspectionForm({ caseId, inspectionId }: CompleteInspect
           rows={5}
           disabled={loading}
           placeholder="Descreva as observações técnicas da vistoria…"
-          className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-60"
+          className="w-full rounded-sm border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink-900 outline-none focus:ring-2 focus:ring-green-600/40 disabled:opacity-60 placeholder:text-ink-400"
         />
-        <p
-          className={`text-xs mt-1 ${notes.trim().length >= 50 ? "text-green-600" : "text-slate-400"}`}
-        >
-          {notes.trim().length} / 50 caracteres mínimos
-        </p>
+        {/* Character count — preserves the ≥50 gating */}
+        <div className="flex items-center gap-2">
+          <div
+            className="h-1 rounded-full flex-1 bg-bone-200 overflow-hidden"
+          >
+            <div
+              className="h-full rounded-full transition-all duration-200"
+              style={{
+                width: `${Math.min((notesLen / 50) * 100, 100)}%`,
+                background: notesValid ? "var(--rai-green-600)" : "var(--rai-ochre-500)",
+              }}
+            />
+          </div>
+          <span
+            className={`font-mono text-xs ${notesValid ? "text-green-700" : "text-ink-400"}`}
+          >
+            {notesLen} / 50
+          </span>
+        </div>
       </div>
 
       {/* Photos */}
-      <div>
-        <label htmlFor="photos" className="block text-sm font-medium text-zinc-700 mb-1">
+      <div className="space-y-1.5">
+        <label htmlFor="photos" className="text-sm font-medium text-ink-700">
           Fotos da vistoria{" "}
-          <span className="text-slate-400 font-normal">(máx. {MAX_PHOTOS}, JPEG/PNG)</span>
+          <span className="text-ink-400 font-normal">(máx. {MAX_PHOTOS}, JPEG/PNG)</span>
         </label>
+
+        <div
+          className="rounded-sm border border-dashed border-bone-400 bg-bone-50 p-5 cursor-pointer hover:bg-bone-100 transition-colors"
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <div className="flex flex-col items-center gap-2 text-center">
+            <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+              <Icon name="upload" size={18} className="text-green-700" />
+            </div>
+            <div className="text-sm font-medium text-ink-900">
+              {photos.length > 0
+                ? `${photos.length} foto(s) selecionada(s)`
+                : "Clique para selecionar fotos"}
+            </div>
+            <div className="text-xs text-ink-500">JPEG ou PNG · até {MAX_PHOTOS} arquivos</div>
+          </div>
+        </div>
+
         <input
           ref={fileInputRef}
           id="photos"
@@ -153,13 +187,18 @@ export function CompleteInspectionForm({ caseId, inspectionId }: CompleteInspect
           accept="image/jpeg,image/png"
           onChange={handlePhotosChange}
           disabled={loading}
-          className="block w-full text-sm text-slate-700 file:mr-3 file:rounded file:border file:border-slate-300 file:bg-white file:px-3 file:py-1.5 file:text-sm file:cursor-pointer hover:file:bg-slate-50 disabled:opacity-60"
+          className="sr-only"
         />
+
         {photos.length > 0 && (
-          <ul className="mt-2 space-y-1">
+          <ul className="mt-2 space-y-1.5 rounded-sm border border-divider bg-bone-50 p-3">
             {photos.map((f, i) => (
-              <li key={i} className="text-xs text-slate-600">
-                {f.name} ({(f.size / 1024).toFixed(0)} KB)
+              <li key={i} className="flex items-center gap-2 text-xs text-ink-600">
+                <Icon name="doc" size={12} className="text-ink-400 shrink-0" />
+                <span className="truncate">{f.name}</span>
+                <span className="shrink-0 font-mono text-ink-400">
+                  ({(f.size / 1024).toFixed(0)} KB)
+                </span>
               </li>
             ))}
           </ul>
@@ -168,26 +207,31 @@ export function CompleteInspectionForm({ caseId, inspectionId }: CompleteInspect
 
       {/* Progress */}
       {uploadProgress && (
-        <div className="rounded border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-700">
+        <div className="flex items-center gap-2 rounded-sm border border-azulejo-200 bg-azulejo-50 px-4 py-2.5 text-sm text-azulejo-700">
+          <Icon name="clock" size={14} className="shrink-0" />
           {uploadProgress}
         </div>
       )}
 
       {/* Error */}
       {error && (
-        <div className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <div className="flex items-center gap-2 rounded-sm border border-clay-300 bg-clay-50 px-4 py-2.5 text-sm text-clay-700">
+          <Icon name="alert" size={14} className="shrink-0" />
           {error}
         </div>
       )}
 
       {/* Submit */}
-      <button
+      <Button
         type="submit"
+        variant="primary"
+        size="lg"
+        icon="check"
         disabled={loading || !notesValid}
-        className="w-full sm:w-auto rounded bg-emerald-700 px-6 py-2.5 text-sm font-medium text-white hover:bg-emerald-800 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full sm:w-auto"
       >
         {loading ? "Registrando…" : "Registrar vistoria concluída"}
-      </button>
+      </Button>
     </form>
   )
 }

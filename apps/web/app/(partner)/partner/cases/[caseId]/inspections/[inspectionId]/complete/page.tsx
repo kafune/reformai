@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation"
 import { getSessionUser } from "@/infrastructure/auth/getSessionUser"
 import { prisma } from "@/infrastructure/database/prisma"
 import { CompleteInspectionForm } from "./CompleteInspectionForm"
+import { TopBar, Card, Badge } from "@/interfaces/components/ui"
 
 export const dynamic = "force-dynamic"
 
@@ -62,52 +63,74 @@ export default async function CompleteInspectionPage({
 
   if (inspection.status !== "SCHEDULED") {
     return (
-      <div className="p-6 md:p-8 max-w-3xl mx-auto space-y-4">
-        <Link
-          href={`/partner/cases/${params.caseId}/inspections`}
-          className="text-sm text-slate-500 underline"
-        >
-          &larr; Vistorias
-        </Link>
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-5">
-          <p className="font-medium text-amber-800">Esta vistoria já foi concluída ou cancelada.</p>
-          <p className="text-sm text-amber-700 mt-1">
-            Status atual: <strong>{inspection.status}</strong>
-          </p>
-          <Link
-            href={`/partner/cases/${params.caseId}/inspections`}
-            className="mt-3 inline-block text-sm text-amber-900 underline"
-          >
-            Voltar para a lista de vistorias
-          </Link>
+      <div className="flex flex-col">
+        <TopBar
+          breadcrumb={["Meus Casos", reformCase.protocol, "Vistorias"]}
+          title="Registrar conclusão"
+        />
+        <div className="flex-1 bg-bone-50 p-8 max-w-3xl">
+          <Card className="border border-ochre-300 bg-ochre-50">
+            <div className="flex items-start gap-3">
+              <div>
+                <p className="font-semibold text-ochre-800 mb-1">
+                  Esta vistoria já foi concluída ou cancelada.
+                </p>
+                <p className="text-sm text-ochre-700 mb-4">
+                  Status atual: <strong>{inspection.status}</strong>
+                </p>
+                <Link
+                  href={`/partner/cases/${params.caseId}/inspections`}
+                  className="text-sm text-ochre-900 underline hover:no-underline"
+                >
+                  ← Voltar para a lista de vistorias
+                </Link>
+              </div>
+            </div>
+          </Card>
         </div>
       </div>
     )
   }
 
-  return (
-    <div className="p-6 md:p-8 max-w-3xl mx-auto space-y-6">
-      <header>
-        <Link
-          href={`/partner/cases/${params.caseId}/inspections`}
-          className="text-sm text-slate-500 underline"
-        >
-          &larr; Vistorias — {reformCase.protocol}
-        </Link>
-        <h1 className="text-2xl font-semibold text-zinc-900 mt-2">Registrar conclusão</h1>
-        <p className="text-sm text-zinc-500 mt-1">
-          Vistoria {INSPECTION_TYPE_LABELS[inspection.type] ?? inspection.type}
-          {inspection.scheduledAt
-            ? ` — ${inspection.scheduledAt.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}`
-            : ""}
-        </p>
-      </header>
+  const scheduledLabel = inspection.scheduledAt
+    ? inspection.scheduledAt.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })
+    : null
 
-      <div className="bg-white border border-slate-200 rounded-lg p-5">
-        <CompleteInspectionForm
-          caseId={params.caseId}
-          inspectionId={params.inspectionId}
-        />
+  return (
+    <div className="flex flex-col">
+      <TopBar
+        breadcrumb={[
+          "Meus Casos",
+          reformCase.protocol,
+          "Vistorias",
+          "Registrar conclusão",
+        ]}
+        title="Registrar conclusão de vistoria"
+        subtitle={
+          `${INSPECTION_TYPE_LABELS[inspection.type] ?? inspection.type}` +
+          (scheduledLabel ? ` · agendada para ${scheduledLabel}` : "")
+        }
+      />
+
+      <div className="flex-1 bg-bone-50 p-8">
+        <div className="max-w-2xl space-y-6">
+          {/* Context header */}
+          <div className="flex flex-wrap items-center gap-3">
+            <Badge tone="azulejo">
+              {INSPECTION_TYPE_LABELS[inspection.type] ?? inspection.type}
+            </Badge>
+            {scheduledLabel && (
+              <span className="font-mono text-xs text-ink-400">{scheduledLabel}</span>
+            )}
+          </div>
+
+          <Card>
+            <CompleteInspectionForm
+              caseId={params.caseId}
+              inspectionId={params.inspectionId}
+            />
+          </Card>
+        </div>
       </div>
     </div>
   )

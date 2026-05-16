@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { Button } from "@/interfaces/components/ui"
 
 interface RescheduleButtonProps {
   caseId: string
@@ -65,7 +66,7 @@ export function RescheduleButton({ caseId, inspectionId, currentScheduledAt }: R
         <button
           type="button"
           onClick={handleOpen}
-          className="rounded border border-slate-300 bg-white px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+          className="inline-flex items-center justify-center rounded-sm border border-line-strong bg-surface px-3 py-1.5 text-xs font-medium text-ink-700 transition-colors hover:bg-bone-100"
         >
           Reagendar
         </button>
@@ -78,28 +79,28 @@ export function RescheduleButton({ caseId, inspectionId, currentScheduledAt }: R
             value={newDate}
             onChange={(e) => setNewDate(e.target.value)}
             disabled={loading}
-            className="rounded border border-slate-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            className="h-8 rounded-sm border border-line-strong bg-surface px-3 text-sm text-ink-900 outline-none focus:ring-2 focus:ring-green-600/40 disabled:opacity-60"
           />
-          <button
-            type="button"
+          <Button
+            variant="primary"
+            size="sm"
             onClick={handleSave}
             disabled={loading || !newDate}
-            className="rounded bg-emerald-700 px-3 py-1.5 text-sm text-white hover:bg-emerald-800 disabled:opacity-50"
           >
             {loading ? "Salvando…" : "Salvar"}
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => {
               setOpen(false)
               setError(null)
             }}
             disabled={loading}
-            className="rounded border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
           >
             Cancelar
-          </button>
-          {error && <p className="text-xs text-red-600 w-full">{error}</p>}
+          </Button>
+          {error && <p className="text-xs text-clay-600 w-full">{error}</p>}
         </div>
       )}
     </div>

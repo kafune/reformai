@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { Button } from "@/interfaces/components/ui"
 
 const INSPECTION_TYPES = [
   { value: "INITIAL", label: "Inicial" },
@@ -63,28 +64,36 @@ export function ScheduleInspectionForm({ caseId }: ScheduleInspectionFormProps) 
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label htmlFor="insp-type" className="block text-xs font-medium text-slate-700 mb-1">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="flex flex-col gap-1.5">
+          <label
+            htmlFor="insp-type"
+            className="text-sm font-medium text-ink-700"
+          >
             Tipo de vistoria
           </label>
-          <select
-            id="insp-type"
-            value={type}
-            onChange={(e) => setType(e.target.value as InspectionTypeValue)}
-            disabled={loading}
-            className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-          >
-            {INSPECTION_TYPES.map((t) => (
-              <option key={t.value} value={t.value}>
-                {t.label}
-              </option>
-            ))}
-          </select>
+          <div className="relative">
+            <select
+              id="insp-type"
+              value={type}
+              onChange={(e) => setType(e.target.value as InspectionTypeValue)}
+              disabled={loading}
+              className="h-10 w-full appearance-none rounded-sm border border-line-strong bg-surface pl-3 pr-9 text-sm text-ink-900 outline-none focus:ring-2 focus:ring-green-600/40 disabled:opacity-60"
+            >
+              {INSPECTION_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
-        <div>
-          <label htmlFor="insp-date" className="block text-xs font-medium text-slate-700 mb-1">
+        <div className="flex flex-col gap-1.5">
+          <label
+            htmlFor="insp-date"
+            className="text-sm font-medium text-ink-700"
+          >
             Data e hora
           </label>
           <input
@@ -93,14 +102,15 @@ export function ScheduleInspectionForm({ caseId }: ScheduleInspectionFormProps) 
             value={scheduledAt}
             onChange={(e) => setScheduledAt(e.target.value)}
             disabled={loading}
-            className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            className="h-10 w-full rounded-sm border border-line-strong bg-surface px-3 text-sm text-ink-900 outline-none focus:ring-2 focus:ring-green-600/40 disabled:opacity-60"
           />
         </div>
       </div>
 
-      <div>
-        <label htmlFor="insp-notes" className="block text-xs font-medium text-slate-700 mb-1">
-          Notas (opcional)
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="insp-notes" className="text-sm font-medium text-ink-700">
+          Notas{" "}
+          <span className="text-ink-400 font-normal">(opcional)</span>
         </label>
         <textarea
           id="insp-notes"
@@ -109,23 +119,25 @@ export function ScheduleInspectionForm({ caseId }: ScheduleInspectionFormProps) 
           rows={2}
           disabled={loading}
           placeholder="Observações sobre a vistoria…"
-          className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          className="w-full rounded-sm border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink-900 outline-none focus:ring-2 focus:ring-green-600/40 disabled:opacity-60 placeholder:text-ink-400"
         />
       </div>
 
       {error && (
-        <div className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <div className="flex items-center gap-2 rounded-sm border border-clay-300 bg-clay-50 px-3 py-2 text-sm text-clay-700">
           {error}
         </div>
       )}
 
-      <button
+      <Button
         type="submit"
+        variant="primary"
+        size="md"
+        icon="plus"
         disabled={loading || !scheduledAt}
-        className="rounded bg-emerald-700 px-5 py-2 text-sm font-medium text-white hover:bg-emerald-800 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {loading ? "Agendando…" : "Agendar vistoria"}
-      </button>
+      </Button>
     </form>
   )
 }

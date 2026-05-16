@@ -2,6 +2,7 @@ import { redirect } from "next/navigation"
 import { getSessionUser } from "@/infrastructure/auth/getSessionUser"
 import { prisma } from "@/infrastructure/database/prisma"
 import { CaseStatus } from "@reformai/database"
+import { TopBar, Card, Eyebrow, Icon, type IconName } from "@/interfaces/components/ui"
 
 export const dynamic = "force-dynamic"
 
@@ -11,6 +12,8 @@ const ACTIVE_STATUSES: CaseStatus[] = [
   CaseStatus.INSPECTIONS_SCHEDULED,
   CaseStatus.IN_EXECUTION,
 ]
+
+const STAT_ICONS: IconName[] = ["check", "clock", "doc", "star"]
 
 export default async function PartnerDashboardPage() {
   const user = await getSessionUser()
@@ -24,8 +27,13 @@ export default async function PartnerDashboardPage() {
 
   if (!partner) {
     return (
-      <div className="p-8">
-        <p className="text-red-600 text-sm">Perfil de parceiro não encontrado. Contate o administrador.</p>
+      <div className="flex flex-col">
+        <TopBar title="Dashboard" subtitle="Painel do parceiro" />
+        <div className="p-8">
+          <p className="text-sm text-iron-600">
+            Perfil de parceiro não encontrado. Contate o administrador.
+          </p>
+        </div>
       </div>
     )
   }
@@ -68,52 +76,76 @@ export default async function PartnerDashboardPage() {
     }),
   ])
 
-  const cards = [
+  const stats = [
     {
       label: "Casos ativos",
       value: activeCases,
       description: "Em execução, agendados ou aguardando ART",
-      color: "bg-blue-50 border-blue-200",
-      textColor: "text-blue-700",
+      tone: "green" as const,
+      icon: STAT_ICONS[0]!,
     },
     {
       label: "Vistorias hoje",
       value: inspectionsToday,
       description: "Agendadas para hoje",
-      color: inspectionsToday > 0 ? "bg-amber-50 border-amber-300" : "bg-white border-slate-200",
-      textColor: inspectionsToday > 0 ? "text-amber-700" : "text-zinc-900",
+      tone: "azulejo" as const,
+      icon: STAT_ICONS[1]!,
     },
     {
       label: "ART/RRT pendente",
       value: artPending,
       description: "Casos aguardando ART/RRT",
-      color: artPending > 0 ? "bg-orange-50 border-orange-300" : "bg-white border-slate-200",
-      textColor: artPending > 0 ? "text-orange-700" : "text-zinc-900",
+      tone: "ochre" as const,
+      icon: STAT_ICONS[2]!,
     },
     {
       label: "Concluídos no mês",
       value: concludedThisMonth,
       description: "Casos encerrados este mês",
-      color: "bg-green-50 border-green-200",
-      textColor: "text-green-700",
+      tone: "green" as const,
+      icon: STAT_ICONS[3]!,
     },
   ]
 
   return (
-    <div className="p-6 md:p-8 max-w-5xl mx-auto">
-      <header className="mb-8">
-        <h1 className="text-2xl font-semibold text-zinc-900">Dashboard</h1>
-        <p className="text-sm text-zinc-500 mt-1">Bem-vindo, {user.name}</p>
-      </header>
+    <div className="flex flex-col">
+      <TopBar
+        title="Dashboard"
+        subtitle={`Bem-vindo, ${user.name}`}
+      />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {cards.map((card) => (
-          <div key={card.label} className={`border rounded-lg p-5 ${card.color}`}>
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{card.label}</p>
-            <p className={`text-3xl font-bold mt-1 ${card.textColor}`}>{card.value}</p>
-            <p className="text-xs text-slate-400 mt-1">{card.description}</p>
-          </div>
-        ))}
+      <div className="flex-1 bg-bone-50 p-8">
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+          {stats.map((s) => (
+            <Card key={s.label} padded={false} className="p-4">
+              <div className="flex items-start justify-between">
+                <div className="flex-1 min-w-0">
+                  <Eyebrow className="truncate">{s.label}</Eyebrow>
+                  <div
+                    className="mt-2 font-mono text-2xl font-semibold tabular-nums text-ink-900"
+                    style={{ letterSpacing: "var(--rai-tracking-tight)" }}
+                  >
+                    {s.value}
+                  </div>
+                  <div className="mt-1 text-xs text-ink-500">{s.description}</div>
+                </div>
+                <Icon
+                  name={s.icon}
+                  size={18}
+                  className={
+                    s.tone === "green"
+                      ? "text-green-600"
+                      : s.tone === "azulejo"
+                        ? "text-azulejo-600"
+                        : s.tone === "ochre"
+                          ? "text-ochre-600"
+                          : "text-green-600"
+                  }
+                />
+              </div>
+            </Card>
+          ))}
+        </div>
       </div>
     </div>
   )

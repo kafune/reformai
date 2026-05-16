@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { Button } from "@/interfaces/components/ui"
 
 interface AcceptDeclineButtonsProps {
   partnerId: string
@@ -60,51 +61,58 @@ export function AcceptDeclineButtons({ partnerId, caseId }: AcceptDeclineButtons
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <div className="flex flex-wrap gap-3">
-        <button
-          type="button"
+        <Button
+          variant="soft"
+          size="lg"
+          iconRight="arrow"
           onClick={handleAccept}
           disabled={loading !== null}
-          className="rounded bg-emerald-700 px-5 py-2 text-sm font-medium text-white hover:bg-emerald-800 disabled:opacity-50"
         >
           {loading === "accept" ? "Aceitando…" : "Aceitar caso"}
+        </Button>
+        <button
+          type="button"
+          onClick={() => setShowDeclineModal(true)}
+          disabled={loading !== null}
+          className="inline-flex items-center justify-center rounded-sm border border-bone-200/20 px-5 py-2 text-sm font-medium text-bone-200 transition-colors hover:bg-white/5 disabled:pointer-events-none disabled:opacity-50"
+        >
+          Ver detalhes
         </button>
         <button
           type="button"
           onClick={() => setShowDeclineModal(true)}
           disabled={loading !== null}
-          className="rounded border border-red-300 bg-white px-5 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
+          className="inline-flex items-center justify-center rounded-sm px-4 py-2 text-sm text-bone-400 transition-colors hover:text-bone-200 disabled:pointer-events-none disabled:opacity-50"
         >
-          Recusar caso
+          Recusar
         </button>
       </div>
 
-      {error && (
-        <p className="text-sm text-red-600">{error}</p>
-      )}
+      {error && <p className="text-sm text-iron-300">{error}</p>}
 
       {/* Decline modal */}
       {showDeclineModal && (
-        <div className="mt-3 border border-red-200 bg-red-50 rounded-lg p-4 space-y-3">
-          <p className="text-sm font-medium text-red-800">Motivo da recusa</p>
+        <div className="mt-3 rounded-md border border-iron-300/30 bg-iron-900/30 p-5 space-y-4 backdrop-blur-sm">
+          <p className="text-sm font-medium text-bone-100">Motivo da recusa</p>
           <textarea
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             rows={3}
             placeholder="Informe o motivo da recusa (mínimo 5 caracteres)…"
-            className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
+            className="w-full rounded-sm border border-bone-200/20 bg-white/5 px-3 py-2 text-sm text-bone-100 placeholder-bone-400 outline-none focus:ring-2 focus:ring-green-400/40"
           />
-          <p className="text-xs text-slate-400">{reason.trim().length} / 5 caracteres mínimos</p>
+          <p className="text-xs text-bone-400">{reason.trim().length} / 5 caracteres mínimos</p>
           <div className="flex gap-2">
-            <button
-              type="button"
+            <Button
+              variant="danger"
+              size="sm"
               onClick={handleDecline}
               disabled={loading !== null || reason.trim().length < 5}
-              className="rounded bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700 disabled:opacity-50"
             >
               {loading === "decline" ? "Recusando…" : "Confirmar recusa"}
-            </button>
+            </Button>
             <button
               type="button"
               onClick={() => {
@@ -113,7 +121,7 @@ export function AcceptDeclineButtons({ partnerId, caseId }: AcceptDeclineButtons
                 setError(null)
               }}
               disabled={loading !== null}
-              className="rounded border border-slate-300 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+              className="inline-flex items-center justify-center rounded-sm border border-bone-200/20 px-4 py-2 text-sm text-bone-300 transition-colors hover:bg-white/5 disabled:pointer-events-none disabled:opacity-50"
             >
               Cancelar
             </button>

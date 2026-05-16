@@ -5,6 +5,15 @@ import { prisma } from "@/infrastructure/database/prisma"
 import { CaseStatus, RiskLevel } from "@reformai/database"
 import { DocumentViewButton } from "./DocumentViewButton"
 import { AcceptDeclineButtons } from "./AcceptDeclineButtons"
+import {
+  TopBar,
+  Card,
+  Eyebrow,
+  Badge,
+  RiskBadge,
+  StatusChip,
+  Icon,
+} from "@/interfaces/components/ui"
 
 export const dynamic = "force-dynamic"
 
@@ -26,20 +35,6 @@ const STATUS_LABELS: Record<CaseStatus, string> = {
   IN_EXECUTION: "Em execução",
   CONCLUDED: "Concluído",
   ARCHIVED: "Arquivado",
-}
-
-const RISK_COLORS: Record<RiskLevel, string> = {
-  LOW: "text-green-700 bg-green-100",
-  MEDIUM: "text-amber-700 bg-amber-100",
-  HIGH: "text-orange-700 bg-orange-100",
-  CRITICAL: "text-red-700 bg-red-100",
-}
-
-const RISK_LABELS: Record<RiskLevel, string> = {
-  LOW: "Baixo",
-  MEDIUM: "Médio",
-  HIGH: "Alto",
-  CRITICAL: "Crítico",
 }
 
 const REPORT_TYPE_LABELS: Record<string, string> = {
@@ -152,244 +147,362 @@ export default async function PartnerCaseDetailPage({
   const evaluation = reformCase.evaluationResult as EvaluationResult | null
 
   return (
-    <div className="p-6 md:p-8 max-w-5xl mx-auto space-y-6">
-      {/* Header */}
-      <header>
-        <Link href="/partner/cases" className="text-sm text-slate-500 underline">
-          &larr; Meus Casos
-        </Link>
-        <div className="flex flex-wrap items-center gap-3 mt-2">
-          <h1 className="text-2xl font-semibold text-zinc-900">{reformCase.protocol}</h1>
-          <span className="px-2 py-1 rounded text-xs bg-slate-100 text-slate-700">
-            {STATUS_LABELS[reformCase.status as CaseStatus] ?? reformCase.status}
-          </span>
-          {reformCase.riskLevel && (
-            <span
-              className={`px-2 py-1 rounded text-xs font-medium ${RISK_COLORS[reformCase.riskLevel as RiskLevel]}`}
-            >
-              {RISK_LABELS[reformCase.riskLevel as RiskLevel] ?? reformCase.riskLevel}
-            </span>
-          )}
-        </div>
-        <p className="text-sm text-zinc-500 mt-1">
-          {reformCase.condominium.name} &middot; Un. {reformCase.unit.identifier}
-        </p>
-      </header>
+    <div className="flex flex-col">
+      <TopBar
+        breadcrumb={["Meus Casos", reformCase.protocol]}
+        title={`${reformCase.condominium.name} · Un. ${reformCase.unit.identifier}`}
+        subtitle={STATUS_LABELS[reformCase.status as CaseStatus] ?? reformCase.status}
+      />
 
-      {/* Ações contextuais */}
-      {reformCase.status === CaseStatus.ASSIGNED_TO_PARTNER && (
-        <section className="bg-blue-50 border border-blue-200 rounded-lg p-5">
-          <h2 className="text-sm font-semibold text-blue-800 mb-3">Ação necessária</h2>
-          <p className="text-sm text-blue-700 mb-4">
-            Este caso foi atribuído a você. Aceite ou recuse para continuar.
-          </p>
-          <AcceptDeclineButtons partnerId={partner.id} caseId={reformCase.id} />
-        </section>
-      )}
-
-      {reformCase.status === CaseStatus.ART_RRT_PENDING && (
-        <section className="bg-amber-50 border border-amber-200 rounded-lg p-5">
-          <h2 className="text-sm font-semibold text-amber-800 mb-2">ART/RRT pendente</h2>
-          <p className="text-sm text-amber-700 mb-3">
-            Para iniciar o cronograma de vistorias, agende a primeira vistoria pela aba
-            &ldquo;Vistorias&rdquo;. A transição para &ldquo;Vistorias agendadas&rdquo; ocorre
-            automaticamente ao agendar.
-          </p>
-          <Link
-            href={`/partner/cases/${reformCase.id}/inspections`}
-            className="inline-block rounded bg-amber-700 px-4 py-2 text-sm text-white hover:bg-amber-800"
-          >
-            Ir para Vistorias &rarr;
-          </Link>
-        </section>
-      )}
-
-      {/* Dados da obra */}
-      <section className="bg-white border border-slate-200 rounded-lg p-5">
-        <h2 className="text-sm font-semibold text-zinc-700 mb-3">Dados da obra</h2>
-        <dl className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-          <div>
-            <dt className="text-slate-500">Condomínio</dt>
-            <dd className="font-medium">{reformCase.condominium.name}</dd>
-          </div>
-          <div>
-            <dt className="text-slate-500">Unidade</dt>
-            <dd className="font-medium">{reformCase.unit.identifier}</dd>
-          </div>
-          <div>
-            <dt className="text-slate-500">Endereço</dt>
-            <dd className="font-medium">
-              {reformCase.condominium.address}, {reformCase.condominium.city} —{" "}
-              {reformCase.condominium.state}
-            </dd>
-          </div>
-          {reformCase.triageScore !== null && (
+      <div className="flex-1 bg-bone-50 p-8 space-y-6">
+        {/* Hero card */}
+        <Card className="!p-7">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-[1.4fr_1fr]">
+            {/* Left: meta */}
             <div>
-              <dt className="text-slate-500">Score de triagem</dt>
-              <dd className="font-medium">{reformCase.triageScore}</dd>
-            </div>
-          )}
-          {evaluation?.recommendedStatus && (
-            <div>
-              <dt className="text-slate-500">Status recomendado</dt>
-              <dd className="font-medium">
-                {STATUS_LABELS[evaluation.recommendedStatus as CaseStatus] ??
-                  evaluation.recommendedStatus}
-              </dd>
-            </div>
-          )}
-          {reformCase.requiresART !== null && (
-            <div>
-              <dt className="text-slate-500">Requer ART/RRT</dt>
-              <dd className="font-medium">{reformCase.requiresART ? "Sim" : "Não"}</dd>
-            </div>
-          )}
-        </dl>
-        {scope && scope.services && scope.services.length > 0 && (
-          <div className="mt-4">
-            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">Serviços</p>
-            <ul className="flex flex-wrap gap-1">
-              {scope.services.map((s) => (
-                <li key={s} className="px-2 py-0.5 rounded bg-slate-100 text-xs text-slate-700">
-                  {s}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-        {scope?.description && (
-          <div className="mt-3">
-            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">Descrição</p>
-            <p className="text-sm text-zinc-700">{scope.description}</p>
-          </div>
-        )}
-      </section>
+              <div className="flex flex-wrap items-center gap-2.5 mb-4">
+                <span className="font-mono text-xs text-ink-500 tracking-wide uppercase">
+                  Protocolo
+                </span>
+                <span className="font-mono text-sm font-medium text-ink-900">
+                  {reformCase.protocol}
+                </span>
+                <span className="w-1 h-1 rounded-full bg-ink-300" />
+                <span className="text-xs text-ink-500">
+                  Criado em {formatDate(reformCase.createdAt)}
+                </span>
+              </div>
 
-      {/* Documentos */}
-      <section className="bg-white border border-slate-200 rounded-lg p-5">
-        <h2 className="text-sm font-semibold text-zinc-700 mb-3">
-          Documentos ({reformCase.documents.length})
-        </h2>
-        {reformCase.documents.length === 0 ? (
-          <p className="text-sm text-slate-400">Nenhum documento enviado.</p>
-        ) : (
-          <ul className="divide-y divide-slate-100">
-            {reformCase.documents.map((doc) => (
-              <li key={doc.id} className="py-3 flex flex-wrap items-center gap-3">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-zinc-900 truncate">{doc.fileName}</p>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    {doc.type} &middot; v{doc.version} &middot; {formatDate(doc.uploadedAt)}
-                  </p>
+              <div className="flex flex-wrap gap-3 items-center mb-4">
+                <StatusChip status={reformCase.status} />
+                {reformCase.riskLevel && (
+                  <RiskBadge
+                    level={reformCase.riskLevel as RiskLevel}
+                    score={reformCase.triageScore ?? undefined}
+                  />
+                )}
+              </div>
+
+              <h2 className="text-xl font-semibold text-ink-900 tracking-snug mb-1">
+                {reformCase.condominium.name}
+              </h2>
+              <p className="text-sm text-ink-500">
+                {reformCase.condominium.address}, {reformCase.condominium.city} —{" "}
+                {reformCase.condominium.state}
+              </p>
+
+              {scope?.services && scope.services.length > 0 && (
+                <div className="mt-4 flex flex-wrap gap-1.5">
+                  {scope.services.map((s) => (
+                    <Badge key={s} tone="neutral">
+                      {s}
+                    </Badge>
+                  ))}
                 </div>
-                <span
-                  className={`px-2 py-0.5 rounded text-xs ${
-                    doc.status === "VALID"
-                      ? "bg-green-100 text-green-700"
-                      : doc.status === "INVALID"
-                        ? "bg-red-100 text-red-700"
-                        : "bg-slate-100 text-slate-600"
-                  }`}
-                >
-                  {doc.status}
-                </span>
-                <DocumentViewButton caseId={reformCase.id} documentId={doc.id} />
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+              )}
 
-      {/* Relatórios */}
-      <section className="bg-white border border-slate-200 rounded-lg p-5">
-        <h2 className="text-sm font-semibold text-zinc-700 mb-3">
-          Relatórios ({reformCase.reports.length})
-        </h2>
-        {reformCase.reports.length === 0 ? (
-          <p className="text-sm text-slate-400">Nenhum relatório gerado.</p>
-        ) : (
-          <ul className="divide-y divide-slate-100">
-            {reformCase.reports.map((report) => (
-              <li key={report.id} className="py-3 flex flex-wrap items-center gap-3">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-zinc-900">
-                    {REPORT_TYPE_LABELS[report.type] ?? report.type}
-                  </p>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    v{report.version} &middot; {formatDate(report.generatedAt)}
-                  </p>
-                </div>
-                <ReportViewButton caseId={reformCase.id} reportId={report.id} />
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+              {scope?.description && (
+                <p className="mt-4 text-sm text-ink-700 leading-relaxed">
+                  {scope.description}
+                </p>
+              )}
+            </div>
 
-      {/* Vistorias */}
-      <section className="bg-white border border-slate-200 rounded-lg p-5">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold text-zinc-700">
-            Vistorias ({reformCase.inspections.length})
-          </h2>
-          <Link
-            href={`/partner/cases/${reformCase.id}/inspections`}
-            className="text-xs text-emerald-700 underline hover:text-emerald-900"
-          >
-            Gerenciar vistorias &rarr;
-          </Link>
-        </div>
-        {reformCase.inspections.length === 0 ? (
-          <p className="text-sm text-slate-400">Nenhuma vistoria registrada.</p>
-        ) : (
-          <ul className="divide-y divide-slate-100">
-            {reformCase.inspections.map((insp) => (
-              <li key={insp.id} className="py-2 flex flex-wrap items-center gap-3 text-sm">
-                <span className="font-medium text-zinc-800">
-                  {INSPECTION_TYPE_LABELS[insp.type] ?? insp.type}
-                </span>
-                <span className="text-slate-400">{formatDate(insp.scheduledAt)}</span>
-                <span
-                  className={`px-2 py-0.5 rounded text-xs ${
-                    insp.status === "COMPLETED"
-                      ? "bg-green-100 text-green-700"
-                      : insp.status === "CANCELLED"
-                        ? "bg-red-100 text-red-700"
-                        : "bg-amber-100 text-amber-700"
-                  }`}
-                >
-                  {INSPECTION_STATUS_LABELS[insp.status] ?? insp.status}
-                </span>
+            {/* Right: facts */}
+            <div className="flex flex-col gap-4">
+              <div className="grid grid-cols-2 gap-4 border-b border-divider pb-4">
+                {reformCase.triageScore !== null && (
+                  <div>
+                    <Eyebrow>Score de triagem</Eyebrow>
+                    <div className="mt-1.5 font-mono text-2xl font-semibold text-ink-900">
+                      {reformCase.triageScore}
+                      <span className="text-sm text-ink-400 font-normal">/100</span>
+                    </div>
+                  </div>
+                )}
+                {reformCase.requiresART !== null && (
+                  <div>
+                    <Eyebrow>ART/RRT</Eyebrow>
+                    <div className="mt-1.5 text-sm font-medium text-ink-900">
+                      {reformCase.requiresART ? "Exigida" : "Não exigida"}
+                    </div>
+                    <div className="text-xs text-ink-500">Emissão externa</div>
+                  </div>
+                )}
+                {evaluation?.recommendedStatus && (
+                  <div>
+                    <Eyebrow>Status recomendado</Eyebrow>
+                    <div className="mt-1.5 text-sm font-medium text-ink-900">
+                      {STATUS_LABELS[evaluation.recommendedStatus as CaseStatus] ??
+                        evaluation.recommendedStatus}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Disclaimer */}
+              <div className="rounded-md border border-dashed border-bone-400 bg-bone-100 p-4">
+                <Eyebrow className="mb-2">Disclaimer</Eyebrow>
+                <p className="text-xs text-ink-600 leading-relaxed">
+                  A plataforma <strong>prepara, organiza e encaminha</strong> — a{" "}
+                  <strong>emissão da ART/RRT é sua responsabilidade técnica</strong> como
+                  profissional habilitado. A ReformAI não substitui o ato de emissão formal.
+                </p>
+              </div>
+            </div>
+          </div>
+        </Card>
+
+        {/* Ação necessária: aceitar/recusar */}
+        {reformCase.status === CaseStatus.ASSIGNED_TO_PARTNER && (
+          <div className="relative overflow-hidden rounded-lg bg-ink-900 p-6 text-bone-50">
+            {/* Decorative rings */}
+            <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-72 opacity-10">
+              <svg width="288" height="100%" viewBox="0 0 288 200" fill="none">
+                <circle cx="220" cy="100" r="160" stroke="var(--rai-green-300)" strokeWidth="1" />
+                <circle cx="220" cy="100" r="100" stroke="var(--rai-green-300)" strokeWidth="1" />
+                <circle cx="220" cy="100" r="50" stroke="var(--rai-green-300)" strokeWidth="1" />
+              </svg>
+            </div>
+            <div className="relative flex flex-wrap items-center gap-3 mb-3">
+              <Badge tone="greenSolid">Nova atribuição</Badge>
+            </div>
+            <h3 className="relative text-lg font-semibold mb-2">Ação necessária</h3>
+            <p className="relative text-sm text-ink-200 mb-5 max-w-xl leading-relaxed">
+              Este caso foi atribuído a você. Aceite ou recuse para continuar.
+            </p>
+            <div className="relative">
+              <AcceptDeclineButtons partnerId={partner.id} caseId={reformCase.id} />
+            </div>
+          </div>
+        )}
+
+        {/* ART/RRT pending alert */}
+        {reformCase.status === CaseStatus.ART_RRT_PENDING && (
+          <div className="rounded-lg bg-ochre-100 border border-ochre-300 p-5">
+            <div className="flex items-start gap-3">
+              <Icon name="alert" size={16} className="text-ochre-600 mt-0.5 shrink-0" />
+              <div>
+                <h3 className="text-sm font-semibold text-ochre-800 mb-1">ART/RRT pendente</h3>
+                <p className="text-sm text-ochre-700 mb-3">
+                  Para iniciar o cronograma de vistorias, agende a primeira vistoria pela aba
+                  &ldquo;Vistorias&rdquo;. A transição para &ldquo;Vistorias agendadas&rdquo; ocorre
+                  automaticamente ao agendar.
+                </p>
                 <Link
                   href={`/partner/cases/${reformCase.id}/inspections`}
-                  className="ml-auto text-xs text-slate-500 underline hover:text-slate-700"
+                  className="inline-flex items-center gap-1.5 rounded-sm bg-ochre-700 px-4 py-2 text-sm font-medium text-white hover:bg-ochre-800 transition-colors"
                 >
-                  Detalhes
+                  Ir para Vistorias
+                  <Icon name="arrow" size={14} />
                 </Link>
-              </li>
-            ))}
-          </ul>
+              </div>
+            </div>
+          </div>
         )}
-      </section>
 
-      {/* Histórico de transições */}
-      {reformCase.transitions.length > 0 && (
-        <section className="bg-white border border-slate-200 rounded-lg p-5">
-          <h2 className="text-sm font-semibold text-zinc-700 mb-3">Histórico de status</h2>
-          <ul className="space-y-2">
-            {reformCase.transitions.map((t, i) => (
-              <li key={i} className="text-xs text-slate-600 flex gap-2">
-                <span className="text-slate-400">{formatDate(t.createdAt)}</span>
-                <span>
-                  {STATUS_LABELS[t.fromStatus as CaseStatus] ?? t.fromStatus} &rarr;{" "}
-                  {STATUS_LABELS[t.toStatus as CaseStatus] ?? t.toStatus}
-                </span>
-                {t.reason && <span className="text-slate-400">— {t.reason}</span>}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-[1.4fr_1fr]">
+          {/* Left column: Documents + Timeline */}
+          <div className="space-y-6">
+            {/* Documents */}
+            <Card>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-base font-semibold text-ink-900 tracking-snug">
+                  Documentos
+                </h2>
+                <Eyebrow>{reformCase.documents.length} arquivo(s)</Eyebrow>
+              </div>
+
+              {reformCase.documents.length === 0 ? (
+                <p className="text-sm text-ink-400">Nenhum documento enviado.</p>
+              ) : (
+                <ul className="divide-y divide-divider">
+                  {reformCase.documents.map((doc) => {
+                    const toneMap: Record<string, string> = {
+                      VALID: "green",
+                      VALID_WITH_CAVEATS: "ochre",
+                      INVALID: "iron",
+                      PENDING: "neutral",
+                      PROCESSING: "azulejo",
+                      MISSING: "clay",
+                    }
+                    const tone = toneMap[doc.status] ?? "neutral"
+                    return (
+                      <li
+                        key={doc.id}
+                        className="py-3.5 flex flex-wrap items-center gap-3"
+                      >
+                        <div
+                          className="w-9 h-9 rounded-sm flex items-center justify-center shrink-0"
+                          style={{
+                            background: `var(--rai-${tone === "neutral" ? "bone" : tone}-100)`,
+                            color: `var(--rai-${tone === "neutral" ? "ink-500" : tone + "-700"})`,
+                          }}
+                        >
+                          <Icon name="doc" size={14} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-ink-900 truncate">
+                            {doc.fileName}
+                          </p>
+                          <p className="font-mono text-xs text-ink-400 mt-0.5">
+                            {doc.type} · v{doc.version} · {formatDate(doc.uploadedAt)}
+                          </p>
+                        </div>
+                        <Badge
+                          tone={
+                            tone === "green"
+                              ? "green"
+                              : tone === "ochre"
+                                ? "ochre"
+                                : tone === "iron"
+                                  ? "iron"
+                                  : tone === "azulejo"
+                                    ? "azulejo"
+                                    : "neutral"
+                          }
+                        >
+                          {doc.status}
+                        </Badge>
+                        <DocumentViewButton caseId={reformCase.id} documentId={doc.id} />
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+            </Card>
+
+            {/* Transition history */}
+            {reformCase.transitions.length > 0 && (
+              <Card>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-base font-semibold text-ink-900 tracking-snug">
+                    Histórico de status
+                  </h2>
+                  <span className="font-mono text-xs text-ink-400 tracking-wide">
+                    {reformCase.transitions.length} TRANSIÇÕES
+                  </span>
+                </div>
+                <ul className="space-y-3">
+                  {reformCase.transitions.map((t, i) => (
+                    <li key={i} className="flex gap-3 text-xs">
+                      <span className="font-mono text-ink-400 shrink-0 pt-px">
+                        {formatDate(t.createdAt)}
+                      </span>
+                      <span className="text-ink-700">
+                        {STATUS_LABELS[t.fromStatus as CaseStatus] ?? t.fromStatus}
+                        {" → "}
+                        {STATUS_LABELS[t.toStatus as CaseStatus] ?? t.toStatus}
+                      </span>
+                      {t.reason && (
+                        <span className="text-ink-400">— {t.reason}</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            )}
+          </div>
+
+          {/* Right column: Reports + Inspections */}
+          <div className="space-y-6">
+            {/* Reports */}
+            <Card>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-base font-semibold text-ink-900 tracking-snug">
+                  Relatórios
+                </h2>
+                <Eyebrow>{reformCase.reports.length} gerado(s)</Eyebrow>
+              </div>
+
+              {reformCase.reports.length === 0 ? (
+                <p className="text-sm text-ink-400">Nenhum relatório gerado.</p>
+              ) : (
+                <ul className="divide-y divide-divider">
+                  {reformCase.reports.map((report) => (
+                    <li
+                      key={report.id}
+                      className="py-3.5 flex flex-wrap items-center gap-3"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-ink-900">
+                          {REPORT_TYPE_LABELS[report.type] ?? report.type}
+                        </p>
+                        <p className="font-mono text-xs text-ink-400 mt-0.5">
+                          v{report.version} · {formatDate(report.generatedAt)}
+                        </p>
+                      </div>
+                      <ReportViewButton caseId={reformCase.id} reportId={report.id} />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card>
+
+            {/* Inspections */}
+            <Card>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-base font-semibold text-ink-900 tracking-snug">
+                  Vistorias
+                </h2>
+                <Link
+                  href={`/partner/cases/${reformCase.id}/inspections`}
+                  className="text-xs font-medium text-green-700 hover:text-green-900 transition-colors"
+                >
+                  Gerenciar →
+                </Link>
+              </div>
+
+              {reformCase.inspections.length === 0 ? (
+                <p className="text-sm text-ink-400">Nenhuma vistoria registrada.</p>
+              ) : (
+                <div className="space-y-2.5">
+                  {reformCase.inspections.map((insp) => {
+                    const inspStatusColors: Record<string, string> = {
+                      SCHEDULED: "bg-azulejo-100 text-azulejo-700",
+                      COMPLETED: "bg-green-100 text-green-700",
+                      CANCELLED: "bg-iron-100 text-iron-600",
+                      RESCHEDULED: "bg-ochre-100 text-ochre-700",
+                    }
+                    return (
+                      <div
+                        key={insp.id}
+                        className="grid grid-cols-[52px_1fr] gap-3 rounded-sm bg-bone-50 p-3"
+                      >
+                        <div className="rounded bg-surface py-1.5 text-center">
+                          <div className="font-mono text-xs text-ink-400">
+                            {formatDate(insp.scheduledAt).split(" ")[0]}
+                          </div>
+                          <div className="text-xs font-medium text-ink-900 mt-0.5">
+                            {formatDate(insp.scheduledAt).split(" ")[1] ?? "—"}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <span
+                              className={`rounded-full px-2 py-0.5 text-xs font-medium ${inspStatusColors[insp.status] ?? "bg-bone-200 text-ink-600"}`}
+                            >
+                              {INSPECTION_STATUS_LABELS[insp.status] ?? insp.status}
+                            </span>
+                          </div>
+                          <div className="text-sm text-ink-900 font-medium">
+                            {INSPECTION_TYPE_LABELS[insp.type] ?? insp.type}
+                          </div>
+                          {insp.notes && (
+                            <p className="text-xs text-ink-500 mt-0.5 line-clamp-1">
+                              {insp.notes}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </Card>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
