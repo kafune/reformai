@@ -3,6 +3,20 @@ import { useEffect, useRef, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
 import Link from "next/link"
+import {
+  TopBar,
+  Card,
+  RiskBadge,
+  StatusChip,
+  Timeline,
+  AIMessage,
+  UserMessage,
+  Button,
+  Badge,
+  Icon,
+  Eyebrow,
+} from "@/interfaces/components/ui"
+import type { RiskLevel } from "@/interfaces/components/ui"
 
 interface Message { id: string; role: string; content: string; createdAt: string }
 interface CaseData {
@@ -58,92 +72,214 @@ export default function CaseDetailPage() {
   const triggered = data.evaluationResult?.triggeredRules ?? []
 
   return (
-    <main className="min-h-screen max-w-5xl mx-auto px-6 py-8">
-      <header className="mb-6 flex items-center justify-between">
-        <div>
-          <Link href="/cases" className="text-sm text-slate-500 underline">← Voltar</Link>
-          <h1 className="text-2xl font-semibold mt-1" data-testid="case-protocol">{data.protocol}</h1>
-          <Link
-            href={`/cases/${caseId}/documents`}
-            className="mt-2 inline-block text-sm text-brand-accent underline"
-          >
-            Documentos do caso →
-          </Link>
-        </div>
-        <div className="text-right text-sm space-y-1">
-          <p><span className="font-medium">Status:</span> <span data-testid="case-status">{data.status}</span></p>
-          {data.riskLevel && <p><span className="font-medium">Risco:</span> <span data-testid="case-risk-level">{data.riskLevel}</span> ({data.triageScore})</p>}
-          {data.requiresART !== null && (
-            <p><span className="font-medium">Exige ART:</span> {data.requiresART ? "Sim" : "Não"}</p>
-          )}
-        </div>
-      </header>
+    <>
+      <TopBar
+        breadcrumb={["Minhas reformas", data.protocol]}
+        title={data.protocol}
+        subtitle="Triagem do caso — IA conduz, você decide."
+        actions={
+          <>
+            <Badge tone="azulejo" dot>
+              {data.status.replace(/_/g, " ").toLowerCase()}
+            </Badge>
+            <Link href={`/cases/${caseId}/documents`}>
+              <Button variant="secondary" icon="doc" size="sm">
+                Documentos
+              </Button>
+            </Link>
+          </>
+        }
+      />
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <section className="md:col-span-2 bg-white border border-slate-200 rounded-lg flex flex-col h-[70vh]">
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+      {/* hidden testid anchors for E2E */}
+      <span className="sr-only" data-testid="case-protocol">{data.protocol}</span>
+      <span className="sr-only" data-testid="case-status">{data.status}</span>
+      {data.riskLevel && (
+        <span className="sr-only" data-testid="case-risk-level">{data.riskLevel}</span>
+      )}
+
+      <div
+        className="flex flex-1 overflow-hidden"
+        style={{ display: "grid", gridTemplateColumns: "1fr 320px" } as React.CSSProperties}
+      >
+        {/* Chat column */}
+        <div className="flex flex-col overflow-hidden" style={{ background: "var(--rai-bone-100)" }}>
+          {/* messages */}
+          <div className="flex flex-1 flex-col gap-5 overflow-y-auto px-10 py-7">
             {messages.length === 0 && (
-              <p className="text-sm text-slate-500">
-                Descreva sua reforma. O assistente vai conduzir a triagem.
-              </p>
+              <AIMessage>
+                Olá! Sou o assistente da ReformAI. Descreva sua reforma em linguagem
+                natural e vou conduzir a triagem técnica.
+              </AIMessage>
             )}
             {messages.map((m) => {
               const isUser = m.role === "USER"
-              return (
-                <div
-                  key={m.id}
-                  data-testid={isUser ? "chat-message-user" : "chat-message-assistant"}
-                  className={`max-w-[80%] rounded-lg px-3 py-2 text-sm whitespace-pre-wrap ${
-                    isUser ? "ml-auto bg-brand-accent text-white" : "bg-slate-100"
-                  }`}
-                >
-                  {m.content.replace(/<scope>[\s\S]*?<\/scope>/, "").trim() || "(coletando dados…)"}
+              const cleanContent = m.content.replace(/<scope>[\s\S]*?<\/scope>/, "").trim()
+              return isUser ? (
+                <div key={m.id} data-testid="chat-message-user">
+                  <UserMessage>
+                    {cleanContent || "(coletando dados…)"}
+                  </UserMessage>
+                </div>
+              ) : (
+                <div key={m.id} data-testid="chat-message-assistant">
+                  <AIMessage
+                    disclaimer="Esta análise é assistiva. O Rule Engine valida deterministicamente e casos HIGH/CRITICAL passam por revisão humana."
+                  >
+                    {cleanContent || "(coletando dados…)"}
+                  </AIMessage>
                 </div>
               )
             })}
+            {sending && (
+              <div className="flex items-end gap-3">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-green-900">
+                  <Icon name="sparkle" size={14} className="text-green-300" />
+                </div>
+                <div className="flex gap-1 rounded-[2px_12px_12px_12px] bg-surface px-4 py-3 shadow-hair">
+                  {[0, 1, 2].map((i) => (
+                    <span
+                      key={i}
+                      className="h-1.5 w-1.5 rounded-full bg-ink-300"
+                      style={{ opacity: 0.4 + 0.2 * i }}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
             <div ref={endRef} />
           </div>
-          <form onSubmit={send} className="border-t border-slate-200 p-3 flex gap-2">
-            <input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Descreva a reforma…"
-              className="flex-1 rounded border border-slate-300 px-3 py-2 text-sm"
-              disabled={sending}
-              data-testid="chat-input"
-            />
-            <button
-              type="submit"
-              disabled={sending || !input.trim()}
-              className="rounded bg-brand-accent px-4 py-2 text-sm text-white disabled:opacity-50"
-              data-testid="chat-send"
-            >
-              {sending ? "Enviando…" : "Enviar"}
-            </button>
-          </form>
-        </section>
 
-        <aside className="space-y-4">
-          <div className="bg-white border border-slate-200 rounded-lg p-4" data-testid="evaluation-result">
-            <h2 className="font-medium mb-2 text-sm">Regras disparadas</h2>
-            {triggered.length === 0 ? (
-              <p className="text-xs text-slate-500">Aguardando classificação</p>
-            ) : (
-              <ul className="space-y-2">
-                {triggered.map((r: any) => (
-                  <li key={r.ruleId} className="text-xs">
-                    <p className="font-medium">{r.ruleName}</p>
-                    <p className="text-slate-500">{r.reason}</p>
-                  </li>
-                ))}
-              </ul>
+          {/* Composer */}
+          <div
+            className="border-t border-divider px-10 pb-6 pt-4"
+            style={{ background: "var(--rai-bone-100)" }}
+          >
+            <form
+              onSubmit={send}
+              className="flex flex-col gap-2.5 rounded-md bg-surface p-3.5 shadow-1"
+            >
+              <input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Descreva a reforma…"
+                className="min-h-[22px] border-none bg-transparent text-sm text-ink-900 outline-none placeholder:text-ink-300"
+                disabled={sending}
+                data-testid="chat-input"
+              />
+              <div className="flex items-center justify-between">
+                <div className="flex gap-1">
+                  <button
+                    type="button"
+                    className="flex h-8 w-8 items-center justify-center rounded border-0 bg-transparent text-ink-500 hover:bg-bone-100"
+                    tabIndex={-1}
+                  >
+                    <Icon name="paperclip" size={15} />
+                  </button>
+                </div>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="sm"
+                  iconRight="send"
+                  disabled={sending || !input.trim()}
+                  data-testid="chat-send"
+                >
+                  {sending ? "Enviando…" : "Enviar"}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        {/* Right rail */}
+        <aside className="overflow-y-auto border-l border-divider bg-paper p-6">
+          <Eyebrow>Caso em andamento</Eyebrow>
+          <p className="mt-1.5 font-mono text-sm text-ink-500">{data.protocol}</p>
+
+          {/* Status & Risk */}
+          <div className="mt-5 flex items-center justify-between">
+            <div>
+              <Eyebrow className="mb-1.5">Status</Eyebrow>
+              <StatusChip status={data.status} />
+            </div>
+            {data.riskLevel && (
+              <div className="text-right">
+                <Eyebrow className="mb-1.5">Risco</Eyebrow>
+                <RiskBadge
+                  level={data.riskLevel as RiskLevel}
+                  score={data.triageScore ?? undefined}
+                  size="sm"
+                />
+              </div>
             )}
           </div>
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-xs text-amber-900">
-            Esta plataforma <strong>não emite ART/RRT</strong>. A emissão formal é responsabilidade exclusiva do profissional habilitado parceiro.
+
+          {/* ART */}
+          {data.requiresART !== null && (
+            <div className="mt-4 flex items-center gap-2">
+              <Icon name="doc" size={14} className="text-ink-400" />
+              <span className="text-xs text-ink-600">
+                ART/RRT:{" "}
+                <strong>{data.requiresART ? "Exigida" : "Não exigida"}</strong>
+              </span>
+            </div>
+          )}
+
+          {/* Evaluation / Triggered rules */}
+          <div className="mt-5" data-testid="evaluation-result">
+            <Eyebrow className="mb-2">Regras disparadas</Eyebrow>
+            {triggered.length === 0 ? (
+              <p className="text-xs text-ink-400">Aguardando classificação…</p>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {triggered.map((r: any) => (
+                  <div
+                    key={r.ruleId}
+                    className="rounded-sm bg-bone-100 px-3 py-2"
+                  >
+                    <p className="text-xs font-semibold text-ink-900">{r.ruleName}</p>
+                    <p className="mt-0.5 text-xs text-ink-500">{r.reason}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Timeline */}
+          {triggered.length > 0 && (
+            <div className="mt-5">
+              <Eyebrow className="mb-3">Próximas etapas</Eyebrow>
+              <Timeline
+                dense
+                items={[
+                  { title: "Triagem técnica", family: "done", current: false },
+                  {
+                    title: "Checklist documental",
+                    family: "progress",
+                    current: data.status === "AWAITING_DOCUMENTS" || data.status === "DOCUMENTS_UNDER_REVIEW",
+                  },
+                  {
+                    title: "Revisão humana",
+                    family: "review",
+                    current: data.status === "HUMAN_REVIEW_REQUIRED",
+                  },
+                  { title: "Liberação", family: "ok", current: data.status === "ELIGIBLE_FOR_RELEASE" },
+                ]}
+              />
+            </div>
+          )}
+
+          {/* ART/RRT disclaimer — always visible */}
+          <div className="mt-5 flex items-start gap-2.5 rounded-md bg-violet-100 px-3.5 py-3">
+            <Icon name="shield" size={16} className="mt-0.5 shrink-0 text-violet-600" />
+            <p className="text-xs leading-relaxed text-violet-700">
+              <strong>A plataforma não emite ART/RRT.</strong> A emissão formal é
+              responsabilidade do profissional habilitado parceiro.
+            </p>
           </div>
         </aside>
       </div>
-    </main>
+    </>
   )
 }

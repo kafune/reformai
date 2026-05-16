@@ -6,6 +6,14 @@ import { PrismaReformCaseRepository } from "@/modules/case-intake/infrastructure
 import { PrismaDocumentRepository } from "@/modules/document-management/infrastructure/PrismaDocumentRepository"
 import { DocumentUploadZone } from "./components/DocumentUploadZone"
 import { DocumentList, type DocumentItem } from "./components/DocumentList"
+import {
+  TopBar,
+  Badge,
+  Button,
+  Icon,
+  Eyebrow,
+  StatusChip,
+} from "@/interfaces/components/ui"
 
 export const dynamic = "force-dynamic"
 
@@ -28,33 +36,101 @@ export default async function CaseDocumentsPage({ params }: { params: { caseId: 
     version: d.version,
   }))
 
+  const processingCount = initialDocuments.filter(
+    (d) => d.status === "PENDING" || d.status === "PROCESSING",
+  ).length
+
   return (
-    <main className="min-h-screen max-w-5xl mx-auto px-6 py-8">
-      <header className="mb-6 flex items-start justify-between gap-4">
-        <div>
-          <Link href={`/cases/${params.caseId}`} className="text-sm text-slate-500 underline">← Voltar para o caso</Link>
-          <h1 className="text-2xl font-semibold mt-1">Documentos · {reformCase.protocol}</h1>
-        </div>
-        <div className="text-right text-sm">
-          <p><span className="font-medium">Status:</span> {reformCase.status}</p>
-        </div>
-      </header>
+    <>
+      <TopBar
+        breadcrumb={["Minhas reformas", reformCase.protocol, "Documentos"]}
+        title={`Documentos · análise da IA`}
+        subtitle="Envie um arquivo. A IA extrai, valida e marca o que precisa de correção."
+        actions={
+          <>
+            {processingCount > 0 && (
+              <Badge tone="azulejo" dot>
+                {processingCount} em análise
+              </Badge>
+            )}
+            <StatusChip status={reformCase.status} />
+          </>
+        }
+      />
 
-      <div className="space-y-6">
-        <section>
-          <h2 className="text-sm font-medium text-slate-700 mb-2">Novo documento</h2>
-          <DocumentUploadZone caseId={params.caseId} />
-        </section>
+      <div className="flex-1 overflow-auto bg-paper px-8 py-6">
+        <div
+          style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 24 }}
+        >
+          {/* Left column */}
+          <div className="flex flex-col gap-6">
+            {/* Drop zone + upload */}
+            <DocumentUploadZone caseId={params.caseId} />
 
-        <section>
-          <h2 className="text-sm font-medium text-slate-700 mb-2">Documentos enviados</h2>
-          <DocumentList caseId={params.caseId} initialDocuments={initialDocuments} />
-        </section>
+            {/* Document list */}
+            <div>
+              <div className="mb-2 flex items-center gap-2">
+                <Eyebrow>Documentos enviados</Eyebrow>
+                <span className="font-mono text-[10px] uppercase tracking-caps text-ink-400">
+                  {initialDocuments.length} arquivo{initialDocuments.length !== 1 ? "s" : ""}
+                </span>
+              </div>
+              <DocumentList
+                caseId={params.caseId}
+                initialDocuments={initialDocuments}
+              />
+            </div>
+          </div>
 
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-xs text-amber-900">
-          Esta plataforma <strong>não emite ART/RRT</strong>. A análise documental é assistida por IA e revisada por profissional habilitado parceiro.
+          {/* Right rail — AI analysis panel */}
+          <aside className="self-start">
+            {/* AI analysis card */}
+            <div className="rounded-md bg-surface p-5 shadow-hair">
+              <div className="mb-4 flex items-center gap-2.5">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-green-900">
+                  <Icon name="sparkle" size={16} className="text-green-300" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-ink-900">
+                    Análise · DocumentAgent
+                  </p>
+                  <p className="font-mono text-[10px] uppercase tracking-caps text-ink-400">
+                    {reformCase.protocol}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-2.5 rounded-sm bg-bone-50 px-3.5 py-3">
+                <Icon name="shield" size={14} className="mt-0.5 shrink-0 text-ink-500" />
+                <p className="text-xs leading-relaxed text-ink-500">
+                  Extração feita por IA validada por schema Zod.{" "}
+                  <strong>A análise é assistiva</strong> — a decisão final é do
+                  analista humano, que pode reverter qualquer pendência.
+                </p>
+              </div>
+            </div>
+
+            {/* ART/RRT disclaimer */}
+            <div className="mt-3.5 flex items-start gap-2.5 rounded-md bg-violet-100 px-4 py-3.5">
+              <Icon name="shield" size={16} className="mt-0.5 shrink-0 text-violet-600" />
+              <p className="text-xs leading-relaxed text-violet-700">
+                <strong>A plataforma não emite ART/RRT.</strong> A análise
+                documental é assistida por IA e revisada por profissional habilitado
+                parceiro.
+              </p>
+            </div>
+
+            {/* Back link */}
+            <div className="mt-4">
+              <Link href={`/cases/${params.caseId}`}>
+                <Button variant="ghost" icon="arrowL" size="sm">
+                  Voltar para o caso
+                </Button>
+              </Link>
+            </div>
+          </aside>
         </div>
       </div>
-    </main>
+    </>
   )
 }

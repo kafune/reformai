@@ -1,8 +1,14 @@
 "use client"
 import { useEffect, useState } from "react"
-import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { signOut, useSession } from "next-auth/react"
+import { useSession } from "next-auth/react"
+import {
+  TopBar,
+  Button,
+  CaseCard,
+  Badge,
+  Icon,
+} from "@/interfaces/components/ui"
 
 interface CaseRow {
   id: string
@@ -51,71 +57,84 @@ export default function CasesPage() {
   if (status !== "authenticated") return null
 
   return (
-    <main className="min-h-screen max-w-4xl mx-auto px-6 py-10">
-      <header className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-2xl font-semibold">Meus casos</h1>
-          <p className="text-sm text-slate-500">{session?.user?.name} · {session?.user?.email}</p>
-        </div>
-        <button
-          type="button"
-          onClick={() => signOut({ callbackUrl: "/login" })}
-          className="text-sm text-slate-600 underline"
-          data-testid="logout-link"
-        >
-          Sair
-        </button>
-      </header>
+    <>
+      <TopBar
+        title="Minhas reformas"
+        subtitle={`${session?.user?.name ?? ""} · ${session?.user?.email ?? ""}`}
+        actions={
+          <Badge tone="neutral">
+            {cases.length} {cases.length === 1 ? "caso" : "casos"}
+          </Badge>
+        }
+      />
 
-      <section className="bg-white border border-slate-200 rounded-lg p-4 mb-6">
-        <h2 className="font-medium mb-2">Novo caso</h2>
-        <div className="flex gap-2">
-          <select
-            value={selectedUnit}
-            onChange={(e) => setSelectedUnit(e.target.value)}
-            className="flex-1 rounded border border-slate-300 px-3 py-2 text-sm"
-            data-testid="unit-select"
-          >
-            {units.length === 0 && <option value="">Nenhuma unidade disponível</option>}
-            {units.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.condominium.name} — Un. {u.identifier}
-              </option>
-            ))}
-          </select>
-          <button
-            onClick={createCase}
-            disabled={!selectedUnit || creating}
-            className="rounded bg-brand-accent px-4 py-2 text-sm text-white disabled:opacity-50"
-            data-testid="create-case-button"
-          >
-            {creating ? "Criando…" : "Iniciar triagem"}
-          </button>
+      <div className="flex-1 overflow-auto bg-paper px-8 py-6">
+        {/* New case card */}
+        <div className="mb-6 rounded-md bg-surface p-5 shadow-hair">
+          <div className="mb-3 flex items-center gap-2">
+            <Icon name="plus" size={16} className="text-green-700" />
+            <span className="text-sm font-semibold text-ink-900">Nova triagem</span>
+          </div>
+          <div className="flex gap-3">
+            <select
+              value={selectedUnit}
+              onChange={(e) => setSelectedUnit(e.target.value)}
+              className="flex-1 rounded-sm border border-line-strong bg-surface px-3 py-2 text-sm text-ink-900 focus:outline-none focus:ring-2 focus:ring-green-600/40"
+              data-testid="unit-select"
+            >
+              {units.length === 0 && (
+                <option value="">Nenhuma unidade disponível</option>
+              )}
+              {units.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.condominium.name} — Un. {u.identifier}
+                </option>
+              ))}
+            </select>
+            <Button
+              onClick={createCase}
+              disabled={!selectedUnit || creating}
+              variant="primary"
+              icon="arrow"
+              data-testid="create-case-button"
+            >
+              {creating ? "Criando…" : "Iniciar triagem"}
+            </Button>
+          </div>
         </div>
-      </section>
 
-      <section className="space-y-2">
-        {cases.length === 0 && <p className="text-sm text-slate-500">Nenhum caso ainda.</p>}
-        {cases.map((c) => (
-          <Link
-            key={c.id}
-            href={`/cases/${c.id}`}
-            className="block bg-white border border-slate-200 rounded-lg px-4 py-3 hover:border-slate-300"
-            data-testid="case-list-item"
-          >
-            <div className="flex justify-between items-center">
-              <div>
-                <p className="font-medium" data-testid="case-protocol">{c.protocol}</p>
-                <p className="text-xs text-slate-500">{new Date(c.createdAt).toLocaleString("pt-BR")}</p>
-              </div>
-              <div className="text-right text-xs">
-                <span className="px-2 py-1 rounded bg-slate-100">{c.status}</span>
-                {c.riskLevel && <span className="ml-2 px-2 py-1 rounded bg-amber-100">{c.riskLevel}</span>}
-              </div>
+        {/* Cases grid */}
+        {cases.length === 0 ? (
+          <div className="rounded-md border border-dashed border-bone-400 p-10 text-center">
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
+              <Icon name="list" size={20} className="text-green-700" />
             </div>
-          </Link>
-        ))}
-      </section>
-    </main>
+            <p className="text-sm font-medium text-ink-700">Nenhum caso ainda.</p>
+            <p className="mt-1 text-xs text-ink-400">
+              Inicie uma triagem acima para registrar sua primeira reforma.
+            </p>
+          </div>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {cases.map((c) => (
+              <div key={c.id} data-testid="case-list-item">
+                <CaseCard
+                  protocol={c.protocol}
+                  title={c.protocol}
+                  subtitle={new Date(c.createdAt).toLocaleString("pt-BR")}
+                  risk={c.riskLevel as any}
+                  status={c.status}
+                  updated={new Date(c.createdAt).toLocaleDateString("pt-BR")}
+                  href={`/cases/${c.id}`}
+                  // data-testid propagation via wrapper div
+                />
+                {/* hidden span for testid on protocol */}
+                <span className="sr-only" data-testid="case-protocol">{c.protocol}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </>
   )
 }

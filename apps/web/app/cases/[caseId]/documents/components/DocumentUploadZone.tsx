@@ -3,6 +3,7 @@ import { useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import type { DocumentType } from "@reformai/database"
 import { DocumentTypeSelect } from "./DocumentTypeSelect"
+import { Button, Icon } from "@/interfaces/components/ui"
 
 const ALLOWED_MIME = ["application/pdf", "image/jpeg", "image/png", "image/webp"]
 const MAX_SIZE = 20 * 1024 * 1024
@@ -60,12 +61,14 @@ export function DocumentUploadZone({ caseId }: { caseId: string }) {
   }
 
   return (
-    <form onSubmit={submit} className="bg-white border border-slate-200 rounded-lg p-4 space-y-3">
-      <div className="space-y-1">
-        <label className="block text-xs font-medium text-slate-700">Tipo de documento</label>
+    <form onSubmit={submit} className="flex flex-col gap-4">
+      {/* Type select */}
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-medium text-ink-700">Tipo de documento</label>
         <DocumentTypeSelect value={documentType} onChange={setDocumentType} disabled={uploading} />
       </div>
 
+      {/* Drop zone */}
       <div
         onDragOver={(e) => {
           e.preventDefault()
@@ -77,19 +80,34 @@ export function DocumentUploadZone({ caseId }: { caseId: string }) {
           setDragOver(false)
           pickFile(e.dataTransfer.files?.[0] ?? null)
         }}
-        className={`rounded-md border-2 border-dashed p-6 text-center text-sm transition ${
-          dragOver ? "border-brand-accent bg-blue-50" : "border-slate-300 bg-slate-50"
+        className={`flex flex-col items-center rounded-md border-[1.5px] border-dashed px-6 py-9 text-center transition-colors ${
+          dragOver
+            ? "border-green-600 bg-green-50"
+            : "border-bone-400 bg-white/50"
         }`}
       >
-        <p className="text-slate-600">Arraste um arquivo aqui ou</p>
-        <button
-          type="button"
-          onClick={() => inputRef.current?.click()}
-          disabled={uploading}
-          className="mt-2 rounded border border-slate-300 bg-white px-3 py-1.5 text-sm hover:bg-slate-50 disabled:opacity-50"
-        >
-          Selecionar arquivo
-        </button>
+        <div className="mb-2 flex h-14 w-14 items-center justify-center rounded-full bg-green-100">
+          <Icon name="upload" size={22} className="text-green-700" />
+        </div>
+        <p className="text-md font-semibold text-ink-900">
+          {file ? file.name : "Solte arquivos aqui"}
+        </p>
+        <p className="mt-1 max-w-sm text-sm text-ink-500">
+          PDF, JPG, PNG. Até 25 MB por arquivo. Upload sempre via servidor —
+          links assinados expiram em 1h.
+        </p>
+        <div className="mt-4">
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            icon="paperclip"
+            disabled={uploading}
+            onClick={() => inputRef.current?.click()}
+          >
+            {file ? "Trocar arquivo" : "ou escolher do dispositivo"}
+          </Button>
+        </div>
         <input
           ref={inputRef}
           type="file"
@@ -98,20 +116,23 @@ export function DocumentUploadZone({ caseId }: { caseId: string }) {
           className="hidden"
           data-testid="document-file-input"
         />
-        <p className="mt-2 text-xs text-slate-500">PDF, JPEG, PNG, WEBP — máx. 20 MB</p>
-        {file && <p className="mt-2 text-xs text-slate-800">Selecionado: {file.name}</p>}
       </div>
 
-      {error && <p className="text-xs text-red-600" data-testid="document-upload-error">{error}</p>}
+      {error && (
+        <p className="text-xs text-iron-600" data-testid="document-upload-error">
+          {error}
+        </p>
+      )}
 
-      <button
+      <Button
         type="submit"
+        variant="primary"
+        icon="upload"
         disabled={uploading || !file}
-        className="w-full sm:w-auto rounded bg-brand-accent px-4 py-2 text-sm text-white disabled:opacity-50"
         data-testid="document-upload-submit"
       >
         {uploading ? "Enviando…" : "Enviar documento"}
-      </button>
+      </Button>
     </form>
   )
 }
