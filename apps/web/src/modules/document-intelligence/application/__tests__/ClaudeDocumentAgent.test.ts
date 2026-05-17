@@ -8,6 +8,8 @@ function makeLLM(response: string): LLMProvider {
   return {
     complete: vi.fn().mockResolvedValue(response),
     stream: vi.fn(),
+    completeWithTools: vi.fn(),
+    streamComplete: vi.fn(),
   }
 }
 

@@ -37,23 +37,23 @@ export async function POST(req: NextRequest, ctx: { params: { caseId: string } }
     const historyForAgent = history.filter((m) => m.content !== content || m.role !== "USER")
 
     const agent = new TriageAgent(new AnthropicProvider())
-    const { text, scope } = await agent.reply(historyForAgent, content)
+    const { response, scope } = await agent.process(historyForAgent, content)
 
-    await repo.appendMessage(caseId, user.tenantId, "ASSISTANT", text, scope ? { extractedScope: scope } : undefined)
+    await repo.appendMessage(caseId, user.tenantId, "ASSISTANT", response, scope ? { extractedScope: scope } : undefined)
 
     let evaluation = null
-    if (scope) {
+    if (scope && existing.status === "AWAITING_SCOPE_DETAILS") {
       const classify = new ClassifyScopeUseCase(repo)
       const result = await classify.execute({
         caseId,
         tenantId: user.tenantId,
-        triggeredBy: `ai:triage`,
+        triggeredBy: "ai:triage",
         rawScope: scope,
       })
       evaluation = result.evaluation
     }
 
-    return NextResponse.json({ text, scope, evaluation })
+    return NextResponse.json({ text: response, scope, evaluation })
   } catch (err) {
     if ((err as Error).message === "UNAUTHORIZED") return unauthorized()
     return handleError(err)

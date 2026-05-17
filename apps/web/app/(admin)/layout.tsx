@@ -11,6 +11,13 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/policies", icon: "shield", label: "Políticas" },
 ]
 
+/** Itens exclusivos do SUPER_ADMIN — gestão da plataforma. */
+const SUPER_ADMIN_NAV: NavItem[] = [
+  { href: "/tenants", icon: "layers", label: "Tenants" },
+  { href: "/users", icon: "user", label: "Usuários" },
+  { href: "/skills", icon: "sparkle", label: "Skills de Relatório" },
+]
+
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const user = await getSessionUser()
 
@@ -22,9 +29,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     redirect("/cases")
   }
 
+  const nav =
+    user.role === "SUPER_ADMIN" ? [...NAV_ITEMS, ...SUPER_ADMIN_NAV] : NAV_ITEMS
+
   return (
     <AppShell
-      nav={NAV_ITEMS}
+      nav={nav}
       activeHref="/dashboard"
       brandLabel="Painel Administrativo"
       brandSub="ReformAI"

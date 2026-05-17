@@ -43,7 +43,10 @@ const baseScope = {
   areasAffected: [] as string[],
   workforceType: "indefinido" as const,
   affectsCommonAreas: false,
+  affectsStructure: false,
+  affectsExternalFacade: false,
   affectsNeighbors: false,
+  urgency: "normal" as const,
 }
 
 describe("DeterministicEvaluator", () => {

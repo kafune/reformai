@@ -2,6 +2,7 @@ import type { ReformCase } from "@reformai/database"
 import { prisma } from "@/infrastructure/database/prisma"
 import { TenantIsolationError } from "@/shared/errors/DomainError"
 import type {
+  ChatMessageDTO,
   CreateCaseInput,
   ReformCaseRepository,
   UpdateScopeInput,
@@ -87,12 +88,14 @@ export class PrismaReformCaseRepository implements ReformCaseRepository {
     role: "USER" | "ASSISTANT" | "SYSTEM",
     content: string,
     metadata?: unknown,
-  ): Promise<void> {
+  ): Promise<ChatMessageDTO> {
     const existing = await prisma.reformCase.findFirst({ where: { id: caseId, tenantId } })
     if (!existing) throw new TenantIsolationError()
-    await prisma.chatMessage.create({
+    const row = await prisma.chatMessage.create({
       data: { caseId, role, content, metadata: metadata as object | undefined },
+      select: { id: true, role: true, content: true, createdAt: true },
     })
+    return { ...row, role: String(row.role) }
   }
 
   async listMessages(caseId: string, tenantId: string) {

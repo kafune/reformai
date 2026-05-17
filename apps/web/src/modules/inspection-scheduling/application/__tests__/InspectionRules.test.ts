@@ -33,7 +33,10 @@ function makeScope(overrides: Partial<ReformScope> = {}): ReformScope {
     areasAffected: ["sala"],
     workforceType: "proprio",
     affectsCommonAreas: false,
+    affectsStructure: false,
+    affectsExternalFacade: false,
     affectsNeighbors: false,
+    urgency: "normal",
     ...overrides,
   }
 }

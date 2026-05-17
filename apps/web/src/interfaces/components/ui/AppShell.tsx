@@ -2,6 +2,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { cn } from "@/shared/cn"
+import { NotificationBell } from "../NotificationBell"
 import { Avatar } from "./Avatar"
 import { Eyebrow } from "./Eyebrow"
 import { Icon, type IconName } from "./Icon"
@@ -120,10 +121,11 @@ export function AppShell({
         <div className="flex-1" />
         <div className="flex items-center gap-2.5 border-t border-white/10 px-2 pt-3">
           <Avatar name={user.name} size={32} color={user.color} />
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <div className="truncate text-sm font-medium text-bone-50">{user.name}</div>
             {user.sub && <div className="text-xs text-bone-400">{user.sub}</div>}
           </div>
+          <NotificationBell />
         </div>
         {footer && <div className="px-2 pt-2">{footer}</div>}
       </aside>

@@ -2,6 +2,7 @@
 import { signIn, getSession } from "next-auth/react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Suspense, useState } from "react"
+import Link from "next/link"
 import { Logo, Button, Input, Icon, Badge } from "@/interfaces/components/ui"
 
 function LoginForm() {
@@ -60,6 +61,12 @@ function LoginForm() {
           <p className="mb-5 mt-1.5 text-base text-ink-500">
             Sua reforma começa aqui. A IA conduz, mas você decide.
           </p>
+
+          {params.get("registered") === "1" && (
+            <p className="mb-4 rounded-sm bg-[rgba(58,129,99,0.1)] px-3 py-2 text-sm text-green-700">
+              Conta criada com sucesso. Faça login para continuar.
+            </p>
+          )}
 
           <form onSubmit={onSubmit} className="flex flex-col gap-3">
             <Input
@@ -124,6 +131,13 @@ function LoginForm() {
               Continuar com o condomínio
             </Button>
           </form>
+
+          <p className="mt-5 text-sm text-ink-500">
+            Não tem conta?{" "}
+            <Link href="/register" className="font-medium text-green-700 hover:underline">
+              Criar conta de morador
+            </Link>
+          </p>
 
           <div className="mt-6 border-t border-divider pt-4 text-xs leading-relaxed text-ink-500">
             Ao continuar, você concorda com os{" "}

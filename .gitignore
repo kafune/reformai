@@ -41,3 +41,9 @@ test-results
 
 # TS
 *.tsbuildinfo
+
+# codigo antigo
+referencia-pai/
+referencia-pai/*
+referencia-pai/*/
+referencia-pai/apps/web

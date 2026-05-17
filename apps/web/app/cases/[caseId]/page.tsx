@@ -31,6 +31,7 @@ export default function CaseDetailPage() {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
   const [sending, setSending] = useState(false)
+  const [streamingContent, setStreamingContent] = useState("")
   const endRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => { if (status === "unauthenticated") router.push("/login") }, [status, router])
@@ -45,25 +46,58 @@ export default function CaseDetailPage() {
   }
 
   useEffect(() => { if (status === "authenticated") reload() }, [status, caseId])
-  useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }) }, [messages])
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }) }, [messages, streamingContent])
 
-  async function send(e: React.FormEvent) {
+  function send(e: React.FormEvent) {
     e.preventDefault()
-    if (!input.trim()) return
-    setSending(true)
-    const content = input
+    if (!input.trim() || sending) return
+    const content = input.trim()
     setInput("")
+    setSending(true)
+    setStreamingContent("")
+
+    const tempId = `tmp-${Date.now()}`
     setMessages((prev) => [
       ...prev,
-      { id: `tmp-${Date.now()}`, role: "USER", content, createdAt: new Date().toISOString() },
+      { id: tempId, role: "USER", content, createdAt: new Date().toISOString() },
     ])
-    const res = await fetch(`/api/v1/cases/${caseId}/messages`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ content }),
-    })
-    if (res.ok) await reload()
-    setSending(false)
+
+    const es = new EventSource(
+      `/api/v1/cases/${caseId}/messages/stream?content=${encodeURIComponent(content)}`,
+    )
+
+    es.onmessage = (event) => {
+      const data = JSON.parse(event.data as string)
+      switch (data.type as string) {
+        case "user_message":
+          setMessages((prev) => [
+            ...prev.filter((m) => m.id !== tempId),
+            data.message as Message,
+          ])
+          break
+        case "chunk":
+          setStreamingContent((prev) => prev + (data.content as string))
+          break
+        case "done":
+          es.close()
+          setSending(false)
+          setStreamingContent("")
+          // reload busca mensagens persistidas + status/risco atualizados do caso
+          reload()
+          break
+        case "error":
+          es.close()
+          setSending(false)
+          setStreamingContent("")
+          break
+      }
+    }
+
+    es.onerror = () => {
+      es.close()
+      setSending(false)
+      setStreamingContent("")
+    }
   }
 
   if (status !== "authenticated" || !data) return null
@@ -108,7 +142,7 @@ export default function CaseDetailPage() {
             )}
             {messages.map((m) => {
               const isUser = m.role === "USER"
-              const cleanContent = m.content.replace(/<scope>[\s\S]*?<\/scope>/, "").trim()
+              const cleanContent = m.content.trim()
               return isUser ? (
                 <div key={m.id} data-testid="chat-message-user">
                   <UserMessage>
@@ -125,7 +159,12 @@ export default function CaseDetailPage() {
                 </div>
               )
             })}
-            {sending && (
+            {sending && streamingContent && (
+              <div data-testid="chat-message-assistant">
+                <AIMessage>{streamingContent}</AIMessage>
+              </div>
+            )}
+            {sending && !streamingContent && (
               <div className="flex items-end gap-3">
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-green-900">
                   <Icon name="sparkle" size={14} className="text-green-300" />

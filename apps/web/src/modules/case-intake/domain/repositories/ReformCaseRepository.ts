@@ -21,11 +21,18 @@ export interface UpdateScopeInput {
   reason?: string
 }
 
+export interface ChatMessageDTO {
+  id: string
+  role: string
+  content: string
+  createdAt: Date
+}
+
 export interface ReformCaseRepository {
   create(input: CreateCaseInput): Promise<ReformCase>
   findById(id: string, tenantId: string): Promise<ReformCase | null>
   listByTenant(tenantId: string, filters?: { clientId?: string }): Promise<ReformCase[]>
   applyScopeClassification(caseId: string, tenantId: string, input: UpdateScopeInput): Promise<ReformCase>
-  appendMessage(caseId: string, tenantId: string, role: "USER" | "ASSISTANT" | "SYSTEM", content: string, metadata?: unknown): Promise<void>
-  listMessages(caseId: string, tenantId: string): Promise<Array<{ id: string; role: string; content: string; createdAt: Date }>>
+  appendMessage(caseId: string, tenantId: string, role: "USER" | "ASSISTANT" | "SYSTEM", content: string, metadata?: unknown): Promise<ChatMessageDTO>
+  listMessages(caseId: string, tenantId: string): Promise<ChatMessageDTO[]>
 }
