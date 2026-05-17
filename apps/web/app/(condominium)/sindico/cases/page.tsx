@@ -62,10 +62,10 @@ export default async function SindicoCasesPage() {
             </div>
           </div>
         ) : (
-          <div className="overflow-hidden rounded-lg bg-paper shadow-hair">
+          <div className="overflow-x-auto rounded-lg bg-paper shadow-hair">
             {/* Table header */}
             <div
-              className="grid items-center gap-4 border-b border-divider px-6 py-3 font-mono text-[10px] uppercase tracking-caps text-ink-400"
+              className="grid min-w-[820px] items-center gap-4 border-b border-divider px-6 py-3 font-mono text-[10px] uppercase tracking-caps text-ink-400"
               style={{ gridTemplateColumns: "130px 90px 1fr 150px 180px 100px" }}
             >
               <span>Protocolo</span>
@@ -89,7 +89,7 @@ export default async function SindicoCasesPage() {
                 return (
                   <div
                     key={c.id}
-                    className="grid items-center gap-4 px-6 py-4 hover:bg-bone-50 transition-colors"
+                    className="grid min-w-[820px] items-center gap-4 px-6 py-4 hover:bg-bone-50 transition-colors"
                     style={{ gridTemplateColumns: "130px 90px 1fr 150px 180px 100px" }}
                     data-testid="case-row"
                   >
@@ -132,7 +132,7 @@ export default async function SindicoCasesPage() {
             </div>
 
             {/* Footer: total count */}
-            <div className="border-t border-divider px-6 py-3">
+            <div className="min-w-[820px] border-t border-divider px-6 py-3">
               <Eyebrow className="text-ink-400">
                 {cases.length} resultado{cases.length !== 1 ? "s" : ""}
               </Eyebrow>

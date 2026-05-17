@@ -13,10 +13,10 @@ export function TopBar({
   actions?: React.ReactNode
 }) {
   return (
-    <header className="flex items-center justify-between gap-6 border-b border-divider bg-paper px-8 py-5">
+    <header className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b border-divider bg-paper px-4 py-4 md:px-8 md:py-5">
       <div className="min-w-0">
         {breadcrumb && breadcrumb.length > 0 && (
-          <div className="mb-1 flex items-center gap-1.5 text-xs">
+          <div className="mb-1 flex flex-wrap items-center gap-1.5 text-xs">
             {breadcrumb.map((b, i) => (
               <span key={i} className="flex items-center gap-1.5">
                 {i > 0 && <Icon name="chevR" size={11} className="text-ink-300" />}

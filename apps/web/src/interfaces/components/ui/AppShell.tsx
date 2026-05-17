@@ -1,3 +1,5 @@
+"use client"
+import { useState } from "react"
 import Link from "next/link"
 import { cn } from "@/shared/cn"
 import { Avatar } from "./Avatar"
@@ -14,6 +16,7 @@ export interface NavItem {
 /**
  * Casca de aplicação — sidebar escura (ink-900) + área principal.
  * Usada por todos os painéis (morador, síndico, parceiro, admin).
+ * Mobile: a sidebar vira drawer acionado pelo botão da barra superior.
  */
 export function AppShell({
   nav,
@@ -32,16 +35,60 @@ export function AppShell({
   footer?: React.ReactNode
   children: React.ReactNode
 }) {
+  const [navOpen, setNavOpen] = useState(false)
+
   return (
-    <div className="grid min-h-screen grid-cols-[236px_1fr] bg-paper">
-      <aside className="flex flex-col gap-2 bg-ink-900 px-4 pb-5 pt-6 text-bone-100">
-        <div className="px-2 pb-5">
+    <div className="min-h-screen bg-paper lg:grid lg:grid-cols-[236px_1fr]">
+      {/* Barra superior — apenas mobile */}
+      <div className="flex items-center justify-between border-b border-white/10 bg-ink-900 px-4 py-2.5 lg:hidden">
+        <Logo
+          size={28}
+          variant="lockup"
+          color="var(--rai-bone-50)"
+          accent="var(--rai-green-300)"
+        />
+        <button
+          type="button"
+          onClick={() => setNavOpen(true)}
+          aria-label="Abrir menu"
+          className="flex h-11 w-11 items-center justify-center rounded-sm text-bone-100 hover:bg-white/5"
+        >
+          <Icon name="list" size={20} />
+        </button>
+      </div>
+
+      {/* Overlay do drawer — apenas mobile */}
+      {navOpen && (
+        <div
+          onClick={() => setNavOpen(false)}
+          className="fixed inset-0 z-40 bg-[var(--rai-overlay)] lg:hidden"
+          aria-hidden="true"
+        />
+      )}
+
+      <aside
+        className={cn(
+          "flex w-[236px] flex-col gap-2 overflow-y-auto bg-ink-900 px-4 pb-5 pt-6 text-bone-100",
+          "fixed inset-y-0 left-0 z-50 transition-transform duration-200 ease-rai",
+          "lg:static lg:z-auto lg:w-auto lg:translate-x-0 lg:transition-none",
+          navOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
+        )}
+      >
+        <div className="flex items-center justify-between px-2 pb-5">
           <Logo
             size={32}
             variant="lockup"
             color="var(--rai-bone-50)"
             accent="var(--rai-green-300)"
           />
+          <button
+            type="button"
+            onClick={() => setNavOpen(false)}
+            aria-label="Fechar menu"
+            className="flex h-9 w-9 items-center justify-center rounded-sm text-bone-300 hover:bg-white/5 lg:hidden"
+          >
+            <Icon name="close" size={18} />
+          </button>
         </div>
         {brandLabel && (
           <div className="mb-2 border-b border-white/10 px-2 pb-3">
@@ -56,6 +103,7 @@ export function AppShell({
               <Link
                 key={n.href}
                 href={n.href}
+                onClick={() => setNavOpen(false)}
                 className={cn(
                   "flex items-center gap-3 rounded-sm px-3 py-2 text-sm transition-colors",
                   active

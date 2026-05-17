@@ -45,12 +45,9 @@ function LoginForm() {
   }
 
   return (
-    <div
-      className="rai h-screen overflow-hidden"
-      style={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}
-    >
+    <div className="rai min-h-screen lg:grid lg:h-screen lg:grid-cols-2 lg:overflow-hidden">
       {/* Left — form */}
-      <div className="flex flex-col overflow-y-auto bg-paper px-16 py-10">
+      <div className="flex flex-col overflow-y-auto bg-paper px-6 py-10 sm:px-10 lg:px-16">
         <Logo size={32} variant="lockup" />
 
         <div className="flex flex-1 flex-col justify-center" style={{ maxWidth: 360 }}>
@@ -151,7 +148,7 @@ function LoginForm() {
 
       {/* Right — concreto verde */}
       <div
-        className="relative flex flex-col justify-between overflow-hidden px-14 py-10"
+        className="relative hidden flex-col justify-between overflow-hidden px-14 py-10 lg:flex"
         style={{ background: "var(--rai-green-900)", color: "var(--rai-bone-50)" }}
       >
         {/* decorative circles */}

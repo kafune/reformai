@@ -73,10 +73,10 @@ export default async function ReviewCasePage({ params }: { params: { caseId: str
         }
       />
 
-      <div className="flex-1 overflow-auto bg-bone-50 px-8 py-8">
+      <div className="flex-1 overflow-auto bg-bone-50 px-4 py-6 md:px-8 md:py-8">
         <div className="mx-auto max-w-4xl space-y-6">
           {/* Hero card */}
-          <Card className="grid grid-cols-[1fr_auto] gap-8" padded>
+          <Card className="grid grid-cols-1 gap-6 sm:grid-cols-[1fr_auto] sm:gap-8" padded>
             <div>
               <div className="flex items-center gap-3">
                 <Eyebrow>Protocolo</Eyebrow>
@@ -108,7 +108,7 @@ export default async function ReviewCasePage({ params }: { params: { caseId: str
             <h2 className="mb-4 text-sm font-semibold tracking-snug text-ink-900">
               Informações do caso
             </h2>
-            <dl className="grid grid-cols-2 gap-4 text-sm">
+            <dl className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
               <div>
                 <Eyebrow className="mb-1">Status</Eyebrow>
                 <dd className="font-medium text-ink-900">
@@ -197,7 +197,7 @@ export default async function ReviewCasePage({ params }: { params: { caseId: str
                   Rule Engine · determinístico
                 </span>
               </div>
-              <dl className="mb-5 grid grid-cols-2 gap-4 text-sm">
+              <dl className="mb-5 grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
                 <div>
                   <Eyebrow className="mb-1">Risco</Eyebrow>
                   <dd className="font-medium text-ink-900">{evaluation.riskLevel ?? "—"}</dd>

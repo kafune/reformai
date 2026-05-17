@@ -46,9 +46,9 @@ export default async function ReviewQueuePage() {
             <p className="mt-1 text-sm text-ink-400">Nenhum caso aguardando revisão humana.</p>
           </div>
         ) : (
-          <div className="overflow-hidden rounded-lg bg-surface shadow-hair">
+          <div className="overflow-x-auto rounded-lg bg-surface shadow-hair">
             {/* Table header */}
-            <div className="grid grid-cols-[120px_1fr_160px_80px_120px_80px] items-center gap-4 border-b border-divider bg-bone-50 px-5 py-3">
+            <div className="grid min-w-[760px] grid-cols-[120px_1fr_160px_80px_120px_80px] items-center gap-4 border-b border-divider bg-bone-50 px-5 py-3">
               <Eyebrow>Protocolo</Eyebrow>
               <Eyebrow>Condomínio · Unidade</Eyebrow>
               <Eyebrow>Risco</Eyebrow>
@@ -62,7 +62,7 @@ export default async function ReviewQueuePage() {
               {cases.map((c) => (
                 <div
                   key={c.id}
-                  className="grid grid-cols-[120px_1fr_160px_80px_120px_80px] items-center gap-4 px-5 py-4 transition-colors hover:bg-bone-50"
+                  className="grid min-w-[760px] grid-cols-[120px_1fr_160px_80px_120px_80px] items-center gap-4 px-5 py-4 transition-colors hover:bg-bone-50"
                   data-testid="review-queue-item"
                 >
                   <span className="font-mono text-xs font-medium text-ink-500">

@@ -26,7 +26,7 @@ export function AIMessage({
             IA · assistiva
           </span>
         </div>
-        <div className="rounded-[2px_12px_12px_12px] bg-surface px-4 py-3.5 text-sm leading-relaxed text-ink-700 shadow-hair">
+        <div className="rounded-[2px_12px_12px_12px] bg-surface px-4 py-3.5 text-sm leading-relaxed text-ink-700 shadow-hair break-words">
           {children}
         </div>
         {disclaimer && (
@@ -53,7 +53,7 @@ export function UserMessage({
   return (
     <div className={cn("flex max-w-[75%] flex-row-reverse gap-3 self-end", className)}>
       <Avatar name={name} color="var(--rai-clay-500)" size={32} />
-      <div className="rounded-[12px_2px_12px_12px] bg-green-800 px-4 py-3 text-sm leading-normal text-bone-50">
+      <div className="rounded-[12px_2px_12px_12px] bg-green-800 px-4 py-3 text-sm leading-normal text-bone-50 break-words">
         {children}
       </div>
     </div>

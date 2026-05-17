@@ -68,7 +68,7 @@ export default function CasesPage() {
         }
       />
 
-      <div className="flex-1 overflow-auto bg-paper px-8 py-6">
+      <div className="flex-1 overflow-auto bg-paper px-4 py-6 md:px-8">
         {/* New case card */}
         <div className="mb-6 rounded-md bg-surface p-5 shadow-hair">
           <div className="mb-3 flex items-center gap-2">
@@ -79,7 +79,7 @@ export default function CasesPage() {
             <select
               value={selectedUnit}
               onChange={(e) => setSelectedUnit(e.target.value)}
-              className="flex-1 rounded-sm border border-line-strong bg-surface px-3 py-2 text-sm text-ink-900 focus:outline-none focus:ring-2 focus:ring-green-600/40"
+              className="flex-1 rounded-sm border border-line-strong bg-surface px-3 py-2 text-sm text-ink-900 focus:outline-none focus:ring-2 focus:ring-green-600/40 max-md:min-h-11"
               data-testid="unit-select"
             >
               {units.length === 0 && (

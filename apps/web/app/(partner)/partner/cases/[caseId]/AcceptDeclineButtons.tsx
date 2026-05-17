@@ -76,7 +76,7 @@ export function AcceptDeclineButtons({ partnerId, caseId }: AcceptDeclineButtons
           type="button"
           onClick={() => setShowDeclineModal(true)}
           disabled={loading !== null}
-          className="inline-flex items-center justify-center rounded-sm border border-bone-200/20 px-5 py-2 text-sm font-medium text-bone-200 transition-colors hover:bg-white/5 disabled:pointer-events-none disabled:opacity-50"
+          className="inline-flex items-center justify-center rounded-sm border border-bone-200/20 px-5 py-2 text-sm font-medium text-bone-200 transition-colors hover:bg-white/5 disabled:pointer-events-none disabled:opacity-50 max-md:min-h-11"
         >
           Ver detalhes
         </button>
@@ -84,7 +84,7 @@ export function AcceptDeclineButtons({ partnerId, caseId }: AcceptDeclineButtons
           type="button"
           onClick={() => setShowDeclineModal(true)}
           disabled={loading !== null}
-          className="inline-flex items-center justify-center rounded-sm px-4 py-2 text-sm text-bone-400 transition-colors hover:text-bone-200 disabled:pointer-events-none disabled:opacity-50"
+          className="inline-flex items-center justify-center rounded-sm px-4 py-2 text-sm text-bone-400 transition-colors hover:text-bone-200 disabled:pointer-events-none disabled:opacity-50 max-md:min-h-11"
         >
           Recusar
         </button>
@@ -121,7 +121,7 @@ export function AcceptDeclineButtons({ partnerId, caseId }: AcceptDeclineButtons
                 setError(null)
               }}
               disabled={loading !== null}
-              className="inline-flex items-center justify-center rounded-sm border border-bone-200/20 px-4 py-2 text-sm text-bone-300 transition-colors hover:bg-white/5 disabled:pointer-events-none disabled:opacity-50"
+              className="inline-flex items-center justify-center rounded-sm border border-bone-200/20 px-4 py-2 text-sm text-bone-300 transition-colors hover:bg-white/5 disabled:pointer-events-none disabled:opacity-50 max-md:min-h-11"
             >
               Cancelar
             </button>

@@ -58,10 +58,8 @@ export default async function CaseDocumentsPage({ params }: { params: { caseId: 
         }
       />
 
-      <div className="flex-1 overflow-auto bg-paper px-8 py-6">
-        <div
-          style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 24 }}
-        >
+      <div className="flex-1 overflow-auto bg-paper px-4 py-6 md:px-8">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.4fr_1fr]">
           {/* Left column */}
           <div className="flex flex-col gap-6">
             {/* Drop zone + upload */}

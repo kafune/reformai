@@ -16,7 +16,7 @@ export function Card({
       className={cn(
         "rounded-md bg-surface",
         raised ? "shadow-3" : "shadow-hair",
-        padded && "p-6",
+        padded && "p-4 md:p-6",
         className,
       )}
     >

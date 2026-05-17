@@ -95,14 +95,11 @@ export default function CaseDetailPage() {
         <span className="sr-only" data-testid="case-risk-level">{data.riskLevel}</span>
       )}
 
-      <div
-        className="flex flex-1 overflow-hidden"
-        style={{ display: "grid", gridTemplateColumns: "1fr 320px" } as React.CSSProperties}
-      >
+      <div className="grid flex-1 grid-cols-1 lg:grid-cols-[1fr_320px] lg:overflow-hidden">
         {/* Chat column */}
-        <div className="flex flex-col overflow-hidden" style={{ background: "var(--rai-bone-100)" }}>
+        <div className="flex flex-col lg:overflow-hidden" style={{ background: "var(--rai-bone-100)" }}>
           {/* messages */}
-          <div className="flex flex-1 flex-col gap-5 overflow-y-auto px-10 py-7">
+          <div className="flex flex-1 flex-col gap-5 overflow-y-auto px-4 py-5 md:px-10 md:py-7">
             {messages.length === 0 && (
               <AIMessage>
                 Olá! Sou o assistente da ReformAI. Descreva sua reforma em linguagem
@@ -149,7 +146,7 @@ export default function CaseDetailPage() {
 
           {/* Composer */}
           <div
-            className="border-t border-divider px-10 pb-6 pt-4"
+            className="border-t border-divider px-4 pb-4 pt-3 md:px-10 md:pb-6 md:pt-4"
             style={{ background: "var(--rai-bone-100)" }}
           >
             <form
@@ -190,7 +187,7 @@ export default function CaseDetailPage() {
         </div>
 
         {/* Right rail */}
-        <aside className="overflow-y-auto border-l border-divider bg-paper p-6">
+        <aside className="overflow-y-auto border-t border-divider bg-paper p-4 md:p-6 lg:border-l lg:border-t-0">
           <Eyebrow>Caso em andamento</Eyebrow>
           <p className="mt-1.5 font-mono text-sm text-ink-500">{data.protocol}</p>
 

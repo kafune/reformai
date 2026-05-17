@@ -50,7 +50,7 @@ export function RiskBadge({
         {level}
       </span>
       <span
-        className="flex items-center gap-1.5 font-medium"
+        className="flex items-center gap-1.5 whitespace-nowrap font-medium"
         style={{ padding: sm ? "2px 8px" : "4px 10px", fontSize: sm ? 11 : 12 }}
       >
         {LABELS[level]}

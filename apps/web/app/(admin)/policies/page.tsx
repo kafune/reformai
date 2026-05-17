@@ -35,9 +35,9 @@ export default async function PoliciesPage() {
             </p>
           </div>
         ) : (
-          <div className="overflow-hidden rounded-lg bg-surface shadow-hair">
+          <div className="overflow-x-auto rounded-lg bg-surface shadow-hair">
             {/* Table header */}
-            <div className="grid grid-cols-[1fr_80px_80px_140px_100px] items-center gap-4 border-b border-divider bg-bone-50 px-5 py-3">
+            <div className="grid min-w-[680px] grid-cols-[1fr_80px_80px_140px_100px] items-center gap-4 border-b border-divider bg-bone-50 px-5 py-3">
               <Eyebrow>Nome</Eyebrow>
               <Eyebrow>Versão</Eyebrow>
               <Eyebrow>Regras</Eyebrow>
@@ -50,7 +50,7 @@ export default async function PoliciesPage() {
               {policies.map((policy) => (
                 <div
                   key={policy.id}
-                  className="grid grid-cols-[1fr_80px_80px_140px_100px] items-center gap-4 px-5 py-4 transition-colors hover:bg-bone-50"
+                  className="grid min-w-[680px] grid-cols-[1fr_80px_80px_140px_100px] items-center gap-4 px-5 py-4 transition-colors hover:bg-bone-50"
                 >
                   <div>
                     <div className="flex items-center gap-2">

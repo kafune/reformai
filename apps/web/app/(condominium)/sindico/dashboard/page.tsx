@@ -198,7 +198,7 @@ export default async function SindicoDashboardPage() {
 
       <div className="flex-1 overflow-auto bg-bone-50 px-8 py-6 pb-12">
         {/* ── Stat cards ── */}
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           {[
             {
               label: "Casos ativos",
@@ -256,7 +256,7 @@ export default async function SindicoDashboardPage() {
         </div>
 
         {/* ── Main grid ── */}
-        <div className="mt-6 grid gap-6" style={{ gridTemplateColumns: "1.6fr 1fr" }}>
+        <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[1.6fr_1fr]">
           {/* ── Left: Tabela de atenção ── */}
           <div className="overflow-hidden rounded-lg bg-paper shadow-hair">
             <div className="flex items-center justify-between px-6 py-4">
@@ -282,9 +282,9 @@ export default async function SindicoDashboardPage() {
                 Nenhum caso requer atenção no momento.
               </div>
             ) : (
-              <div className="flex flex-col">
+              <div className="flex flex-col overflow-x-auto">
                 {/* Header row */}
-                <div className="grid items-center gap-4 border-t border-divider px-6 pb-2 pt-2 font-mono text-[10px] uppercase tracking-caps text-ink-400"
+                <div className="grid min-w-[720px] items-center gap-4 border-t border-divider px-6 pb-2 pt-2 font-mono text-[10px] uppercase tracking-caps text-ink-400"
                   style={{ gridTemplateColumns: "100px 80px 1fr 140px 170px 60px" }}>
                   <span>Protocolo</span>
                   <span>Unidade</span>
@@ -305,7 +305,7 @@ export default async function SindicoDashboardPage() {
                   return (
                     <div
                       key={c.id}
-                      className="grid items-center gap-4 border-t border-divider px-6 py-3"
+                      className="grid min-w-[720px] items-center gap-4 border-t border-divider px-6 py-3"
                       style={{ gridTemplateColumns: "100px 80px 1fr 140px 170px 60px" }}
                     >
                       <span className="font-mono text-[11px] tracking-wide text-ink-500">

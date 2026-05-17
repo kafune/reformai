@@ -115,7 +115,7 @@ export function DocumentList({ caseId, initialDocuments }: { caseId: string; ini
           return (
             <li
               key={doc.id}
-              className="flex items-center gap-3.5 px-5 py-3.5"
+              className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3.5 md:gap-x-3.5 md:px-5"
               data-testid="document-list-item"
             >
               {/* file icon */}
@@ -149,7 +149,7 @@ export function DocumentList({ caseId, initialDocuments }: { caseId: string; ini
                 type="button"
                 onClick={() => openDocument(doc.id)}
                 disabled={opening === doc.id}
-                className="flex h-7 w-7 items-center justify-center rounded border-0 bg-transparent text-ink-400 hover:bg-bone-100 hover:text-ink-700 disabled:opacity-50"
+                className="flex h-7 w-7 items-center justify-center rounded border-0 bg-transparent text-ink-400 hover:bg-bone-100 hover:text-ink-700 disabled:opacity-50 max-md:h-11 max-md:w-11"
                 title="Visualizar"
               >
                 <Icon name="eye" size={14} />

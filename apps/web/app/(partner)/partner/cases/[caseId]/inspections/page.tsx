@@ -105,7 +105,7 @@ export default async function PartnerInspectionsPage({
         subtitle={`${inspections.length} vistoria(s) registrada(s)`}
       />
 
-      <div className="flex-1 bg-bone-50 p-8 space-y-6">
+      <div className="flex-1 bg-bone-50 p-4 md:p-8 space-y-6">
         {/* Agendar nova vistoria */}
         <Card>
           <div className="flex items-center gap-2 mb-5">
@@ -138,7 +138,7 @@ export default async function PartnerInspectionsPage({
                 return (
                   <div
                     key={insp.id}
-                    className="grid grid-cols-[60px_1fr_auto] gap-4 rounded-sm bg-bone-50 p-3 items-center"
+                    className="grid grid-cols-[56px_1fr] gap-3 rounded-sm bg-bone-50 p-3 items-center sm:grid-cols-[60px_1fr_auto] sm:gap-4"
                   >
                     {/* Date block */}
                     <div className="rounded bg-surface text-center py-2 px-1 shadow-hair">
@@ -167,7 +167,7 @@ export default async function PartnerInspectionsPage({
                     </div>
 
                     {/* Actions */}
-                    <div className="flex flex-col gap-2 items-end">
+                    <div className="col-span-2 flex gap-2 items-center sm:col-span-1 sm:flex-col sm:items-end">
                       <Link
                         href={`/partner/cases/${params.caseId}/inspections/${insp.id}/complete`}
                         className="inline-flex items-center gap-1.5 rounded-sm bg-green-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-800 transition-colors"

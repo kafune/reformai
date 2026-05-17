@@ -154,7 +154,7 @@ export default async function PartnerCaseDetailPage({
         subtitle={STATUS_LABELS[reformCase.status as CaseStatus] ?? reformCase.status}
       />
 
-      <div className="flex-1 bg-bone-50 p-8 space-y-6">
+      <div className="flex-1 bg-bone-50 p-4 md:p-8 space-y-6">
         {/* Hero card */}
         <Card className="!p-7">
           <div className="grid grid-cols-1 gap-6 md:grid-cols-[1.4fr_1fr]">
@@ -210,7 +210,7 @@ export default async function PartnerCaseDetailPage({
 
             {/* Right: facts */}
             <div className="flex flex-col gap-4">
-              <div className="grid grid-cols-2 gap-4 border-b border-divider pb-4">
+              <div className="grid grid-cols-1 gap-4 border-b border-divider pb-4 sm:grid-cols-2">
                 {reformCase.triageScore !== null && (
                   <div>
                     <Eyebrow>Score de triagem</Eyebrow>
@@ -385,7 +385,7 @@ export default async function PartnerCaseDetailPage({
                 </div>
                 <ul className="space-y-3">
                   {reformCase.transitions.map((t, i) => (
-                    <li key={i} className="flex gap-3 text-xs">
+                    <li key={i} className="flex flex-wrap gap-x-3 gap-y-1 text-xs">
                       <span className="font-mono text-ink-400 shrink-0 pt-px">
                         {formatDate(t.createdAt)}
                       </span>

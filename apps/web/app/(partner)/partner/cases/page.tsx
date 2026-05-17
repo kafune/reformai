@@ -126,8 +126,9 @@ export default async function PartnerCasesPage({
           </Card>
         ) : (
           <Card padded={false}>
+            <div className="overflow-x-auto">
             {/* Table header */}
-            <div className="border-b border-divider px-5 py-3 grid grid-cols-[110px_1fr_150px_165px_150px_60px] gap-3 items-center">
+            <div className="border-b border-divider px-5 py-3 grid min-w-[760px] grid-cols-[110px_1fr_150px_165px_150px_60px] gap-3 items-center">
               <Eyebrow>Protocolo</Eyebrow>
               <Eyebrow>Condomínio · Unidade</Eyebrow>
               <Eyebrow>Risco</Eyebrow>
@@ -142,7 +143,7 @@ export default async function PartnerCasesPage({
               return (
                 <div
                   key={c.id}
-                  className={`px-5 py-3.5 grid grid-cols-[110px_1fr_150px_165px_150px_60px] gap-3 items-center transition-colors hover:bg-bone-50 ${
+                  className={`px-5 py-3.5 grid min-w-[760px] grid-cols-[110px_1fr_150px_165px_150px_60px] gap-3 items-center transition-colors hover:bg-bone-50 ${
                     i > 0 ? "border-t border-divider" : ""
                   }`}
                 >
@@ -192,6 +193,7 @@ export default async function PartnerCasesPage({
                 </div>
               )
             })}
+            </div>
           </Card>
         )}
       </div>

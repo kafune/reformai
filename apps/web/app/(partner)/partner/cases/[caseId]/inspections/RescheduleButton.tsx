@@ -66,7 +66,7 @@ export function RescheduleButton({ caseId, inspectionId, currentScheduledAt }: R
         <button
           type="button"
           onClick={handleOpen}
-          className="inline-flex items-center justify-center rounded-sm border border-line-strong bg-surface px-3 py-1.5 text-xs font-medium text-ink-700 transition-colors hover:bg-bone-100"
+          className="inline-flex items-center justify-center rounded-sm border border-line-strong bg-surface px-3 py-1.5 text-xs font-medium text-ink-700 transition-colors hover:bg-bone-100 max-md:min-h-11"
         >
           Reagendar
         </button>
@@ -79,7 +79,7 @@ export function RescheduleButton({ caseId, inspectionId, currentScheduledAt }: R
             value={newDate}
             onChange={(e) => setNewDate(e.target.value)}
             disabled={loading}
-            className="h-8 rounded-sm border border-line-strong bg-surface px-3 text-sm text-ink-900 outline-none focus:ring-2 focus:ring-green-600/40 disabled:opacity-60"
+            className="h-8 rounded-sm border border-line-strong bg-surface px-3 text-sm text-ink-900 outline-none focus:ring-2 focus:ring-green-600/40 disabled:opacity-60 max-md:min-h-11"
           />
           <Button
             variant="primary"
