@@ -10,16 +10,26 @@ export interface MinIOAdapterConfig {
   secretKey: string
   bucket: string
   region?: string
+  /**
+   * Endpoint público (opcional). Quando definido, as URLs assinadas são
+   * geradas contra este host — necessário quando o MinIO roda numa rede
+   * interna inacessível ao navegador do usuário. As operações de
+   * leitura/escrita continuam usando o endpoint interno.
+   */
+  publicEndPoint?: string
+  publicPort?: number
+  publicUseSSL?: boolean
 }
 
 /**
  * MinIO-backed implementation of `StorageAdapter`.
  *
- * Used in local/dev environments. Auto-creates the bucket on first `upload`
- * if it does not already exist — convenient for ephemeral dev containers.
+ * Auto-creates the bucket on first `upload` if it does not exist.
+ * Signed URLs are generated against the public endpoint when configured.
  */
 export class MinIOAdapter implements StorageAdapter {
   private readonly client: MinioClient
+  private readonly signingClient: MinioClient
   private readonly bucket: string
   private readonly region: string | undefined
 
@@ -33,6 +43,16 @@ export class MinIOAdapter implements StorageAdapter {
       accessKey: config.accessKey,
       secretKey: config.secretKey,
     })
+    this.signingClient = config.publicEndPoint
+      ? new MinioClient({
+          endPoint: config.publicEndPoint,
+          port: config.publicPort ?? 443,
+          useSSL: config.publicUseSSL ?? true,
+          accessKey: config.accessKey,
+          secretKey: config.secretKey,
+          region: config.region ?? "us-east-1",
+        })
+      : this.client
   }
 
   async upload(key: string, buffer: Buffer, mimeType: string): Promise<void> {
@@ -46,7 +66,7 @@ export class MinIOAdapter implements StorageAdapter {
   }
 
   async getSignedUrl(key: string, expiresInSeconds: number): Promise<string> {
-    return this.client.presignedGetObject(this.bucket, key, expiresInSeconds)
+    return this.signingClient.presignedGetObject(this.bucket, key, expiresInSeconds)
   }
 
   async delete(key: string): Promise<void> {

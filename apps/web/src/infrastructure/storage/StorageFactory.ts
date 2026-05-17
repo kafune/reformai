@@ -77,6 +77,10 @@ export function createStorageAdapter(): StorageAdapter {
 
   if (adapter === "minio") {
     const { host, port, useSSL } = parseMinioEndpoint(requireEnv("MINIO_ENDPOINT"))
+    // Endpoint público opcional — usado só para gerar URLs assinadas
+    // acessíveis pelo navegador (o MinIO interno não é roteável de fora).
+    const publicRaw = process.env.MINIO_PUBLIC_ENDPOINT
+    const pub = publicRaw && publicRaw.trim() ? parseMinioEndpoint(publicRaw) : null
     return new MinIOAdapter({
       endPoint: host,
       port,
@@ -84,6 +88,9 @@ export function createStorageAdapter(): StorageAdapter {
       accessKey: requireEnv("MINIO_ACCESS_KEY"),
       secretKey: requireEnv("MINIO_SECRET_KEY"),
       bucket: requireEnv("MINIO_BUCKET"),
+      publicEndPoint: pub?.host,
+      publicPort: pub?.port,
+      publicUseSSL: pub?.useSSL,
     })
   }
 
