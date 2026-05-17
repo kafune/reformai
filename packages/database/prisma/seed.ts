@@ -4,17 +4,73 @@ import { hash } from "./seed-utils";
 
 const prisma = new PrismaClient();
 
-async function main() {
-  console.log("🌱 Iniciando seed...\n");
+// ════════════════════════════════════════════════════════════════
+// SEED ESSENCIAL — infraestrutura que o sistema precisa para operar.
+// Roda sempre, inclusive em produção. Não cria contas nem dados fake.
+// ════════════════════════════════════════════════════════════════
+async function seedEssential(): Promise<{ policyId: string }> {
+  console.log("⚙️  Seed essencial (política global + report skills)…");
 
-  // ─── TENANT ───────────────────────────────────────────────────
-  const tenant = await prisma.tenant.upsert({
-    where: { slug: "demo" },
-    update: {
-      name: "Demo Administradora",
-      type: "ADMINISTRADORA",
+  const existingPolicy = await prisma.policy.findFirst({
+    where: { tenantId: null, name: "Política Padrão Global" },
+  });
+
+  const policy =
+    existingPolicy ??
+    (await prisma.policy.create({
+      data: {
+        tenantId: null,
+        name: "Política Padrão Global",
+        description:
+          "Regras padrão do sistema para classificação de risco de obras (CLAUDE.md §7).",
+        version: 1,
+        active: true,
+        effectiveFrom: new Date(),
+      },
+    }));
+
+  await prisma.rule.deleteMany({ where: { policyId: policy.id } });
+  await prisma.rule.createMany({
+    data: DEFAULT_RULES.map((r) => ({
+      policyId: policy.id,
+      name: r.name,
+      description: r.description,
+      condition: r.condition,
+      action: r.action,
+      priority: r.priority,
+      version: 1,
+      active: true,
+    })),
+  });
+  console.log(`✅ Política: "${policy.name}" com ${DEFAULT_RULES.length} regras`);
+
+  await prisma.reportSkill.upsert({
+    where: { type: "MEMORIAL_DESCRITIVO" },
+    update: {},
+    create: {
+      type: "MEMORIAL_DESCRITIVO",
+      skillId: "skill_01NmYp1UkBieZQfd23cxPYri",
+      name: "Memorial Descritivo NBR 16280",
       active: true,
     },
+  });
+  console.log(`✅ ReportSkill: Memorial Descritivo`);
+
+  return { policyId: policy.id };
+}
+
+// ════════════════════════════════════════════════════════════════
+// SEED DEMO — tenant, condomínio, usuários e casos fictícios.
+// Roda APENAS com SEED_DEMO=true. Nunca deve rodar em produção:
+// cria contas com senha trivial (senha123) e dados RF-DEMO-*.
+// ════════════════════════════════════════════════════════════════
+async function seedDemo(policyId: string): Promise<void> {
+  console.log("\n🎭 Seed de demonstração (SEED_DEMO=true)…");
+
+  // ─── TENANT ─────────────────────────────────────────────────
+  const tenant = await prisma.tenant.upsert({
+    where: { slug: "demo" },
+    update: { name: "Demo Administradora", type: "ADMINISTRADORA", active: true },
     create: {
       name: "Demo Administradora",
       slug: "demo",
@@ -25,7 +81,7 @@ async function main() {
   });
   console.log(`✅ Tenant: ${tenant.name} (${tenant.slug})`);
 
-  // ─── CONDOMÍNIO ───────────────────────────────────────────────
+  // ─── CONDOMÍNIO ─────────────────────────────────────────────
   const condominium = await prisma.condominium.upsert({
     where: { id: "condo-demo-001" },
     update: {
@@ -50,32 +106,12 @@ async function main() {
   });
   console.log(`✅ Condomínio: ${condominium.name}`);
 
-  // ─── UNIDADES ─────────────────────────────────────────────────
+  // ─── UNIDADES ───────────────────────────────────────────────
   const unitsToSeed = [
-    {
-      id: "unit-demo-101",
-      identifier: "Apt 101",
-      floor: "1",
-      ownerName: "Morador Demo",
-      ownerEmail: "morador@demo.com",
-    },
-    {
-      id: "unit-demo-201",
-      identifier: "Apt 201",
-      floor: "2",
-      ownerName: null,
-      ownerEmail: null,
-    },
-    {
-      id: "unit-demo-301",
-      identifier: "Apt 301",
-      floor: "3",
-      ownerName: null,
-      ownerEmail: null,
-    },
+    { id: "unit-demo-101", identifier: "Apt 101", floor: "1", ownerName: "Morador Demo", ownerEmail: "morador@demo.com" },
+    { id: "unit-demo-201", identifier: "Apt 201", floor: "2", ownerName: null, ownerEmail: null },
+    { id: "unit-demo-301", identifier: "Apt 301", floor: "3", ownerName: null, ownerEmail: null },
   ];
-
-  let unitCount = 0;
   for (const u of unitsToSeed) {
     await prisma.unit.upsert({
       where: { id: u.id },
@@ -95,31 +131,22 @@ async function main() {
         ownerEmail: u.ownerEmail ?? undefined,
       },
     });
-    unitCount++;
-    console.log(`✅ Unidade: ${u.identifier}`);
   }
+  console.log(`✅ Unidades: ${unitsToSeed.length}`);
 
-  // ─── USUÁRIOS ─────────────────────────────────────────────────
+  // ─── USUÁRIOS DEMO ──────────────────────────────────────────
   const users = [
     { id: "user-admin", email: "admin@demo.com", name: "Admin Demo", role: "SUPER_ADMIN" as const },
     { id: "user-sindico", email: "sindico@demo.com", name: "Síndico Demo", role: "CONDOMINIUM" as const },
     { id: "user-morador", email: "morador@demo.com", name: "Morador Demo", role: "CLIENT" as const },
     { id: "user-parceiro", email: "parceiro@demo.com", name: "Parceiro Demo", role: "PARTNER" as const },
   ];
-
   const passwordHash = await hash("senha123");
-
-  let userCount = 0;
   for (const u of users) {
+    const condominiumId = u.role === "CONDOMINIUM" ? condominium.id : null;
     await prisma.user.upsert({
       where: { email: u.email },
-      update: {
-        tenantId: tenant.id,
-        name: u.name,
-        role: u.role,
-        active: true,
-        condominiumId: u.role === "CONDOMINIUM" ? condominium.id : null,
-      },
+      update: { tenantId: tenant.id, name: u.name, role: u.role, active: true, condominiumId, passwordHash },
       create: {
         id: u.id,
         tenantId: tenant.id,
@@ -129,14 +156,13 @@ async function main() {
         role: u.role,
         active: true,
         lgpdConsentAt: new Date(),
-        condominiumId: u.role === "CONDOMINIUM" ? condominium.id : null,
+        condominiumId,
       },
     });
-    userCount++;
-    console.log(`✅ Usuário: ${u.email} (${u.role})`);
   }
+  console.log(`✅ Usuários demo: ${users.length}`);
 
-  // ─── PARCEIRO ─────────────────────────────────────────────────
+  // ─── PARCEIRO ───────────────────────────────────────────────
   const partner = await prisma.partner.upsert({
     where: { userId: "user-parceiro" },
     update: {
@@ -165,105 +191,38 @@ async function main() {
   });
   console.log(`✅ Parceiro: Parceiro Demo (CREA SP-123456)`);
 
-  // ─── POLÍTICA GLOBAL PADRÃO ───────────────────────────────────
-  const existingPolicy = await prisma.policy.findFirst({
-    where: { tenantId: null, name: "Política Padrão Global" },
-  });
-
-  const policy =
-    existingPolicy ??
-    (await prisma.policy.create({
-      data: {
-        tenantId: null,
-        name: "Política Padrão Global",
-        description: "Regras padrão do sistema para classificação de risco de obras (CLAUDE.md §7).",
-        version: 1,
-        active: true,
-        effectiveFrom: new Date(),
-      },
-    }));
-
-  await prisma.rule.deleteMany({ where: { policyId: policy.id } });
-  await prisma.rule.createMany({
-    data: DEFAULT_RULES.map((r) => ({
-      policyId: policy.id,
-      name: r.name,
-      description: r.description,
-      condition: r.condition,
-      action: r.action,
-      priority: r.priority,
-      version: 1,
-      active: true,
-    })),
-  });
-  console.log(`✅ Política: "${policy.name}" com ${DEFAULT_RULES.length} regras`);
-
-  // ─── PLANO COMERCIAL ──────────────────────────────────────────
+  // ─── PLANO COMERCIAL ────────────────────────────────────────
   const existingPlan = await prisma.commercialPlan.findFirst({
     where: { tenantId: tenant.id, name: "Plano Essencial" },
   });
-
+  const planData = {
+    description: "Acompanhamento técnico essencial com 3 vistorias inclusas.",
+    basePrice: 990.0,
+    extraInspectionPrice: 250.0,
+    includes: { inspections: 3, reports: ["ANALYSIS", "TECHNICAL_OPINION"] },
+    active: true,
+  };
   if (existingPlan) {
-    await prisma.commercialPlan.update({
-      where: { id: existingPlan.id },
-      data: {
-        description: "Acompanhamento técnico essencial com 3 vistorias inclusas.",
-        basePrice: 990.0,
-        extraInspectionPrice: 250.0,
-        includes: {
-          inspections: 3,
-          reports: ["ANALYSIS", "TECHNICAL_OPINION"],
-        },
-        active: true,
-      },
-    });
+    await prisma.commercialPlan.update({ where: { id: existingPlan.id }, data: planData });
   } else {
     await prisma.commercialPlan.create({
-      data: {
-        tenantId: tenant.id,
-        name: "Plano Essencial",
-        description: "Acompanhamento técnico essencial com 3 vistorias inclusas.",
-        basePrice: 990.0,
-        extraInspectionPrice: 250.0,
-        includes: {
-          inspections: 3,
-          reports: ["ANALYSIS", "TECHNICAL_OPINION"],
-        },
-        active: true,
-      },
+      data: { tenantId: tenant.id, name: "Plano Essencial", ...planData },
     });
   }
   console.log(`✅ Plano comercial: Plano Essencial`);
 
-  // ─── POLÍTICA → CONDOMÍNIO ────────────────────────────────────
+  // ─── POLÍTICA → CONDOMÍNIO ──────────────────────────────────
   const condoPolicyLink = await prisma.condominiumPolicy.findFirst({
-    where: { condominiumId: condominium.id, policyId: policy.id },
+    where: { condominiumId: condominium.id, policyId },
   });
-
   if (!condoPolicyLink) {
     await prisma.condominiumPolicy.create({
-      data: {
-        condominiumId: condominium.id,
-        policyId: policy.id,
-      },
+      data: { condominiumId: condominium.id, policyId },
     });
   }
   console.log(`✅ Política vinculada ao condomínio`);
 
-  // ─── REPORT SKILLS ────────────────────────────────────────────
-  await prisma.reportSkill.upsert({
-    where: { type: "MEMORIAL_DESCRITIVO" },
-    update: {},
-    create: {
-      type: "MEMORIAL_DESCRITIVO",
-      skillId: "skill_01NmYp1UkBieZQfd23cxPYri",
-      name: "Memorial Descritivo NBR 16280",
-      active: true,
-    },
-  });
-  console.log(`✅ ReportSkill: Memorial Descritivo (skill_01NmYp1UkBieZQfd23cxPYri)`);
-
-  // ─── CASOS DE DEMONSTRAÇÃO ────────────────────────────────────
+  // ─── CASOS DE DEMONSTRAÇÃO ──────────────────────────────────
   // Casos espalhados pelo ciclo de vida para que todos os painéis
   // (morador, síndico, parceiro, admin) tenham dados reais.
   const DAY_MS = 24 * 60 * 60 * 1000;
@@ -316,7 +275,6 @@ async function main() {
   await prisma.caseTransitionLog.deleteMany({ where: { caseId: { in: demoCaseIds } } });
   await prisma.inspection.deleteMany({ where: { caseId: { in: demoCaseIds } } });
 
-  let caseCount = 0;
   for (const c of demoCases) {
     const id = `case-demo-${c.n}`;
     const createdAt = new Date(Date.now() - c.ageDays * DAY_MS);
@@ -363,12 +321,7 @@ async function main() {
       createdAt,
     };
 
-    await prisma.reformCase.upsert({
-      where: { id },
-      update: data,
-      create: { id, ...data },
-    });
-    caseCount++;
+    await prisma.reformCase.upsert({ where: { id }, update: data, create: { id, ...data } });
 
     // Transição mais recente — alimenta o feed de atividade do síndico.
     const fromStatus: CaseStatus =
@@ -384,7 +337,7 @@ async function main() {
       },
     });
   }
-  console.log(`✅ Casos de demonstração: ${caseCount}`);
+  console.log(`✅ Casos de demonstração: ${demoCases.length}`);
 
   // Vistorias dos casos pós-ART — painel do parceiro.
   await prisma.inspection.createMany({
@@ -407,35 +360,26 @@ async function main() {
   });
   console.log(`✅ Vistorias de demonstração: 4`);
 
-  // ─── RESUMO ───────────────────────────────────────────────────
-  const [tenantCount, condoCount, totalUnits, totalUsers, ruleCount, partnerCount, planCount, totalCases] =
-    await Promise.all([
-      prisma.tenant.count(),
-      prisma.condominium.count(),
-      prisma.unit.count(),
-      prisma.user.count(),
-      prisma.rule.count(),
-      prisma.partner.count(),
-      prisma.commercialPlan.count(),
-      prisma.reformCase.count(),
-    ]);
+  console.log("\nCredenciais demo (senha: senha123):");
+  console.log("  admin@demo.com · sindico@demo.com · morador@demo.com · parceiro@demo.com");
+}
 
-  console.log("\n📊 Resumo do seed:");
-  console.log(`  Tenants:         ${tenantCount}`);
-  console.log(`  Condomínios:     ${condoCount}`);
-  console.log(`  Unidades:        ${totalUnits} (target: ${unitCount} novas/atualizadas nesta execução)`);
-  console.log(`  Usuários:        ${totalUsers} (target: ${userCount} nesta execução)`);
-  console.log(`  Regras:          ${ruleCount}`);
-  console.log(`  Parceiros:       ${partnerCount}`);
-  console.log(`  Planos:          ${planCount}`);
-  console.log(`  Casos:           ${totalCases} (${caseCount} de demonstração nesta execução)`);
+async function main() {
+  console.log("🌱 Iniciando seed…\n");
 
-  console.log("\n🎉 Seed concluído com sucesso!\n");
-  console.log("Credenciais de acesso (senha: senha123):");
-  console.log("  admin@demo.com     SUPER_ADMIN");
-  console.log("  sindico@demo.com   CONDOMINIUM");
-  console.log("  morador@demo.com   CLIENT");
-  console.log("  parceiro@demo.com  PARTNER");
+  const { policyId } = await seedEssential();
+
+  if (process.env.SEED_DEMO === "true") {
+    await seedDemo(policyId);
+  } else {
+    console.log(
+      "\nℹ️  SEED_DEMO != true — dados de demonstração ignorados (modo produção).",
+    );
+    console.log("   Para popular dados demo:  SEED_DEMO=true bun run db:seed");
+    console.log("   Para criar um admin real: bun run db:create-admin");
+  }
+
+  console.log("\n🎉 Seed concluído.\n");
 }
 
 main()
