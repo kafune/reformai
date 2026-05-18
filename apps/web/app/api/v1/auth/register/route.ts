@@ -11,7 +11,8 @@ const RegisterSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6).max(200),
   condominiumId: z.string().min(1),
-  unitId: z.string().min(1),
+  block: z.string().max(60).optional(),
+  unitIdentifier: z.string().min(1).max(60),
 })
 
 export async function POST(req: Request) {
@@ -31,7 +32,7 @@ export async function POST(req: Request) {
           userId: sindico.id,
           tenantId: client.tenantId,
           title: "Novo morador cadastrado",
-          body: `${client.name} cadastrou-se na unidade ${client.unitIdentifier}.`,
+          body: `${client.name} cadastrou-se na unidade ${client.unitLabel}.`,
         })
       }
     } catch (notifyErr) {

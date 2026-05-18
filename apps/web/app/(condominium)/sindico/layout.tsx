@@ -7,6 +7,7 @@ import { SignOutButton } from "@/interfaces/components/SignOutButton"
 const NAV: NavItem[] = [
   { href: "/sindico/dashboard", icon: "grid", label: "Visão geral" },
   { href: "/sindico/cases", icon: "list", label: "Casos do condomínio" },
+  { href: "/sindico/cadastro", icon: "user", label: "Cadastro de moradores" },
 ]
 
 export default async function SindicoLayout({

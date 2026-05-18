@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Logo, Input, Select, Button } from "@/interfaces/components/ui"
+import { Logo, Select, Button } from "@/interfaces/components/ui"
 
 interface Condominium {
   id: string
@@ -10,81 +10,29 @@ interface Condominium {
   city: string
   state: string
 }
-interface Unit {
-  id: string
-  identifier: string
-  floor: string | null
-}
 
-export default function RegisterPage() {
+export default function RegisterPickCondominiumPage() {
   const router = useRouter()
-  const [form, setForm] = useState({
-    name: "",
-    email: "",
-    password: "",
-    condominiumId: "",
-    unitId: "",
-  })
   const [condominiums, setCondominiums] = useState<Condominium[]>([])
-  const [units, setUnits] = useState<Unit[]>([])
-  const [loadingCondos, setLoadingCondos] = useState(true)
-  const [loadingUnits, setLoadingUnits] = useState(false)
+  const [condominiumId, setCondominiumId] = useState("")
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
     fetch("/api/v1/public/condominiums")
       .then((r) => r.json())
       .then((data) => setCondominiums(Array.isArray(data.condominiums) ? data.condominiums : []))
       .catch(() => {})
-      .finally(() => setLoadingCondos(false))
+      .finally(() => setLoading(false))
   }, [])
 
-  useEffect(() => {
-    if (!form.condominiumId) {
-      setUnits([])
-      return
-    }
-    setLoadingUnits(true)
-    fetch(`/api/v1/public/condominiums/${form.condominiumId}/units`)
-      .then((r) => r.json())
-      .then((data) => setUnits(Array.isArray(data.units) ? data.units : []))
-      .catch(() => {})
-      .finally(() => setLoadingUnits(false))
-  }, [form.condominiumId])
-
-  function update(field: keyof typeof form, value: string) {
-    setForm((f) => ({
-      ...f,
-      [field]: value,
-      ...(field === "condominiumId" ? { unitId: "" } : {}),
-    }))
-  }
-
-  async function onSubmit(e: React.FormEvent) {
+  function onContinue(e: React.FormEvent) {
     e.preventDefault()
-    setError(null)
-    if (!form.condominiumId) {
+    if (!condominiumId) {
       setError("Selecione o condomínio.")
       return
     }
-    if (!form.unitId) {
-      setError("Selecione a unidade.")
-      return
-    }
-    setSubmitting(true)
-    const res = await fetch("/api/v1/auth/register", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(form),
-    })
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}))
-      setSubmitting(false)
-      setError(data.message ?? data.error ?? "Erro ao criar conta. Tente novamente.")
-      return
-    }
-    router.push("/login?registered=1")
+    router.push(`/register/${condominiumId}`)
   }
 
   return (
@@ -98,82 +46,28 @@ export default function RegisterPage() {
             Crie sua conta de morador.
           </h1>
           <p className="mb-5 mt-1.5 text-base text-ink-500">
-            Vincule-se ao seu condomínio e à sua unidade para iniciar uma reforma.
+            Selecione seu condomínio para continuar. Dica: use o QR code de cadastro afixado no
+            seu condomínio para ir direto ao formulário.
           </p>
 
-          <form onSubmit={onSubmit} className="flex flex-col gap-3">
-            <Input
-              label="Nome completo"
-              value={form.name}
-              onChange={(e) => update("name", e.target.value)}
-              icon="user"
-              required
-              minLength={3}
-              placeholder="João da Silva"
-              data-testid="register-name"
-            />
-            <Input
-              label="E-mail"
-              type="email"
-              value={form.email}
-              onChange={(e) => update("email", e.target.value)}
-              icon="user"
-              required
-              autoComplete="email"
-              placeholder="seu@email.com"
-              data-testid="register-email"
-            />
-            <Input
-              label="Senha"
-              type="password"
-              value={form.password}
-              onChange={(e) => update("password", e.target.value)}
-              icon="lock"
-              required
-              minLength={6}
-              autoComplete="new-password"
-              placeholder="Mínimo 6 caracteres"
-              data-testid="register-password"
-            />
-
+          <form onSubmit={onContinue} className="flex flex-col gap-3">
             <Select
               label="Condomínio"
-              value={form.condominiumId}
-              onChange={(e) => update("condominiumId", e.target.value)}
+              value={condominiumId}
+              onChange={(e) => {
+                setCondominiumId(e.target.value)
+                setError(null)
+              }}
               required
-              disabled={loadingCondos}
+              disabled={loading}
               data-testid="register-condominium"
             >
               <option value="">
-                {loadingCondos ? "Carregando…" : "Selecione seu condomínio"}
+                {loading ? "Carregando…" : "Selecione seu condomínio"}
               </option>
               {condominiums.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name} — {c.city}/{c.state}
-                </option>
-              ))}
-            </Select>
-
-            <Select
-              label="Unidade"
-              value={form.unitId}
-              onChange={(e) => update("unitId", e.target.value)}
-              required
-              disabled={!form.condominiumId || loadingUnits}
-              data-testid="register-unit"
-            >
-              <option value="">
-                {!form.condominiumId
-                  ? "Selecione o condomínio primeiro"
-                  : loadingUnits
-                    ? "Carregando…"
-                    : units.length === 0
-                      ? "Nenhuma unidade disponível"
-                      : "Selecione sua unidade"}
-              </option>
-              {units.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.floor ? `Andar ${u.floor} — ` : ""}Unidade {u.identifier}
                 </option>
               ))}
             </Select>
@@ -190,11 +84,10 @@ export default function RegisterPage() {
                 variant="primary"
                 size="lg"
                 iconRight="arrow"
-                disabled={submitting}
                 className="w-full"
-                data-testid="register-submit"
+                data-testid="register-continue"
               >
-                {submitting ? "Criando conta…" : "Criar conta"}
+                Continuar
               </Button>
             </div>
           </form>

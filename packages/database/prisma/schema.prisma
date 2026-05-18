@@ -58,6 +58,7 @@ model Unit {
   id            String  @id @default(cuid())
   condominiumId String
   identifier    String
+  block         String?
   floor         String?
   ownerName     String?
   ownerEmail    String?

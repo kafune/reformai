@@ -8,7 +8,8 @@ export interface RegisterClientInput {
   email: string
   password: string
   condominiumId: string
-  unitId: string
+  block?: string
+  unitIdentifier: string
 }
 
 export interface RegisteredClient {
@@ -18,17 +19,23 @@ export interface RegisteredClient {
   role: string
   tenantId: string
   condominiumId: string
-  unitIdentifier: string
+  unitLabel: string
 }
 
 /**
- * Autocadastro de morador (role CLIENT).
- * Regras: condomínio e tenant ativos, unidade pertencente ao condomínio,
- * e-mail único. O `tenantId` é derivado do condomínio escolhido.
+ * Autocadastro de morador (role CLIENT) a partir do link/QR do condomínio.
+ * Regras: condomínio e tenant ativos, e-mail único. O `tenantId` é derivado
+ * do condomínio. A unidade é localizada por torre/bloco + identificador; se
+ * não existir, é criada com o morador como contato.
  */
 export class RegisterClientUseCase {
   async execute(input: RegisterClientInput): Promise<RegisteredClient> {
     const email = input.email.trim().toLowerCase()
+    const block = input.block?.trim() || null
+    const identifier = input.unitIdentifier.trim()
+    if (!identifier) {
+      throw new ValidationError("Informe a unidade.")
+    }
 
     const condominium = await prisma.condominium.findUnique({
       where: { id: input.condominiumId },
@@ -38,14 +45,24 @@ export class RegisterClientUseCase {
       throw new NotFoundError("Condominium", input.condominiumId)
     }
 
-    const unit = await prisma.unit.findUnique({ where: { id: input.unitId } })
-    if (!unit || unit.condominiumId !== condominium.id) {
-      throw new NotFoundError("Unit", input.unitId)
-    }
-
     const existing = await prisma.user.findUnique({ where: { email } })
     if (existing) {
       throw new ValidationError("E-mail já cadastrado.")
+    }
+
+    let unit = await prisma.unit.findFirst({
+      where: { condominiumId: condominium.id, block, identifier },
+    })
+    if (!unit) {
+      unit = await prisma.unit.create({
+        data: {
+          condominiumId: condominium.id,
+          identifier,
+          block,
+          ownerName: input.name.trim(),
+          ownerEmail: email,
+        },
+      })
     }
 
     const user = await prisma.user.create({
@@ -72,7 +89,7 @@ export class RegisterClientUseCase {
       ...user,
       tenantId: condominium.tenantId,
       condominiumId: condominium.id,
-      unitIdentifier: unit.identifier,
+      unitLabel: block ? `${block} / ${identifier}` : identifier,
     }
   }
 }
