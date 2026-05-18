@@ -121,10 +121,7 @@ export default async function PartnerDashboardPage() {
               <div className="flex items-start justify-between">
                 <div className="flex-1 min-w-0">
                   <Eyebrow className="truncate">{s.label}</Eyebrow>
-                  <div
-                    className="mt-2 font-mono text-2xl font-semibold tabular-nums text-ink-900"
-                    style={{ letterSpacing: "var(--rai-tracking-tight)" }}
-                  >
+                  <div className="mt-2 font-mono text-2xl font-semibold tabular-nums tracking-tight text-ink-900">
                     {s.value}
                   </div>
                   <div className="mt-1 text-xs text-ink-500">{s.description}</div>

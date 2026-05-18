@@ -83,7 +83,7 @@ export function DocumentUploadZone({ caseId }: { caseId: string }) {
         className={`flex flex-col items-center rounded-md border-[1.5px] border-dashed px-6 py-9 text-center transition-colors ${
           dragOver
             ? "border-green-600 bg-green-50"
-            : "border-bone-400 bg-white/50"
+            : "border-bone-400 bg-surface-2"
         }`}
       >
         <div className="mb-2 flex h-14 w-14 items-center justify-center rounded-full bg-green-100">
@@ -93,7 +93,7 @@ export function DocumentUploadZone({ caseId }: { caseId: string }) {
           {file ? file.name : "Solte arquivos aqui"}
         </p>
         <p className="mt-1 max-w-sm text-sm text-ink-500">
-          PDF, JPG, PNG. Até 25 MB por arquivo. Upload sempre via servidor —
+          PDF, JPG, PNG ou WEBP. Até 20 MB por arquivo. Upload sempre via servidor —
           links assinados expiram em 1h.
         </p>
         <div className="mt-4">

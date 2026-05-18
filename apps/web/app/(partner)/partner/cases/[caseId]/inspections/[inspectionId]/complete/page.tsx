@@ -69,10 +69,10 @@ export default async function CompleteInspectionPage({
           title="Registrar conclusão"
         />
         <div className="flex-1 bg-bone-50 p-8 max-w-3xl">
-          <Card className="border border-ochre-300 bg-ochre-50">
+          <Card className="border border-ochre-300 bg-ochre-100">
             <div className="flex items-start gap-3">
               <div>
-                <p className="font-semibold text-ochre-800 mb-1">
+                <p className="font-semibold text-ochre-700 mb-1">
                   Esta vistoria já foi concluída ou cancelada.
                 </p>
                 <p className="text-sm text-ochre-700 mb-4">
@@ -80,7 +80,7 @@ export default async function CompleteInspectionPage({
                 </p>
                 <Link
                   href={`/partner/cases/${params.caseId}/inspections`}
-                  className="text-sm text-ochre-900 underline hover:no-underline"
+                  className="text-sm text-ochre-700 underline hover:no-underline"
                 >
                   ← Voltar para a lista de vistorias
                 </Link>

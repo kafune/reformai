@@ -7,6 +7,8 @@ import { prisma } from "@/infrastructure/database/prisma"
 import { NotFoundError } from "@/shared/errors/DomainError"
 
 const ADMIN_ROLES = new Set(["SUPER_ADMIN", "ADMIN"])
+const forbidden = (message?: string) =>
+  NextResponse.json({ error: "FORBIDDEN", message }, { status: 403 })
 
 const RuleConditionSchema = z.object({
   field: z.string(),
@@ -34,31 +36,35 @@ const BodySchema = z.object({
   rules: z.array(RuleSchema),
 })
 
+/**
+ * Substitui o conjunto de regras de uma política e incrementa sua versão.
+ * Políticas de tenant: editáveis por ADMIN/SUPER_ADMIN do tenant.
+ * Políticas globais (tenantId null): editáveis apenas por SUPER_ADMIN.
+ */
 export async function PATCH(req: NextRequest, ctx: { params: { policyId: string } }) {
   try {
     const user = await requireSessionUser()
+    if (!ADMIN_ROLES.has(user.role)) return forbidden()
 
-    if (!ADMIN_ROLES.has(user.role)) {
-      return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 })
+    const { policyId } = ctx.params
+
+    const policy = await prisma.policy.findUnique({ where: { id: policyId } })
+    if (!policy) throw new NotFoundError("Policy", policyId)
+
+    if (policy.tenantId === null) {
+      if (user.role !== "SUPER_ADMIN") {
+        return forbidden("Apenas o Super Admin pode editar políticas globais.")
+      }
+    } else if (policy.tenantId !== user.tenantId) {
+      // Não revela a existência de políticas de outros tenants.
+      throw new NotFoundError("Policy", policyId)
     }
 
     const body = BodySchema.parse(await req.json())
-    const { policyId } = ctx.params
 
     const updatedPolicy = await prisma.$transaction(async (tx) => {
-      // Fetch policy with tenant isolation
-      const policy = await tx.policy.findFirst({
-        where: { id: policyId, tenantId: user.tenantId },
-      })
-
-      if (!policy) {
-        throw new NotFoundError("Policy", policyId)
-      }
-
-      // Delete existing rules
       await tx.rule.deleteMany({ where: { policyId } })
 
-      // Create new rules
       await tx.rule.createMany({
         data: body.rules.map((rule) => ({
           policyId,
@@ -71,14 +77,11 @@ export async function PATCH(req: NextRequest, ctx: { params: { policyId: string 
         })),
       })
 
-      // Increment policy version
-      const updated = await tx.policy.update({
+      return tx.policy.update({
         where: { id: policyId },
         data: { version: { increment: 1 } },
-        include: { rules: true },
+        include: { rules: { orderBy: { priority: "asc" } } },
       })
-
-      return updated
     })
 
     return NextResponse.json(updatedPolicy)

@@ -76,7 +76,7 @@ export function AcceptDeclineButtons({ partnerId, caseId }: AcceptDeclineButtons
           type="button"
           onClick={() => setShowDeclineModal(true)}
           disabled={loading !== null}
-          className="inline-flex items-center justify-center rounded-sm border border-bone-200/20 px-5 py-2 text-sm font-medium text-bone-200 transition-colors hover:bg-white/5 disabled:pointer-events-none disabled:opacity-50 max-md:min-h-11"
+          className="inline-flex items-center justify-center rounded-sm border border-white/10 px-5 py-2 text-sm font-medium text-bone-200 transition-colors hover:bg-white/5 disabled:pointer-events-none disabled:opacity-50 max-md:min-h-11"
         >
           Ver detalhes
         </button>
@@ -94,14 +94,14 @@ export function AcceptDeclineButtons({ partnerId, caseId }: AcceptDeclineButtons
 
       {/* Decline modal */}
       {showDeclineModal && (
-        <div className="mt-3 rounded-md border border-iron-300/30 bg-iron-900/30 p-5 space-y-4 backdrop-blur-sm">
+        <div className="mt-3 rounded-md border border-iron-500 bg-white/5 p-5 space-y-4 backdrop-blur-sm">
           <p className="text-sm font-medium text-bone-100">Motivo da recusa</p>
           <textarea
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             rows={3}
             placeholder="Informe o motivo da recusa (mínimo 5 caracteres)…"
-            className="w-full rounded-sm border border-bone-200/20 bg-white/5 px-3 py-2 text-sm text-bone-100 placeholder-bone-400 outline-none focus:ring-2 focus:ring-green-400/40"
+            className="w-full rounded-sm border border-white/10 bg-white/5 px-3 py-2 text-sm text-bone-100 placeholder-bone-400 outline-none focus:ring-2 focus:ring-green-400"
           />
           <p className="text-xs text-bone-400">{reason.trim().length} / 5 caracteres mínimos</p>
           <div className="flex gap-2">
@@ -121,7 +121,7 @@ export function AcceptDeclineButtons({ partnerId, caseId }: AcceptDeclineButtons
                 setError(null)
               }}
               disabled={loading !== null}
-              className="inline-flex items-center justify-center rounded-sm border border-bone-200/20 px-4 py-2 text-sm text-bone-300 transition-colors hover:bg-white/5 disabled:pointer-events-none disabled:opacity-50 max-md:min-h-11"
+              className="inline-flex items-center justify-center rounded-sm border border-white/10 px-4 py-2 text-sm text-bone-300 transition-colors hover:bg-white/5 disabled:pointer-events-none disabled:opacity-50 max-md:min-h-11"
             >
               Cancelar
             </button>

@@ -128,7 +128,7 @@ export function ReviewDecisionForm({ caseId }: ReviewDecisionFormProps) {
 
       {/* Error */}
       {error && (
-        <div className="flex gap-2.5 rounded-sm border border-iron-200 bg-iron-50 px-3 py-2.5">
+        <div className="flex gap-2.5 rounded-sm border border-iron-300 bg-iron-100 px-3 py-2.5">
           <svg
             width="16"
             height="16"

@@ -26,7 +26,6 @@ export default async function PartnerLayout({
   return (
     <AppShell
       nav={NAV}
-      activeHref=""
       brandLabel="Rede ReformAI"
       brandSub="Parceiro técnico"
       user={{ name: user.name, sub: user.email }}

@@ -78,7 +78,7 @@ export function ScheduleInspectionForm({ caseId }: ScheduleInspectionFormProps) 
               value={type}
               onChange={(e) => setType(e.target.value as InspectionTypeValue)}
               disabled={loading}
-              className="h-10 w-full appearance-none rounded-sm border border-line-strong bg-surface pl-3 pr-9 text-sm text-ink-900 outline-none focus:ring-2 focus:ring-green-600/40 disabled:opacity-60"
+              className="h-10 w-full appearance-none rounded-sm border border-line-strong bg-surface pl-3 pr-9 text-sm text-ink-900 outline-none focus:ring-2 focus:ring-green-400 disabled:opacity-60"
             >
               {INSPECTION_TYPES.map((t) => (
                 <option key={t.value} value={t.value}>
@@ -102,7 +102,7 @@ export function ScheduleInspectionForm({ caseId }: ScheduleInspectionFormProps) 
             value={scheduledAt}
             onChange={(e) => setScheduledAt(e.target.value)}
             disabled={loading}
-            className="h-10 w-full rounded-sm border border-line-strong bg-surface px-3 text-sm text-ink-900 outline-none focus:ring-2 focus:ring-green-600/40 disabled:opacity-60"
+            className="h-10 w-full rounded-sm border border-line-strong bg-surface px-3 text-sm text-ink-900 outline-none focus:ring-2 focus:ring-green-400 disabled:opacity-60"
           />
         </div>
       </div>
@@ -119,12 +119,12 @@ export function ScheduleInspectionForm({ caseId }: ScheduleInspectionFormProps) 
           rows={2}
           disabled={loading}
           placeholder="Observações sobre a vistoria…"
-          className="w-full rounded-sm border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink-900 outline-none focus:ring-2 focus:ring-green-600/40 disabled:opacity-60 placeholder:text-ink-400"
+          className="w-full rounded-sm border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink-900 outline-none focus:ring-2 focus:ring-green-400 disabled:opacity-60 placeholder:text-ink-400"
         />
       </div>
 
       {error && (
-        <div className="flex items-center gap-2 rounded-sm border border-clay-300 bg-clay-50 px-3 py-2 text-sm text-clay-700">
+        <div className="flex items-center gap-2 rounded-sm border border-clay-300 bg-clay-100 px-3 py-2 text-sm text-clay-600">
           {error}
         </div>
       )}

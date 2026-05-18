@@ -1,6 +1,7 @@
 "use client"
 import { useState } from "react"
 import Link from "next/link"
+import { usePathname } from "next/navigation"
 import { cn } from "@/shared/cn"
 import { NotificationBell } from "../NotificationBell"
 import { Avatar } from "./Avatar"
@@ -29,7 +30,8 @@ export function AppShell({
   children,
 }: {
   nav: NavItem[]
-  activeHref: string
+  /** Sobrescreve o item ativo; por padrão é derivado da rota atual. */
+  activeHref?: string
   brandLabel?: string
   brandSub?: string
   user: { name: string; sub?: string; color?: string }
@@ -37,6 +39,17 @@ export function AppShell({
   children: React.ReactNode
 }) {
   const [navOpen, setNavOpen] = useState(false)
+  const pathname = usePathname()
+
+  // Item ativo = href que é o prefixo mais longo da rota atual.
+  const resolvedActiveHref =
+    activeHref ??
+    nav
+      .filter(
+        (n) => pathname === n.href || pathname.startsWith(`${n.href}/`),
+      )
+      .sort((a, b) => b.href.length - a.href.length)[0]?.href ??
+    ""
 
   return (
     <div className="min-h-screen bg-paper lg:grid lg:grid-cols-[236px_1fr]">
@@ -99,7 +112,7 @@ export function AppShell({
         )}
         <nav className="flex flex-col gap-1">
           {nav.map((n) => {
-            const active = activeHref === n.href
+            const active = resolvedActiveHref === n.href
             return (
               <Link
                 key={n.href}

@@ -32,7 +32,7 @@ export function Input({
       <div
         className={cn(
           "flex h-10 items-center gap-2 rounded-sm border bg-surface px-3 max-md:min-h-11",
-          "focus-within:ring-2 focus-within:ring-green-600/40",
+          "focus-within:ring-2 focus-within:ring-green-400",
           error ? "border-iron-500" : "border-line-strong",
           rest.readOnly && "bg-bone-100",
         )}

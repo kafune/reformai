@@ -1,3 +1,4 @@
+import type { HTMLAttributes } from "react"
 import { cn } from "@/shared/cn"
 import { Icon, type IconName } from "./Icon"
 
@@ -24,19 +25,20 @@ const TONES: Record<BadgeTone, string> = {
   greenSolid: "bg-green-700 text-bone-50",
 }
 
+export interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
+  tone?: BadgeTone
+  dot?: boolean
+  icon?: IconName
+}
+
 export function Badge({
   children,
   tone = "neutral",
   dot,
   icon,
   className,
-}: {
-  children: React.ReactNode
-  tone?: BadgeTone
-  dot?: boolean
-  icon?: IconName
-  className?: string
-}) {
+  ...rest
+}: BadgeProps) {
   return (
     <span
       className={cn(
@@ -45,6 +47,7 @@ export function Badge({
         TONES[tone],
         className,
       )}
+      {...rest}
     >
       {dot && <span className="h-1.5 w-1.5 rounded-full bg-current" />}
       {icon && <Icon name={icon} size={12} />}

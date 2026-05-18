@@ -261,7 +261,7 @@ export default async function ReviewCasePage({ params }: { params: { caseId: str
                 >
                   <path d="M8 2l5 2v4c0 3.5-5 6-5 6s-5-2.5-5-6V4l5-2z" />
                 </svg>
-                <p className="text-xs leading-relaxed text-violet-700">
+                <p className="text-xs leading-relaxed text-violet-600">
                   Regra de bloqueio: <strong>HIGH/CRITICAL nunca vão para ELIGIBLE_FOR_RELEASE
                   sem passar por HUMAN_REVIEW_REQUIRED.</strong> Essa transição é validada pela{" "}
                   <span className="font-mono">CaseStateMachine</span>.
@@ -282,7 +282,7 @@ export default async function ReviewCasePage({ params }: { params: { caseId: str
                     key={msg.id}
                     className={`rounded-sm px-3 py-2 text-sm leading-relaxed ${
                       msg.role === "ASSISTANT"
-                        ? "border border-azulejo-100 bg-azulejo-50 text-ink-800"
+                        ? "border border-azulejo-300 bg-azulejo-100 text-ink-800"
                         : msg.role === "SYSTEM"
                           ? "border border-bone-200 bg-bone-100 text-xs text-ink-500"
                           : "border border-line bg-surface text-ink-900"

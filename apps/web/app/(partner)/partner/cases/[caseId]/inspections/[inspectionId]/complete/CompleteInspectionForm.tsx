@@ -132,7 +132,7 @@ export function CompleteInspectionForm({ caseId, inspectionId }: CompleteInspect
           rows={5}
           disabled={loading}
           placeholder="Descreva as observações técnicas da vistoria…"
-          className="w-full rounded-sm border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink-900 outline-none focus:ring-2 focus:ring-green-600/40 disabled:opacity-60 placeholder:text-ink-400"
+          className="w-full rounded-sm border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink-900 outline-none focus:ring-2 focus:ring-green-400 disabled:opacity-60 placeholder:text-ink-400"
         />
         {/* Character count — preserves the ≥50 gating */}
         <div className="flex items-center gap-2">
@@ -207,7 +207,7 @@ export function CompleteInspectionForm({ caseId, inspectionId }: CompleteInspect
 
       {/* Progress */}
       {uploadProgress && (
-        <div className="flex items-center gap-2 rounded-sm border border-azulejo-200 bg-azulejo-50 px-4 py-2.5 text-sm text-azulejo-700">
+        <div className="flex items-center gap-2 rounded-sm border border-azulejo-300 bg-azulejo-100 px-4 py-2.5 text-sm text-azulejo-700">
           <Icon name="clock" size={14} className="shrink-0" />
           {uploadProgress}
         </div>
@@ -215,7 +215,7 @@ export function CompleteInspectionForm({ caseId, inspectionId }: CompleteInspect
 
       {/* Error */}
       {error && (
-        <div className="flex items-center gap-2 rounded-sm border border-clay-300 bg-clay-50 px-4 py-2.5 text-sm text-clay-700">
+        <div className="flex items-center gap-2 rounded-sm border border-clay-300 bg-clay-100 px-4 py-2.5 text-sm text-clay-600">
           <Icon name="alert" size={14} className="shrink-0" />
           {error}
         </div>

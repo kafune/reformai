@@ -79,7 +79,7 @@ export default function CasesPage() {
             <select
               value={selectedUnit}
               onChange={(e) => setSelectedUnit(e.target.value)}
-              className="flex-1 rounded-sm border border-line-strong bg-surface px-3 py-2 text-sm text-ink-900 focus:outline-none focus:ring-2 focus:ring-green-600/40 max-md:min-h-11"
+              className="flex-1 rounded-sm border border-line-strong bg-surface px-3 py-2 text-sm text-ink-900 focus:outline-none focus:ring-2 focus:ring-green-400 max-md:min-h-11"
               data-testid="unit-select"
             >
               {units.length === 0 && (

@@ -39,7 +39,7 @@ export function RiskBadge({
       }}
     >
       <span
-        className="flex items-center font-mono font-medium text-white"
+        className="flex items-center font-mono font-medium text-bone-50"
         style={{
           background: `var(--rai-risk-${t}-edge)`,
           padding: sm ? "2px 7px" : "4px 9px",

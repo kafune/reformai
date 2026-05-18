@@ -20,7 +20,7 @@ export function Select({ label, className, id, children, ...rest }: SelectProps)
           className={cn(
             "h-10 w-full appearance-none rounded-sm border border-line-strong bg-surface max-md:min-h-11",
             "pl-3 pr-9 text-sm text-ink-900 outline-none",
-            "focus:ring-2 focus:ring-green-600/40",
+            "focus:ring-2 focus:ring-green-400",
             className,
           )}
           {...rest}
