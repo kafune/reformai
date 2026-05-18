@@ -8,8 +8,8 @@ import { Logo, Button, Input, Icon, Badge } from "@/interfaces/components/ui"
 function LoginForm() {
   const router = useRouter()
   const params = useSearchParams()
-  const [email, setEmail] = useState("morador@demo.com")
-  const [password, setPassword] = useState("senha123")
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
