@@ -111,7 +111,7 @@ export default async function CaseDocumentsPage({ params }: { params: { caseId: 
             {/* ART/RRT disclaimer */}
             <div className="mt-3.5 flex items-start gap-2.5 rounded-md bg-violet-100 px-4 py-3.5">
               <Icon name="shield" size={16} className="mt-0.5 shrink-0 text-violet-600" />
-              <p className="text-xs leading-relaxed text-violet-700">
+              <p className="text-xs leading-relaxed text-violet-600">
                 <strong>A plataforma não emite ART/RRT.</strong> A análise
                 documental é assistida por IA e revisada por profissional habilitado
                 parceiro.

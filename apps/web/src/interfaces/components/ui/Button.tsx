@@ -45,6 +45,7 @@ export function Button({
       className={cn(
         "inline-flex items-center justify-center rounded-sm border font-medium max-md:min-h-11",
         "transition-colors duration-150 ease-rai",
+        "outline-none focus-visible:ring-2 focus-visible:ring-green-400",
         "disabled:cursor-not-allowed disabled:opacity-50 disabled:pointer-events-none",
         VARIANTS[variant],
         SIZES[size],

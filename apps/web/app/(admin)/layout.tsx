@@ -8,6 +8,8 @@ const ADMIN_ROLES = new Set(["SUPER_ADMIN", "ADMIN"])
 const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard", icon: "grid", label: "Dashboard" },
   { href: "/review-queue", icon: "list", label: "Fila de Revisão" },
+  { href: "/condominiums", icon: "home", label: "Condomínios" },
+  { href: "/partners", icon: "star", label: "Parceiros" },
   { href: "/policies", icon: "shield", label: "Políticas" },
 ]
 
@@ -35,7 +37,6 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <AppShell
       nav={nav}
-      activeHref="/dashboard"
       brandLabel="Painel Administrativo"
       brandSub="ReformAI"
       user={{ name: user.name, sub: user.email }}

@@ -3,21 +3,19 @@ import { useCallback, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { TopBar, Button, Input, Select } from "@/interfaces/components/ui"
-import { PolicyCard } from "./PolicyCard"
-import type { Policy } from "./types"
+import { CondominiumCard } from "./CondominiumCard"
+import { UFS, type Condominium } from "./constants"
 
 const ADMIN_ROLES = new Set(["SUPER_ADMIN", "ADMIN"])
 
-const EMPTY_FORM = { name: "", description: "", scope: "tenant" }
+const EMPTY_FORM = { name: "", cnpj: "", address: "", city: "", state: "SP" }
 
-export default function PoliciesPage() {
+export default function CondominiumsPage() {
   const router = useRouter()
   const { data: session, status } = useSession()
-  const role = session?.user?.role ?? ""
-  const isAdmin = ADMIN_ROLES.has(role)
-  const isSuperAdmin = role === "SUPER_ADMIN"
+  const isAdmin = ADMIN_ROLES.has(session?.user?.role ?? "")
 
-  const [policies, setPolicies] = useState<Policy[]>([])
+  const [condominiums, setCondominiums] = useState<Condominium[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
@@ -30,8 +28,8 @@ export default function PoliciesPage() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const res = await fetch("/api/v1/admin/policies")
-    if (res.ok) setPolicies((await res.json()).policies ?? [])
+    const res = await fetch("/api/v1/admin/condominiums")
+    if (res.ok) setCondominiums((await res.json()).condominiums ?? [])
     setLoading(false)
   }, [])
 
@@ -43,33 +41,31 @@ export default function PoliciesPage() {
     e.preventDefault()
     setError(null)
     setSaving(true)
-    const res = await fetch("/api/v1/admin/policies", {
+    const res = await fetch("/api/v1/admin/condominiums", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        name: form.name,
-        description: form.description || undefined,
-        scope: form.scope,
-      }),
+      body: JSON.stringify(form),
     })
     setSaving(false)
     if (!res.ok) {
       const data = await res.json().catch(() => ({}))
-      setError(data.message ?? data.error ?? "Erro ao criar política.")
+      setError(data.message ?? data.error ?? "Erro ao criar condomínio.")
       return
     }
-    const policy: Policy = await res.json()
-    setPolicies((prev) => [policy, ...prev])
+    const { condominium } = await res.json()
+    setCondominiums((prev) =>
+      [...prev, condominium].sort((a, b) => a.name.localeCompare(b.name)),
+    )
     setForm(EMPTY_FORM)
     setShowForm(false)
   }
 
-  function handleUpdated(updated: Policy) {
-    setPolicies((prev) => prev.map((p) => (p.id === updated.id ? updated : p)))
+  function handleUpdated(updated: Condominium) {
+    setCondominiums((prev) => prev.map((c) => (c.id === updated.id ? updated : c)))
   }
 
   function handleDeleted(id: string) {
-    setPolicies((prev) => prev.filter((p) => p.id !== id))
+    setCondominiums((prev) => prev.filter((c) => c.id !== id))
   }
 
   if (status !== "authenticated" || !isAdmin) return null
@@ -77,8 +73,8 @@ export default function PoliciesPage() {
   return (
     <>
       <TopBar
-        title="Políticas"
-        subtitle={`${policies.length} política(s) — regras determinísticas de triagem`}
+        title="Condomínios"
+        subtitle={`${condominiums.length} condomínio(s) cadastrado(s)`}
         actions={
           <Button
             variant="primary"
@@ -86,7 +82,7 @@ export default function PoliciesPage() {
             icon="plus"
             onClick={() => setShowForm((s) => !s)}
           >
-            {showForm ? "Cancelar" : "Nova política"}
+            {showForm ? "Cancelar" : "Novo condomínio"}
           </Button>
         }
       />
@@ -94,36 +90,50 @@ export default function PoliciesPage() {
       <div className="flex-1 overflow-auto bg-bone-50 px-4 py-6 md:px-8">
         {showForm && (
           <form onSubmit={create} className="mb-6 rounded-lg bg-surface p-5 shadow-hair">
-            <h2 className="mb-4 text-sm font-semibold text-ink-900">Nova política</h2>
+            <h2 className="mb-4 text-sm font-semibold text-ink-900">Novo condomínio</h2>
             <div className="grid gap-3 md:grid-cols-2">
               <Input
                 label="Nome"
                 value={form.name}
                 onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                 required
-                placeholder="Política do condomínio X"
+                placeholder="Condomínio Exemplo"
               />
               <Input
-                label="Descrição"
-                value={form.description}
-                onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                label="CNPJ"
+                value={form.cnpj}
+                onChange={(e) => setForm((f) => ({ ...f, cnpj: e.target.value }))}
                 placeholder="Opcional"
               />
+              <Input
+                label="Endereço"
+                value={form.address}
+                onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
+                required
+                placeholder="Rua, número, bairro"
+              />
+              <Input
+                label="Cidade"
+                value={form.city}
+                onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
+                required
+              />
               <Select
-                label="Abrangência"
-                value={form.scope}
-                onChange={(e) => setForm((f) => ({ ...f, scope: e.target.value }))}
+                label="Estado"
+                value={form.state}
+                onChange={(e) => setForm((f) => ({ ...f, state: e.target.value }))}
               >
-                <option value="tenant">Tenant (apenas esta organização)</option>
-                {isSuperAdmin && (
-                  <option value="global">Global (todos os tenants)</option>
-                )}
+                {UFS.map((uf) => (
+                  <option key={uf} value={uf}>
+                    {uf}
+                  </option>
+                ))}
               </Select>
             </div>
             {error && <p className="mt-3 text-sm text-iron-600">{error}</p>}
             <div className="mt-4">
               <Button type="submit" variant="primary" size="sm" disabled={saving}>
-                {saving ? "Criando…" : "Criar política"}
+                {saving ? "Criando…" : "Criar condomínio"}
               </Button>
             </div>
           </form>
@@ -131,20 +141,19 @@ export default function PoliciesPage() {
 
         {loading ? (
           <p className="text-sm text-ink-400">Carregando…</p>
-        ) : policies.length === 0 ? (
+        ) : condominiums.length === 0 ? (
           <div className="rounded-lg bg-surface p-12 text-center shadow-hair">
-            <p className="text-sm font-medium text-ink-700">Nenhuma política cadastrada</p>
+            <p className="text-sm font-medium text-ink-700">Nenhum condomínio cadastrado</p>
             <p className="mt-1 text-sm text-ink-400">
-              Crie uma política e adicione regras de classificação de risco.
+              Crie o primeiro condomínio para começar.
             </p>
           </div>
         ) : (
           <div className="space-y-3">
-            {policies.map((p) => (
-              <PolicyCard
-                key={p.id}
-                policy={p}
-                canEdit={p.tenantId === null ? isSuperAdmin : true}
+            {condominiums.map((c) => (
+              <CondominiumCard
+                key={c.id}
+                condominium={c}
                 onUpdated={handleUpdated}
                 onDeleted={handleDeleted}
               />

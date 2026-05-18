@@ -37,7 +37,6 @@ export default async function SindicoLayout({
   return (
     <AppShell
       nav={NAV}
-      activeHref=""
       brandLabel={condominium?.name ?? "Condomínio"}
       brandSub="Condomínio"
       user={{ name: user.name, sub: user.email }}

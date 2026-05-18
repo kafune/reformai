@@ -306,7 +306,7 @@ export default function CaseDetailPage() {
           {/* ART/RRT disclaimer — always visible */}
           <div className="mt-5 flex items-start gap-2.5 rounded-md bg-violet-100 px-3.5 py-3">
             <Icon name="shield" size={16} className="mt-0.5 shrink-0 text-violet-600" />
-            <p className="text-xs leading-relaxed text-violet-700">
+            <p className="text-xs leading-relaxed text-violet-600">
               <strong>A plataforma não emite ART/RRT.</strong> A emissão formal é
               responsabilidade do profissional habilitado parceiro.
             </p>

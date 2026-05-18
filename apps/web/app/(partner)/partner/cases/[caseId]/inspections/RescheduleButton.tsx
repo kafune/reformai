@@ -79,7 +79,7 @@ export function RescheduleButton({ caseId, inspectionId, currentScheduledAt }: R
             value={newDate}
             onChange={(e) => setNewDate(e.target.value)}
             disabled={loading}
-            className="h-8 rounded-sm border border-line-strong bg-surface px-3 text-sm text-ink-900 outline-none focus:ring-2 focus:ring-green-600/40 disabled:opacity-60 max-md:min-h-11"
+            className="h-8 rounded-sm border border-line-strong bg-surface px-3 text-sm text-ink-900 outline-none focus:ring-2 focus:ring-green-400 disabled:opacity-60 max-md:min-h-11"
           />
           <Button
             variant="primary"

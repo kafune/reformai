@@ -121,7 +121,7 @@ export default async function DashboardPage() {
             <div className="mt-2 font-mono text-3xl font-semibold tracking-tight text-ink-900 tabular-nums">
               {casesThisMonth}
             </div>
-            <span className="absolute bottom-3.5 right-4 h-2 w-2 rounded-full bg-azulejo-400 opacity-50" />
+            <span className="absolute bottom-3.5 right-4 h-2 w-2 rounded-full bg-azulejo-500 opacity-50" />
           </div>
 
           {/* Avg score */}
@@ -140,7 +140,7 @@ export default async function DashboardPage() {
           <div
             className={`relative overflow-hidden rounded-lg p-5 shadow-hair ${
               humanReviewQueue > 0
-                ? "bg-iron-50 shadow-[inset_0_0_0_1px_theme(colors.iron.300)]"
+                ? "bg-iron-100 shadow-[inset_0_0_0_1px_theme(colors.iron.300)]"
                 : "bg-surface"
             }`}
             data-testid="dashboard-card-review-queue"

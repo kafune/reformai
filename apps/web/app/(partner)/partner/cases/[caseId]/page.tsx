@@ -283,7 +283,7 @@ export default async function PartnerCaseDetailPage({
             <div className="flex items-start gap-3">
               <Icon name="alert" size={16} className="text-ochre-600 mt-0.5 shrink-0" />
               <div>
-                <h3 className="text-sm font-semibold text-ochre-800 mb-1">ART/RRT pendente</h3>
+                <h3 className="text-sm font-semibold text-ochre-700 mb-1">ART/RRT pendente</h3>
                 <p className="text-sm text-ochre-700 mb-3">
                   Para iniciar o cronograma de vistorias, agende a primeira vistoria pela aba
                   &ldquo;Vistorias&rdquo;. A transição para &ldquo;Vistorias agendadas&rdquo; ocorre
@@ -291,7 +291,7 @@ export default async function PartnerCaseDetailPage({
                 </p>
                 <Link
                   href={`/partner/cases/${reformCase.id}/inspections`}
-                  className="inline-flex items-center gap-1.5 rounded-sm bg-ochre-700 px-4 py-2 text-sm font-medium text-white hover:bg-ochre-800 transition-colors"
+                  className="inline-flex items-center gap-1.5 rounded-sm bg-ochre-600 px-4 py-2 text-sm font-medium text-bone-50 transition-colors hover:bg-ochre-700"
                 >
                   Ir para Vistorias
                   <Icon name="arrow" size={14} />

@@ -18,7 +18,6 @@ export default async function CasesLayout({
   return (
     <AppShell
       nav={NAV}
-      activeHref="/cases"
       brandSub="Condomínio"
       user={{
         name: user.name,

@@ -46,12 +46,12 @@ function LoginForm() {
   }
 
   return (
-    <div className="rai min-h-screen lg:grid lg:h-screen lg:grid-cols-2 lg:overflow-hidden">
+    <div className="min-h-screen lg:grid lg:h-screen lg:grid-cols-2 lg:overflow-hidden">
       {/* Left — form */}
       <div className="flex flex-col overflow-y-auto bg-paper px-6 py-10 sm:px-10 lg:px-16">
         <Logo size={32} variant="lockup" />
 
-        <div className="flex flex-1 flex-col justify-center" style={{ maxWidth: 360 }}>
+        <div className="flex max-w-[360px] flex-1 flex-col justify-center">
           <p className="font-mono text-xs uppercase tracking-caps text-green-700">
             Entrar
           </p>
@@ -63,7 +63,7 @@ function LoginForm() {
           </p>
 
           {params.get("registered") === "1" && (
-            <p className="mb-4 rounded-sm bg-[rgba(58,129,99,0.1)] px-3 py-2 text-sm text-green-700">
+            <p className="mb-4 rounded-sm bg-green-100 px-3 py-2 text-sm text-green-700">
               Conta criada com sucesso. Faça login para continuar.
             </p>
           )}
@@ -161,19 +161,10 @@ function LoginForm() {
       </div>
 
       {/* Right — concreto verde */}
-      <div
-        className="relative hidden flex-col justify-between overflow-hidden px-14 py-10 lg:flex"
-        style={{ background: "var(--rai-green-900)", color: "var(--rai-bone-50)" }}
-      >
+      <div className="relative hidden flex-col justify-between overflow-hidden bg-green-900 px-14 py-10 text-bone-50 lg:flex">
         {/* decorative circles */}
         <svg
-          style={{
-            position: "absolute",
-            right: -100,
-            top: -80,
-            opacity: 0.18,
-            pointerEvents: "none",
-          }}
+          className="pointer-events-none absolute -right-[100px] -top-20 opacity-[0.18]"
           width={640}
           height={640}
           viewBox="0 0 640 640"
@@ -196,18 +187,15 @@ function LoginForm() {
         </div>
 
         <div className="relative">
-          <h2
-            className="text-3xl font-semibold tracking-tight"
-            style={{ lineHeight: 1.1 }}
-          >
+          <h2 className="text-3xl font-semibold leading-[1.1] tracking-tight">
             Triagem técnica
             <br />
-            <span style={{ color: "var(--rai-green-300)" }}>conduzida por IA.</span>
+            <span className="text-green-300">conduzida por IA.</span>
             <br />
             Liberação por regra.
           </h2>
 
-          <div className="mt-6 grid gap-3" style={{ maxWidth: 420 }}>
+          <div className="mt-6 grid max-w-[420px] gap-3">
             {[
               [
                 "01",
@@ -227,38 +215,14 @@ function LoginForm() {
             ].map(([n, t, d]) => (
               <div
                 key={n}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "36px 1fr",
-                  gap: 12,
-                  alignItems: "flex-start",
-                }}
+                className="grid grid-cols-[36px_1fr] items-start gap-3"
               >
-                <div
-                  className="font-mono pt-0.5"
-                  style={{
-                    fontSize: 13,
-                    color: "var(--rai-green-300)",
-                    letterSpacing: ".05em",
-                  }}
-                >
+                <div className="pt-0.5 font-mono text-sm tracking-[0.05em] text-green-300">
                   {n}
                 </div>
                 <div>
-                  <div
-                    className="font-medium"
-                    style={{ fontSize: 15, color: "var(--rai-bone-50)" }}
-                  >
-                    {t}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: 13,
-                      color: "var(--rai-ink-200)",
-                      marginTop: 2,
-                      lineHeight: 1.5,
-                    }}
-                  >
+                  <div className="text-base font-medium text-bone-50">{t}</div>
+                  <div className="mt-0.5 text-sm leading-normal text-ink-200">
                     {d}
                   </div>
                 </div>
@@ -268,24 +232,12 @@ function LoginForm() {
         </div>
 
         {/* disclaimer */}
-        <div
-          className="relative flex items-center gap-3.5 rounded-sm px-4 py-3.5"
-          style={{
-            background: "rgba(245,240,228,.06)",
-            maxWidth: 460,
-          }}
-        >
+        <div className="relative flex max-w-[460px] items-center gap-3.5 rounded-sm bg-green-800 px-4 py-3.5">
           <span className="shrink-0 text-green-300">
             <Icon name="shield" size={18} />
           </span>
-          <div
-            style={{
-              fontSize: 12,
-              color: "var(--rai-ink-200)",
-              lineHeight: 1.5,
-            }}
-          >
-            <strong style={{ color: "var(--rai-bone-50)" }}>
+          <div className="text-xs leading-normal text-ink-200">
+            <strong className="text-bone-50">
               A plataforma não emite ART/RRT.
             </strong>
             <br />

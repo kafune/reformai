@@ -1,25 +1,30 @@
 import Link from "next/link"
+import { Button, Logo } from "@/interfaces/components/ui"
 
 export default function HomePage() {
   return (
-    <main className="min-h-screen flex items-center justify-center px-6">
-      <div className="max-w-xl text-center space-y-6">
-        <h1 className="text-4xl font-semibold tracking-tight">ReformAI</h1>
-        <p className="text-slate-600">
-          Plataforma de triagem técnica para reformas em condomínios.
+    <main className="flex min-h-screen items-center justify-center bg-paper px-6">
+      <div className="max-w-xl space-y-6 text-center">
+        <div className="flex justify-center">
+          <Logo size={44} variant="lockup" />
+        </div>
+        <h1 className="text-3xl font-semibold tracking-tight text-ink-900">
+          Triagem técnica de reformas em condomínios
+        </h1>
+        <p className="text-base text-ink-500">
+          Conduzida por IA, governada por regras determinísticas e auditável em
+          cada decisão.
         </p>
-        <div className="flex justify-center gap-3">
-          <Link
-            href="/login"
-            className="rounded-md bg-brand-accent px-4 py-2 text-white text-sm font-medium"
-          >
-            Entrar
+        <div className="flex flex-wrap justify-center gap-3">
+          <Link href="/login">
+            <Button variant="primary" size="lg" iconRight="arrow">
+              Entrar
+            </Button>
           </Link>
-          <Link
-            href="/cases"
-            className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium"
-          >
-            Meus casos
+          <Link href="/cases">
+            <Button variant="secondary" size="lg">
+              Meus casos
+            </Button>
           </Link>
         </div>
       </div>

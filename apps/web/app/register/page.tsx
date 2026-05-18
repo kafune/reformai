@@ -88,8 +88,8 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="rai flex min-h-screen flex-col items-center bg-paper px-6 py-10">
-      <div className="w-full" style={{ maxWidth: 400 }}>
+    <div className="flex min-h-screen flex-col items-center bg-paper px-6 py-10">
+      <div className="w-full max-w-[400px]">
         <Logo size={32} variant="lockup" />
 
         <div className="mt-8">

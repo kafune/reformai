@@ -9,6 +9,7 @@ import {
   Card,
   Eyebrow,
   Badge,
+  Button,
   Icon,
 } from "@/interfaces/components/ui"
 
@@ -170,10 +171,10 @@ export default async function PartnerInspectionsPage({
                     <div className="col-span-2 flex gap-2 items-center sm:col-span-1 sm:flex-col sm:items-end">
                       <Link
                         href={`/partner/cases/${params.caseId}/inspections/${insp.id}/complete`}
-                        className="inline-flex items-center gap-1.5 rounded-sm bg-green-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-800 transition-colors"
                       >
-                        Concluir
-                        <Icon name="arrow" size={12} />
+                        <Button variant="primary" size="sm" iconRight="arrow">
+                          Concluir
+                        </Button>
                       </Link>
                       <RescheduleButton
                         caseId={params.caseId}
