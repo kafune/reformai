@@ -6,6 +6,7 @@ import { PrismaReformCaseRepository } from "@/modules/case-intake/infrastructure
 import { PrismaDocumentRepository } from "@/modules/document-management/infrastructure/PrismaDocumentRepository"
 import { DocumentUploadZone } from "./components/DocumentUploadZone"
 import { DocumentList, type DocumentItem } from "./components/DocumentList"
+import { ResubmitButton } from "./components/ResubmitButton"
 import {
   TopBar,
   Badge,
@@ -40,6 +41,17 @@ export default async function CaseDocumentsPage({ params }: { params: { caseId: 
     (d) => d.status === "PENDING" || d.status === "PROCESSING",
   ).length
 
+  // Quando o caso está em correções, recupera o parecer do parceiro
+  // (motivo da última transição para PENDING_CORRECTIONS).
+  const correctionNote =
+    reformCase.status === "PENDING_CORRECTIONS"
+      ? await prisma.caseTransitionLog.findFirst({
+          where: { caseId: params.caseId, toStatus: "PENDING_CORRECTIONS" },
+          orderBy: { createdAt: "desc" },
+          select: { reason: true },
+        })
+      : null
+
   return (
     <>
       <TopBar
@@ -62,6 +74,30 @@ export default async function CaseDocumentsPage({ params }: { params: { caseId: 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.4fr_1fr]">
           {/* Left column */}
           <div className="flex flex-col gap-6">
+            {/* Correções solicitadas pelo parceiro */}
+            {reformCase.status === "PENDING_CORRECTIONS" && (
+              <div className="rounded-md border border-iron-300 bg-iron-100 px-5 py-4">
+                <div className="flex items-start gap-2.5">
+                  <Icon name="alert" size={16} className="mt-0.5 shrink-0 text-iron-600" />
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-ink-900">
+                      Correções solicitadas pelo responsável técnico
+                    </p>
+                    {correctionNote?.reason && (
+                      <p className="mt-1 text-sm text-ink-700">{correctionNote.reason}</p>
+                    )}
+                    <p className="mt-2 text-xs text-ink-500">
+                      Reenvie o documento corrigido ou anexe a documentação faltante
+                      abaixo. Em seguida, reenvie o caso para nova revisão.
+                    </p>
+                    <div className="mt-3">
+                      <ResubmitButton caseId={params.caseId} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Drop zone + upload */}
             <DocumentUploadZone caseId={params.caseId} />
 

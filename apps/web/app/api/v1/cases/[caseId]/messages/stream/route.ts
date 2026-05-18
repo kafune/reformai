@@ -4,7 +4,12 @@ import { PrismaReformCaseRepository } from "@/modules/case-intake/infrastructure
 import { TriageAgent } from "@/modules/case-intake/application/TriageAgent"
 import { AnthropicProvider } from "@/modules/document-intelligence/infrastructure/llm/AnthropicProvider"
 import { ClassifyScopeUseCase } from "@/modules/case-intake/application/ClassifyScopeUseCase"
-import { NotifyUserUseCase } from "@/modules/notifications/application/NotifyUserUseCase"
+import {
+  notifyCaseClient,
+  notifyCondominiumManagers,
+  notifyCondominiumPartner,
+  type CaseStakeholderRef,
+} from "@/modules/notifications/application/notifyCase"
 import { logger } from "@/shared/logger"
 
 export const dynamic = "force-dynamic"
@@ -87,20 +92,31 @@ export async function GET(req: NextRequest, ctx: { params: { caseId: string } })
           })
           scopeClassified = true
 
-          // Notifica o morador — falha aqui não deve abortar a triagem já concluída.
-          try {
-            await new NotifyUserUseCase().execute({
-              userId: reformCase.clientId,
-              tenantId,
-              title: "Triagem técnica concluída",
-              body: `Caso ${reformCase.protocol}: risco ${evaluation.riskLevel}, score ${evaluation.triageScore}.`,
-            })
-          } catch (notifyErr) {
-            logger.warn("case.triage.notify_failed", {
-              tenantId,
-              caseId,
-              message: notifyErr instanceof Error ? notifyErr.message : "erro desconhecido",
-            })
+          // Notifica os interessados. Os helpers tratam suas próprias falhas
+          // internamente — não abortam a triagem já concluída.
+          const ref: CaseStakeholderRef = {
+            id: reformCase.id,
+            protocol: reformCase.protocol,
+            tenantId,
+            condominiumId: reformCase.condominiumId,
+            clientId: reformCase.clientId,
+          }
+          await notifyCaseClient(
+            ref,
+            "Triagem técnica concluída",
+            `Caso ${reformCase.protocol}: risco ${evaluation.riskLevel}, score ${evaluation.triageScore}.`,
+          )
+          await notifyCondominiumManagers(
+            ref,
+            "Nova triagem classificada",
+            `Caso ${reformCase.protocol}: risco ${evaluation.riskLevel}, score ${evaluation.triageScore}.`,
+          )
+          if (evaluation.requiresHumanReview) {
+            await notifyCondominiumPartner(
+              ref,
+              "Caso aguardando sua revisão",
+              `Caso ${reformCase.protocol} entrou na fila de revisão técnica.`,
+            )
           }
         }
 

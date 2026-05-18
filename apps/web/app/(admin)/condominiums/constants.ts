@@ -15,6 +15,15 @@ export interface Condominium {
   createdAt: string
   unitCount: number
   caseCount: number
+  partnerId: string | null
+  partnerName: string | null
+  partnerCasePrice: number | null
+}
+
+/** Parceiro disponível para vincular a um condomínio. */
+export interface PartnerOption {
+  id: string
+  name: string
 }
 
 export interface Unit {

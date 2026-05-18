@@ -20,7 +20,8 @@ import type { RiskLevel } from "@/interfaces/components/ui"
 interface Message { id: string; role: string; content: string; createdAt: string }
 interface CaseData {
   id: string; protocol: string; status: string; riskLevel: string | null;
-  triageScore: number | null; requiresART: boolean | null; evaluationResult: any
+  triageScore: number | null; requiresART: boolean | null; evaluationResult: any;
+  agreedCasePrice: string | number | null
 }
 
 export default function CaseDetailPage() {
@@ -32,9 +33,18 @@ export default function CaseDetailPage() {
   const [input, setInput] = useState("")
   const [sending, setSending] = useState(false)
   const [streamingContent, setStreamingContent] = useState("")
+  const [accepting, setAccepting] = useState(false)
   const endRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => { if (status === "unauthenticated") router.push("/login") }, [status, router])
+
+  async function acceptOffer() {
+    if (accepting) return
+    setAccepting(true)
+    const res = await fetch(`/api/v1/cases/${caseId}/commercial/accept`, { method: "POST" })
+    setAccepting(false)
+    if (res.ok) reload()
+  }
 
   async function reload() {
     const [c, m] = await Promise.all([
@@ -103,6 +113,7 @@ export default function CaseDetailPage() {
   if (status !== "authenticated" || !data) return null
 
   const triggered = data.evaluationResult?.triggeredRules ?? []
+  const priceNumber = data.agreedCasePrice != null ? Number(data.agreedCasePrice) : null
 
   return (
     <>
@@ -300,6 +311,58 @@ export default function CaseDetailPage() {
                   { title: "Liberação", family: "ok", current: data.status === "ELIGIBLE_FOR_RELEASE" },
                 ]}
               />
+            </div>
+          )}
+
+          {/* Correções solicitadas pelo parceiro */}
+          {data.status === "PENDING_CORRECTIONS" && (
+            <div className="mt-5 rounded-md border border-iron-300 bg-iron-100 px-3.5 py-3">
+              <p className="text-sm font-semibold text-ink-900">Correções solicitadas</p>
+              <p className="mt-1 text-xs text-ink-600">
+                O responsável técnico pediu ajustes. Abra os Documentos para corrigir
+                ou anexar o que falta e reenviar o caso.
+              </p>
+              <Link href={`/cases/${caseId}/documents`}>
+                <Button variant="primary" size="sm" className="mt-2.5 w-full">
+                  Ir para Documentos
+                </Button>
+              </Link>
+            </div>
+          )}
+
+          {/* Proposta comercial */}
+          {(data.status === "COMMERCIAL_OFFER_SENT" || data.status === "AWAITING_PAYMENT") && (
+            <div className="mt-5 rounded-md bg-green-50 px-3.5 py-3.5">
+              <Eyebrow className="mb-1.5">Proposta</Eyebrow>
+              {priceNumber != null && (
+                <p className="font-mono text-2xl font-semibold text-ink-900">
+                  {priceNumber.toLocaleString("pt-BR", {
+                    style: "currency",
+                    currency: "BRL",
+                  })}
+                </p>
+              )}
+              {data.status === "COMMERCIAL_OFFER_SENT" ? (
+                <>
+                  <p className="mt-1 text-xs text-ink-600">
+                    Valor do acompanhamento técnico, pago ao condomínio.
+                  </p>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    className="mt-3 w-full"
+                    disabled={accepting}
+                    onClick={acceptOffer}
+                  >
+                    {accepting ? "Enviando…" : "Aceitar proposta"}
+                  </Button>
+                </>
+              ) : (
+                <p className="mt-1 text-xs text-ink-600">
+                  Proposta aceita. Efetue o pagamento ao condomínio — aguardando a
+                  confirmação do recebimento.
+                </p>
+              )}
             </div>
           )}
 

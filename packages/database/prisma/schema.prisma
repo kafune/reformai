@@ -37,21 +37,24 @@ enum TenantType {
 }
 
 model Condominium {
-  id        String   @id @default(cuid())
-  tenantId  String
-  name      String
-  cnpj      String?
-  address   String
-  city      String
-  state     String
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
+  id               String   @id @default(cuid())
+  tenantId         String
+  name             String
+  cnpj             String?
+  address          String
+  city             String
+  state            String
+  active           Boolean  @default(true)
+  partnerId        String?
+  partnerCasePrice Decimal?
+  createdAt        DateTime @default(now())
 
-  tenant      Tenant              @relation(fields: [tenantId], references: [id])
-  units       Unit[]
-  cases       ReformCase[]
-  policyLinks CondominiumPolicy[]
-  users       User[]              @relation("CondominiumUsers")
+  tenant             Tenant              @relation(fields: [tenantId], references: [id])
+  responsiblePartner Partner?            @relation("CondominiumResponsiblePartner", fields: [partnerId], references: [id])
+  units              Unit[]
+  cases              ReformCase[]
+  policyLinks        CondominiumPolicy[]
+  users              User[]              @relation("CondominiumUsers")
 }
 
 model Unit {
@@ -115,6 +118,7 @@ model ReformCase {
   evaluationResult Json?
   partnerId        String?
   commercialPlanId String?
+  agreedCasePrice  Decimal?
   createdAt        DateTime   @default(now())
   updatedAt        DateTime   @updatedAt
 
@@ -336,10 +340,11 @@ model Partner {
   active      Boolean     @default(true)
   createdAt   DateTime    @default(now())
 
-  tenant      Tenant       @relation(fields: [tenantId], references: [id])
-  user        User         @relation(fields: [userId], references: [id])
-  cases       ReformCase[]
-  inspections Inspection[]
+  tenant       Tenant        @relation(fields: [tenantId], references: [id])
+  user         User          @relation(fields: [userId], references: [id])
+  cases        ReformCase[]
+  inspections  Inspection[]
+  condominiums Condominium[] @relation("CondominiumResponsiblePartner")
 }
 
 enum PartnerType {

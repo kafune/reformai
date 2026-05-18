@@ -191,6 +191,15 @@ async function seedDemo(policyId: string): Promise<void> {
   });
   console.log(`✅ Parceiro: Parceiro Demo (CREA SP-123456)`);
 
+  // ─── VÍNCULO PARCEIRO → CONDOMÍNIO ──────────────────────────
+  // Cada condomínio tem um parceiro responsável e um valor por caso
+  // pré-acordado. O parceiro revisa as triagens desse condomínio.
+  await prisma.condominium.update({
+    where: { id: condominium.id },
+    data: { partnerId: partner.id, partnerCasePrice: 450.0 },
+  });
+  console.log(`✅ Parceiro vinculado ao condomínio (R$ 450,00/caso)`);
+
   // ─── PLANO COMERCIAL ────────────────────────────────────────
   const existingPlan = await prisma.commercialPlan.findFirst({
     where: { tenantId: tenant.id, name: "Plano Essencial" },

@@ -7,7 +7,6 @@ const ADMIN_ROLES = new Set(["SUPER_ADMIN", "ADMIN"])
 
 const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard", icon: "grid", label: "Dashboard" },
-  { href: "/review-queue", icon: "list", label: "Fila de Revisão" },
   { href: "/condominiums", icon: "home", label: "Condomínios" },
   { href: "/partners", icon: "star", label: "Parceiros" },
   { href: "/policies", icon: "shield", label: "Políticas" },

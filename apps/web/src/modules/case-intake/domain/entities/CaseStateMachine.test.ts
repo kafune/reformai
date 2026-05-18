@@ -46,4 +46,24 @@ describe("CaseStateMachine", () => {
       }),
     ).toBe("ELIGIBLE_FOR_RELEASE")
   })
+
+  it("permite HUMAN_REVIEW_REQUIRED → COMMERCIAL_OFFER_SENT (aprovação do parceiro)", () => {
+    const sm = new CaseStateMachine("HUMAN_REVIEW_REQUIRED", "CRITICAL")
+    expect(
+      sm.transition("COMMERCIAL_OFFER_SENT", {
+        triggeredBy: "partner:1",
+        previousStatus: "HUMAN_REVIEW_REQUIRED",
+      }),
+    ).toBe("COMMERCIAL_OFFER_SENT")
+  })
+
+  it("permite HUMAN_REVIEW_REQUIRED → PENDING_CORRECTIONS (parceiro pede correções)", () => {
+    const sm = new CaseStateMachine("HUMAN_REVIEW_REQUIRED", "HIGH")
+    expect(
+      sm.transition("PENDING_CORRECTIONS", {
+        triggeredBy: "partner:1",
+        previousStatus: "HUMAN_REVIEW_REQUIRED",
+      }),
+    ).toBe("PENDING_CORRECTIONS")
+  })
 })

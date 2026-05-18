@@ -1,4 +1,3 @@
-import Link from "next/link"
 import { redirect } from "next/navigation"
 import { getSessionUser } from "@/infrastructure/auth/getSessionUser"
 import { prisma } from "@/infrastructure/database/prisma"
@@ -86,15 +85,7 @@ export default async function DashboardPage() {
     <>
       <TopBar
         title={`Visão geral · ${tenant?.name ?? tenantId}`}
-        subtitle={`${totalCases} casos registrados · ${humanReviewQueue} aguardando revisão humana.`}
-        actions={
-          <Link
-            href="/review-queue"
-            className="inline-flex h-9 items-center gap-1.5 rounded-sm border border-ink-900 px-4 text-sm font-medium text-ink-900 transition-colors hover:bg-ink-900 hover:text-bone-50"
-          >
-            Fila de revisão
-          </Link>
-        }
+        subtitle={`${totalCases} casos registrados · ${humanReviewQueue} em revisão pelos parceiros.`}
       />
 
       <div className="flex-1 overflow-auto bg-bone-50 px-8 py-8">
@@ -146,7 +137,7 @@ export default async function DashboardPage() {
             data-testid="dashboard-card-review-queue"
           >
             <Eyebrow className={humanReviewQueue > 0 ? "text-iron-600" : ""}>
-              Fila de revisão humana
+              Em revisão pelos parceiros
             </Eyebrow>
             <div className="mt-2 flex items-center gap-3">
               <span
@@ -156,14 +147,6 @@ export default async function DashboardPage() {
               >
                 {humanReviewQueue}
               </span>
-              {humanReviewQueue > 0 && (
-                <Link
-                  href="/review-queue"
-                  className="rounded-full bg-iron-600 px-3 py-1 text-xs font-medium text-bone-50 hover:bg-iron-700 transition-colors"
-                >
-                  Ver fila →
-                </Link>
-              )}
             </div>
           </div>
         </div>

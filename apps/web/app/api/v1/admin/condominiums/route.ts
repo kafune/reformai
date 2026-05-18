@@ -24,7 +24,10 @@ export async function GET() {
     const condominiums = await prisma.condominium.findMany({
       where: { tenantId: user.tenantId },
       orderBy: { name: "asc" },
-      include: { _count: { select: { units: true, cases: true } } },
+      include: {
+        _count: { select: { units: true, cases: true } },
+        responsiblePartner: { include: { user: { select: { name: true } } } },
+      },
     })
 
     return NextResponse.json({
@@ -39,6 +42,9 @@ export async function GET() {
         createdAt: c.createdAt,
         unitCount: c._count.units,
         caseCount: c._count.cases,
+        partnerId: c.partnerId,
+        partnerName: c.responsiblePartner?.user.name ?? null,
+        partnerCasePrice: c.partnerCasePrice == null ? null : Number(c.partnerCasePrice),
       })),
     })
   } catch (err) {
@@ -79,6 +85,9 @@ export async function POST(req: NextRequest) {
           createdAt: condominium.createdAt,
           unitCount: 0,
           caseCount: 0,
+          partnerId: null,
+          partnerName: null,
+          partnerCasePrice: null,
         },
       },
       { status: 201 },

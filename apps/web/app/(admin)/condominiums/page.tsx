@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { TopBar, Button, Input, Select } from "@/interfaces/components/ui"
 import { CondominiumCard } from "./CondominiumCard"
-import { UFS, type Condominium } from "./constants"
+import { UFS, type Condominium, type PartnerOption } from "./constants"
 
 const ADMIN_ROLES = new Set(["SUPER_ADMIN", "ADMIN"])
 
@@ -16,6 +16,7 @@ export default function CondominiumsPage() {
   const isAdmin = ADMIN_ROLES.has(session?.user?.role ?? "")
 
   const [condominiums, setCondominiums] = useState<Condominium[]>([])
+  const [partners, setPartners] = useState<PartnerOption[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
@@ -28,8 +29,20 @@ export default function CondominiumsPage() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const res = await fetch("/api/v1/admin/condominiums")
-    if (res.ok) setCondominiums((await res.json()).condominiums ?? [])
+    const [condRes, partRes] = await Promise.all([
+      fetch("/api/v1/admin/condominiums"),
+      fetch("/api/v1/admin/partners"),
+    ])
+    if (condRes.ok) setCondominiums((await condRes.json()).condominiums ?? [])
+    if (partRes.ok) {
+      const data = await partRes.json()
+      setPartners(
+        (data.partners ?? []).map((p: { id: string; name: string }) => ({
+          id: p.id,
+          name: p.name,
+        })),
+      )
+    }
     setLoading(false)
   }, [])
 
@@ -154,6 +167,7 @@ export default function CondominiumsPage() {
               <CondominiumCard
                 key={c.id}
                 condominium={c}
+                partners={partners}
                 onUpdated={handleUpdated}
                 onDeleted={handleDeleted}
               />

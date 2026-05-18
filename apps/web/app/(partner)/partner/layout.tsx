@@ -5,6 +5,7 @@ import { SignOutButton } from "@/interfaces/components/SignOutButton"
 
 const NAV: NavItem[] = [
   { href: "/partner/dashboard", icon: "grid", label: "Dashboard" },
+  { href: "/partner/review-queue", icon: "shield", label: "Fila de Revisão" },
   { href: "/partner/cases", icon: "list", label: "Meus Casos" },
 ]
 

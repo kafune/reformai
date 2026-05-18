@@ -16,6 +16,10 @@ const UpdateCondominiumSchema = z.object({
   city: z.string().min(1).max(120).optional(),
   state: z.string().length(2).optional(),
   active: z.boolean().optional(),
+  /** Parceiro responsável pelo condomínio (revisa as triagens). */
+  partnerId: z.string().nullable().optional(),
+  /** Valor por caso pré-acordado com o parceiro. */
+  partnerCasePrice: z.number().nonnegative().nullable().optional(),
 })
 
 export async function PATCH(req: NextRequest, ctx: { params: { condominiumId: string } }) {
@@ -31,6 +35,20 @@ export async function PATCH(req: NextRequest, ctx: { params: { condominiumId: st
     })
     if (!existing) return notFound()
 
+    // Se um parceiro foi informado, ele precisa pertencer ao mesmo tenant.
+    if (body.partnerId) {
+      const partner = await prisma.partner.findFirst({
+        where: { id: body.partnerId, tenantId: user.tenantId },
+        select: { id: true },
+      })
+      if (!partner) {
+        return NextResponse.json(
+          { error: "VALIDATION", message: "Parceiro não encontrado neste tenant." },
+          { status: 422 },
+        )
+      }
+    }
+
     const updated = await prisma.condominium.update({
       where: { id: existing.id },
       data: {
@@ -40,8 +58,13 @@ export async function PATCH(req: NextRequest, ctx: { params: { condominiumId: st
         city: body.city?.trim(),
         state: body.state?.trim().toUpperCase(),
         active: body.active,
+        partnerId: body.partnerId,
+        partnerCasePrice: body.partnerCasePrice,
       },
-      include: { _count: { select: { units: true, cases: true } } },
+      include: {
+        _count: { select: { units: true, cases: true } },
+        responsiblePartner: { include: { user: { select: { name: true } } } },
+      },
     })
 
     return NextResponse.json({
@@ -56,6 +79,10 @@ export async function PATCH(req: NextRequest, ctx: { params: { condominiumId: st
         createdAt: updated.createdAt,
         unitCount: updated._count.units,
         caseCount: updated._count.cases,
+        partnerId: updated.partnerId,
+        partnerName: updated.responsiblePartner?.user.name ?? null,
+        partnerCasePrice:
+          updated.partnerCasePrice == null ? null : Number(updated.partnerCasePrice),
       },
     })
   } catch (err) {

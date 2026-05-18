@@ -2,6 +2,7 @@ import { redirect } from "next/navigation"
 import { getSessionUser } from "@/infrastructure/auth/getSessionUser"
 import { prisma } from "@/infrastructure/database/prisma"
 import { TopBar, RiskBadge, StatusChip, Eyebrow } from "@/interfaces/components/ui"
+import { ConfirmPaymentButton } from "./ConfirmPaymentButton"
 
 export const dynamic = "force-dynamic"
 
@@ -120,7 +121,12 @@ export default async function SindicoCasesPage() {
                     )}
 
                     {/* Status */}
-                    <StatusChip status={c.status} />
+                    <div className="flex flex-col items-start gap-1.5">
+                      <StatusChip status={c.status} />
+                      {c.status === "AWAITING_PAYMENT" && (
+                        <ConfirmPaymentButton caseId={c.id} />
+                      )}
+                    </div>
 
                     {/* Data */}
                     <span className="text-right font-mono text-[11px] text-ink-400">
