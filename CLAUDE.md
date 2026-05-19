@@ -34,7 +34,7 @@ Plataforma SaaS B2B2C multi-tenant para triagem técnica, análise documental, l
 
 | Camada | Tecnologia |
 |--------|------------|
-| Frontend | Next.js 14+ (App Router), TypeScript, Tailwind CSS, shadcn/ui |
+| Frontend | Next.js 14+ (App Router), TypeScript, Tailwind CSS, design system próprio "Concreto Verde" |
 | Backend / BFF | Next.js API Routes (MVP) → Fastify standalone (pós-MVP) |
 | ORM | Prisma |
 | Banco principal | PostgreSQL 16 |
@@ -46,7 +46,7 @@ Plataforma SaaS B2B2C multi-tenant para triagem técnica, análise documental, l
 | RAG | pgvector (extensão PostgreSQL) |
 | Validação | Zod em todas as bordas do sistema |
 | Testes | Vitest (unitários), Playwright (E2E nas telas críticas) |
-| Runtime / Package Manager | **Bun 1.3.6** — usado em todo o monorepo (bun install, bun run, bun test) |
+| Runtime / Package Manager | **Bun 1.3.10** — usado em todo o monorepo (bun install, bun run, bun test) |
 
 ---
 
@@ -88,76 +88,81 @@ Plataforma SaaS B2B2C multi-tenant para triagem técnica, análise documental, l
 /
 ├── apps/
 │   └── web/
-│       ├── app/                        # Next.js App Router
-│       │   ├── (auth)/
-│       │   ├── (client)/               # Área do morador
-│       │   ├── (partner)/              # Área do parceiro
-│       │   ├── (condominium)/          # Painel do condomínio
-│       │   └── (admin)/                # Painel administrativo
-│       └── src/
-│           ├── modules/
-│           │   ├── identity/
-│           │   │   ├── domain/
-│           │   │   ├── application/
-│           │   │   └── infrastructure/
-│           │   ├── tenancy/
-│           │   │   ├── domain/
-│           │   │   ├── application/
-│           │   │   └── infrastructure/
-│           │   ├── case-intake/
-│           │   │   ├── domain/
-│           │   │   │   ├── entities/
-│           │   │   │   │   ├── ReformCase.ts
-│           │   │   │   │   ├── CaseStateMachine.ts
-│           │   │   │   │   └── ReformScope.ts
-│           │   │   │   ├── value-objects/
-│           │   │   │   ├── events/
-│           │   │   │   └── repositories/    # interfaces apenas
-│           │   │   ├── application/
-│           │   │   │   └── use-cases/
-│           │   │   └── infrastructure/
-│           │   │       └── repositories/    # implementações Prisma
-│           │   ├── work-classification/
-│           │   ├── rule-engine/
-│           │   │   ├── domain/
-│           │   │   │   ├── entities/
-│           │   │   │   │   ├── Policy.ts
-│           │   │   │   │   ├── Rule.ts
-│           │   │   │   │   └── PolicyEvaluationResult.ts
-│           │   │   │   └── evaluator/
-│           │   │   │       └── DeterministicEvaluator.ts
-│           │   │   ├── application/
-│           │   │   └── infrastructure/
-│           │   ├── document-management/
-│           │   ├── document-intelligence/
-│           │   │   ├── domain/
-│           │   │   │   └── LLMProvider.ts   # interface — nunca importa SDK
-│           │   │   └── infrastructure/
-│           │   │       └── llm/
-│           │   │           └── AnthropicProvider.ts
-│           │   ├── document-generation/
-│           │   ├── commercial-offers/
-│           │   ├── partner-network/
-│           │   ├── inspection-scheduling/
-│           │   └── audit/
-│           ├── shared/
-│           │   ├── types/
-│           │   ├── schemas/                 # Zod schemas compartilhados
-│           │   ├── events/                  # Event bus
-│           │   └── errors/
-│           └── infrastructure/
-│               ├── database/               # Prisma client singleton
-│               ├── storage/
-│               │   ├── StorageAdapter.ts   # interface
-│               │   ├── MinIOAdapter.ts
-│               │   └── S3Adapter.ts
-│               ├── queue/
-│               │   └── workers/
-│               │       └── document.worker.ts
-│               └── auth/
+│       ├── app/                             # Next.js App Router
+│       │   ├── login/                       # Tela de login
+│       │   ├── register/                    # Autocadastro (escolhe condomínio)
+│       │   │   └── [condominiumId]/         # Formulário de cadastro por condomínio
+│       │   ├── cases/                       # Área do morador (sem route group)
+│       │   │   └── [caseId]/
+│       │   │       └── documents/
+│       │   ├── (admin)/                     # Admin + Superadmin
+│       │   │   ├── dashboard/
+│       │   │   ├── condominiums/
+│       │   │   ├── partners/
+│       │   │   ├── policies/
+│       │   │   ├── review-queue/
+│       │   │   ├── skills/                  # Superadmin: Report Skills
+│       │   │   ├── tenants/                 # Superadmin: gestão de tenants
+│       │   │   └── users/                   # Superadmin: gestão de usuários
+│       │   ├── (condominium)/sindico/       # Painel do síndico
+│       │   │   ├── dashboard/
+│       │   │   ├── cases/
+│       │   │   └── cadastro/               # QR code de autocadastro
+│       │   └── (partner)/partner/           # Painel do parceiro
+│       │       ├── dashboard/
+│       │       └── cases/[caseId]/inspections/
+│       ├── src/
+│       │   ├── modules/                     # 10 bounded contexts
+│       │   │   ├── case-intake/
+│       │   │   │   ├── domain/
+│       │   │   │   │   ├── entities/
+│       │   │   │   │   │   └── CaseStateMachine.ts   # entidade pura
+│       │   │   │   │   └── repositories/             # interfaces
+│       │   │   │   ├── application/
+│       │   │   │   │   ├── CreateCaseUseCase.ts
+│       │   │   │   │   ├── ClassifyScopeUseCase.ts
+│       │   │   │   │   └── TriageAgent.ts            # tool-use Claude
+│       │   │   │   └── infrastructure/repositories/  # Prisma
+│       │   │   ├── rule-engine/
+│       │   │   │   ├── domain/
+│       │   │   │   │   ├── DeterministicEvaluator.ts
+│       │   │   │   │   └── types.ts                  # interfaces Policy/Rule/Result
+│       │   │   │   └── infrastructure/
+│       │   │   ├── document-management/
+│       │   │   ├── document-intelligence/
+│       │   │   │   ├── domain/
+│       │   │   │   │   └── LLMProvider.ts            # interface — nunca importa SDK
+│       │   │   │   └── infrastructure/llm/
+│       │   │   │       └── AnthropicProvider.ts      # único import do SDK
+│       │   │   ├── document-generation/
+│       │   │   ├── commercial-offers/
+│       │   │   ├── partner-network/
+│       │   │   ├── inspection-scheduling/
+│       │   │   ├── notifications/
+│       │   │   └── identity/                         # só autocadastro (CLIENT)
+│       │   ├── infrastructure/
+│       │   │   ├── auth/                             # NextAuth, getSessionUser, password
+│       │   │   ├── database/                         # Prisma client singleton
+│       │   │   ├── storage/
+│       │   │   │   ├── StorageAdapter.ts             # interface + buildStorageKey
+│       │   │   │   ├── StorageFactory.ts             # seleciona MinIO ou S3
+│       │   │   │   ├── MinIOAdapter.ts
+│       │   │   │   └── S3Adapter.ts
+│       │   │   └── queue/                            # BullMQ QueueManager + DocumentWorker
+│       │   ├── interfaces/
+│       │   │   ├── components/ui/                    # design system "Concreto Verde"
+│       │   │   └── http/respond.ts                   # unauthorized(), forbidden(), handleError()
+│       │   ├── shared/
+│       │   │   ├── errors/                           # DomainError e subclasses
+│       │   │   ├── events/                           # tipos de evento (sem bus implementado)
+│       │   │   ├── schemas/                          # ReformScopeSchema (Zod)
+│       │   │   └── logger.ts
+│       │   └── workers/
+│       │       └── document-worker.ts                # entrypoint standalone BullMQ
+│       └── tests/e2e/                                # specs Playwright
 ├── packages/
-│   ├── database/                           # schema.prisma + migrations + seed
-│   └── templates/                          # Templates em Markdown
+│   ├── database/                                     # schema.prisma + 4 migrations + seed
+│   └── templates/                                    # engine.ts + 6 templates Markdown
 │       ├── relatorio-analise.md
 │       ├── memorial-descritivo.md
 │       ├── cronograma-basico.md
@@ -166,7 +171,9 @@ Plataforma SaaS B2B2C multi-tenant para triagem técnica, análise documental, l
 │       └── ordem-servico.md
 ├── docs/
 ├── CLAUDE.md
+├── APP-STATE.md                                      # snapshot do estado real do código
 ├── SYSTEM-PROMPT.md
+├── Dockerfile.web  Dockerfile.worker
 └── docker-compose.yml
 ```
 
@@ -412,9 +419,13 @@ class DeterministicEvaluator {
 
 ## 8. MODELAGEM DE DADOS (Prisma)
 
+Schema em `packages/database/prisma/schema.prisma`. Gerador com `output = "../generated/client"`.
+
 ```prisma
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  output          = "../generated/client"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
@@ -440,6 +451,7 @@ model Tenant {
   policies     Policy[]
   partners     Partner[]
   plans        CommercialPlan[]
+  cases        ReformCase[]
 }
 
 enum TenantType { ADMIN ADMINISTRADORA STANDALONE }
@@ -455,16 +467,18 @@ model Condominium {
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
 
-  tenant       Tenant             @relation(fields: [tenantId], references: [id])
-  units        Unit[]
-  cases        ReformCase[]
-  policyLinks  CondominiumPolicy[]
+  tenant      Tenant              @relation(fields: [tenantId], references: [id])
+  units       Unit[]
+  cases       ReformCase[]
+  policyLinks CondominiumPolicy[]
+  users       User[]              @relation("CondominiumUsers")
 }
 
 model Unit {
   id            String  @id @default(cuid())
   condominiumId String
   identifier    String
+  block         String?   // bloco (ex: "A", "B")
   floor         String?
   ownerName     String?
   ownerEmail    String?
@@ -479,19 +493,31 @@ model Unit {
 model User {
   id             String    @id @default(cuid())
   tenantId       String
+  condominiumId  String?   // preenchido para CONDOMINIUM e CLIENT via autocadastro
   email          String    @unique
   name           String
+  passwordHash   String    // hash scrypt: "scrypt$<saltHex>$<hashHex>"
   role           UserRole
   active         Boolean   @default(true)
   lgpdConsentAt  DateTime?
   createdAt      DateTime  @default(now())
 
-  tenant    Tenant       @relation(fields: [tenantId], references: [id])
-  cases     ReformCase[] @relation("ClientCases")
-  auditLogs AuditLog[]
+  tenant        Tenant          @relation(fields: [tenantId], references: [id])
+  condominium   Condominium?    @relation("CondominiumUsers", fields: [condominiumId], references: [id])
+  cases         ReformCase[]    @relation("ClientCases")
+  auditLogs     AuditLog[]
+  partner       Partner?
+  notifications Notification[]
 }
 
-enum UserRole { SUPER_ADMIN ADMIN CONDOMINIUM CLIENT PARTNER }
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  MANAGER
+  CONDOMINIUM
+  CLIENT
+  PARTNER
+}
 
 // ─── CASE ─────────────────────────────────────────────────────
 
@@ -575,7 +601,7 @@ model Document {
   type            DocumentType
   version         Int          @default(1)
   fileName        String
-  storageKey      String       // Chave no storage — nunca URL pública direta
+  storageKey      String       // chave no storage — nunca URL pública direta
   mimeType        String
   status          DocStatus    @default(PENDING)
   origin          DocOrigin
@@ -604,6 +630,7 @@ model Report {
   tenantId    String
   type        ReportType
   content     String
+  skillFileId String?    // ID de arquivo gerado por Agent Skill (opcional)
   version     Int        @default(1)
   generatedAt DateTime   @default(now())
 
@@ -611,15 +638,31 @@ model Report {
 }
 
 enum ReportType {
-  ANALYSIS TECHNICAL_OPINION COMMERCIAL_PROPOSAL
-  SERVICE_ORDER INSPECTION_SUMMARY RELEASE_OPINION
+  ANALYSIS
+  TECHNICAL_OPINION
+  COMMERCIAL_PROPOSAL
+  SERVICE_ORDER
+  INSPECTION_SUMMARY
+  RELEASE_OPINION
+  MEMORIAL_DESCRITIVO   // gerado via Agent Skill configurável
+  CRONOGRAMA            // gerado via Agent Skill configurável
+}
+
+// Configuração de qual Agent Skill gera cada tipo de relatório especial
+model ReportSkill {
+  id        String     @id @default(cuid())
+  type      ReportType @unique
+  skillId   String     // ID do Anthropic Agent Skill
+  name      String
+  active    Boolean    @default(true)
+  updatedAt DateTime   @updatedAt
 }
 
 // ─── RULE ENGINE ──────────────────────────────────────────────
 
 model Policy {
   id            String   @id @default(cuid())
-  tenantId      String?
+  tenantId      String?  // null = política global
   name          String
   description   String?
   version       Int      @default(1)
@@ -627,7 +670,7 @@ model Policy {
   active        Boolean  @default(true)
   createdAt     DateTime @default(now())
 
-  tenant       Tenant?            @relation(fields: [tenantId], references: [id])
+  tenant       Tenant?             @relation(fields: [tenantId], references: [id])
   rules        Rule[]
   condominiums CondominiumPolicy[]
 }
@@ -637,8 +680,8 @@ model Rule {
   policyId    String
   name        String
   description String
-  condition   Json
-  action      Json
+  condition   Json    // { field, operator, value }
+  action      Json    // { riskDelta, requiresART, requiresHumanReview, mandatoryInspection }
   priority    Int
   active      Boolean @default(true)
   version     Int     @default(1)
@@ -667,7 +710,7 @@ model Partner {
   type        PartnerType
   specialties String[]
   cities      String[]
-  states      String[]
+  states      String[]    // aceita "*" como wildcard para qualquer estado
   basePrice   Decimal
   rating      Decimal?
   slaHours    Int?
@@ -675,6 +718,7 @@ model Partner {
   createdAt   DateTime    @default(now())
 
   tenant      Tenant       @relation(fields: [tenantId], references: [id])
+  user        User         @relation(fields: [userId], references: [id])
   cases       ReformCase[]
   inspections Inspection[]
 }
@@ -735,6 +779,22 @@ model AuditLog {
   case ReformCase? @relation(fields: [caseId], references: [id])
   user User?       @relation(fields: [userId], references: [id])
 }
+
+// ─── NOTIFICATIONS ────────────────────────────────────────────
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  tenantId  String
+  title     String
+  body      String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, read])
+}
 ```
 
 ---
@@ -756,21 +816,25 @@ A IA nunca chama `stateMachine.transition()`. Ela retorna sugestão. O applicati
 interface LLMProvider {
   complete(prompt: string, options?: CompletionOptions): Promise<string>
   stream(prompt: string, options?: CompletionOptions): AsyncIterable<string>
+  completeWithTools(prompt: string, tools: LLMTool[], options?: CompletionOptions): Promise<CompletionResult>
+  streamComplete(systemPrompt: string, messages: Array<{role: string; content: string}>, tools: LLMTool[], options?: CompletionOptions): AsyncIterable<string>
 }
-// AnthropicProvider.ts fica em infrastructure/llm/ — único lugar que importa a SDK
+// AnthropicProvider.ts fica em infrastructure/llm/ — único lugar que importa o SDK
 ```
 
 ### Agentes (Application Services)
 
-| Agente | Responsabilidade | Output validado por Zod |
-|--------|-----------------|--------------------------|
-| `TriageAgent` | Conduz chat, coleta e normaliza `ReformScope` | `ReformScopeSchema` |
-| `DocumentAgent` | Extrai dados dos documentos | `DocumentExtractionSchema` |
-| `AnalysisAgent` | Valida coerência cross-documents | `DocumentAnalysisSchema` |
-| `ReportAgent` | Gera texto de relatórios via template | `string` (Markdown) |
-| `CommercialAgent` | Calcula preço e gera proposta | `CommercialQuoteSchema` |
+| Agente | Arquivo | Uso do LLM | Output validado por Zod |
+|--------|---------|-----------|--------------------------|
+| `TriageAgent` | case-intake/application | **tool-use nativo** (`submit_scope`) + SSE | `ReformScopeSchema` |
+| `ClaudeDocumentAgent` | document-intelligence/application | `complete`, JSON em `<extraction>` | `DocumentExtractionResultSchema` |
+| `ClaudeAnalysisAgent` | document-intelligence/application | `complete`, JSON em `<analysis>` | `DocumentAnalysisResultSchema` |
+| `ClaudeReportAgent` | document-generation/application | `complete`, JSON em `<narrative>` | `NarrativeSchema` + `ReportContentSchema` |
+| `CommercialAgent` | commercial-offers/application | `complete`, JSON em `<offer>` | `CommercialOfferOutputSchema` |
 
 **Modelo:** `claude-sonnet-4-20250514` — fixado em `AnthropicProvider`. Não usar outro sem decisão documentada.
+
+**Apenas `TriageAgent` usa tool-use real da API.** Os outros 4 usam JSON delimitado por tags com `safeParse` Zod. Em falha de parse, todos os agentes (exceto `ClaudeAnalysisAgent`) retornam fallback sem lançar exceção.
 
 ---
 
@@ -820,53 +884,91 @@ tenants/{tenantId}/condominiums/{condominiumId}/units/{unitId}/cases/{caseId}/
 
 ## 12. APIs
 
-**Convenções:** Prefixo `/api/v1/`. Bearer JWT obrigatório. Middleware injeta `tenantId` e `userId` validados. Toda query ao banco filtra por `tenantId`.
+**Convenções:** Prefixo `/api/v1/`. JWT obrigatório (exceto rotas marcadas como público). Auth via `requireSessionUser()` por rota — não há middleware global. Toda query ao banco filtra por `tenantId`.
 
 ```
-POST   /api/v1/auth/login
-POST   /api/v1/auth/refresh
+# ── AUTH / SAÚDE / PÚBLICO ────────────────────────────────────────────────────
+GET/POST  /api/auth/[...nextauth]                  # NextAuth handler (fora do /v1)
+GET       /api/health                              # público — ping SELECT 1
 
-POST   /api/v1/cases
-GET    /api/v1/cases                          ?status=&condominiumId=
-GET    /api/v1/cases/:id
-PATCH  /api/v1/cases/:id/status              # apenas revisores humanos
+POST      /api/v1/auth/register                    # público — autocadastro de morador (CLIENT)
 
-POST   /api/v1/cases/:id/messages
-GET    /api/v1/cases/:id/messages
-GET    /api/v1/cases/:id/messages/stream     # SSE
+GET       /api/v1/public/condominiums              # público — lista para tela de registro
+GET       /api/v1/public/condominiums/:id          # público — detalhe para registro
 
-POST   /api/v1/cases/:id/documents
-GET    /api/v1/cases/:id/documents
-GET    /api/v1/cases/:id/documents/:id/url  # signed URL
-POST   /api/v1/cases/:id/documents/analyze
+# ── CASOS ─────────────────────────────────────────────────────────────────────
+POST      /api/v1/cases                            # qualquer role autenticado
+GET       /api/v1/cases                            # qualquer role; CLIENT vê só os próprios
+GET       /api/v1/cases/:caseId                    # qualquer role (tenant-scoped)
 
-POST   /api/v1/cases/:id/reports/generate
-GET    /api/v1/cases/:id/reports
-GET    /api/v1/cases/:id/reports/:id/url
+POST      /api/v1/cases/:caseId/messages           # qualquer role (não-streaming)
+GET       /api/v1/cases/:caseId/messages           # qualquer role
+GET       /api/v1/cases/:caseId/messages/stream    # qualquer role — SSE (usado pela UI)
 
-POST   /api/v1/cases/:id/commercial/quote
-POST   /api/v1/cases/:id/commercial/accept
+POST      /api/v1/cases/:caseId/documents          # qualquer role; upload via backend
+GET       /api/v1/cases/:caseId/documents          # qualquer role
+GET       /api/v1/cases/:caseId/documents/:id/url  # qualquer role — signed URL (1h)
+POST      /api/v1/cases/:caseId/documents/analyze  # ADMIN | SUPER_ADMIN | CONDOMINIUM
 
-GET    /api/v1/partners
-POST   /api/v1/partners
-PATCH  /api/v1/partners/:id
-GET    /api/v1/partners/:id/cases
-POST   /api/v1/partners/:id/cases/:caseId/accept
-POST   /api/v1/partners/:id/cases/:caseId/decline
+POST      /api/v1/cases/:caseId/reports/generate   # qualquer role
+GET       /api/v1/cases/:caseId/reports            # qualquer role
+GET       /api/v1/cases/:caseId/reports/:id/url    # qualquer role — signed URL
 
-GET    /api/v1/cases/:id/inspections
-POST   /api/v1/cases/:id/inspections
-PATCH  /api/v1/cases/:id/inspections/:id
-POST   /api/v1/cases/:id/inspections/:id/complete
+POST      /api/v1/cases/:caseId/commercial/quote   # ADMIN | SUPER_ADMIN | CONDOMINIUM
+POST      /api/v1/cases/:caseId/commercial/accept  # CLIENT | ADMIN | SUPER_ADMIN
 
-GET    /api/v1/admin/dashboard
-GET    /api/v1/admin/review-queue
-POST   /api/v1/admin/review/:caseId
-GET    /api/v1/admin/policies
-POST   /api/v1/admin/policies
-PATCH  /api/v1/admin/policies/:id/rules
-GET    /api/v1/admin/templates
-PATCH  /api/v1/admin/templates/:id
+GET       /api/v1/cases/:caseId/inspections        # qualquer role
+POST      /api/v1/cases/:caseId/inspections        # PARTNER | ADMIN | SUPER_ADMIN
+PATCH     /api/v1/cases/:caseId/inspections/:id    # qualquer role (reagendamento)
+POST      /api/v1/cases/:caseId/inspections/:id/complete  # qualquer role
+
+# ── PARCEIROS ─────────────────────────────────────────────────────────────────
+GET       /api/v1/partners                         # ADMIN | SUPER_ADMIN | CONDOMINIUM
+GET       /api/v1/partners/:partnerId/cases        # PARTNER — verifica posse (userId)
+POST      /api/v1/partners/:partnerId/cases/:caseId/accept   # PARTNER — verifica posse
+POST      /api/v1/partners/:partnerId/cases/:caseId/decline  # PARTNER — verifica posse
+
+# ── ADMIN (ADMIN | SUPER_ADMIN) ───────────────────────────────────────────────
+GET       /api/v1/admin/dashboard
+GET       /api/v1/admin/review-queue
+POST      /api/v1/admin/review/:caseId
+
+GET       /api/v1/admin/policies
+POST      /api/v1/admin/policies                   # política global: só SUPER_ADMIN
+PATCH     /api/v1/admin/policies/:id
+DELETE    /api/v1/admin/policies/:id
+PATCH     /api/v1/admin/policies/:id/rules
+
+GET       /api/v1/admin/condominiums
+POST      /api/v1/admin/condominiums
+PATCH     /api/v1/admin/condominiums/:id
+DELETE    /api/v1/admin/condominiums/:id
+GET       /api/v1/admin/condominiums/:id/units
+POST      /api/v1/admin/condominiums/:id/units
+PATCH     /api/v1/admin/condominiums/:id/units/:id
+DELETE    /api/v1/admin/condominiums/:id/units/:id
+
+GET       /api/v1/admin/partners
+POST      /api/v1/admin/partners                   # cria User + Partner
+PATCH     /api/v1/admin/partners/:id
+DELETE    /api/v1/admin/partners/:id
+
+# ── SUPERADMIN (SUPER_ADMIN apenas) ───────────────────────────────────────────
+GET       /api/v1/superadmin/tenants
+POST      /api/v1/superadmin/tenants
+PATCH     /api/v1/superadmin/tenants/:id           # toggle active
+
+GET       /api/v1/superadmin/users
+POST      /api/v1/superadmin/users
+PATCH     /api/v1/superadmin/users/:id             # toggle active
+
+GET       /api/v1/superadmin/report-skills         # lista configs de Agent Skills
+PUT       /api/v1/superadmin/report-skills/:type   # upsert skill por ReportType
+
+# ── UTILITÁRIOS ───────────────────────────────────────────────────────────────
+GET       /api/v1/units                            # lista units do tenant; CLIENT filtrado por ownerEmail
+GET       /api/v1/notifications                    # notificações do usuário autenticado
+PATCH     /api/v1/notifications/:id               # marcar lida (valida posse)
 ```
 
 ---
@@ -890,22 +992,39 @@ PATCH  /api/v1/admin/templates/:id
 ## 14. VARIÁVEIS DE AMBIENTE
 
 ```env
-DATABASE_URL=postgresql://user:pass@localhost:5432/reformai
+# Banco (dev: porta 5433 — docker-compose mapeia 5433:5432)
+DATABASE_URL=postgresql://reformai:reformai_dev@localhost:5433/reformai
+
 REDIS_URL=redis://localhost:6379
-NEXTAUTH_SECRET=
+NEXTAUTH_SECRET=change-me-in-production
 NEXTAUTH_URL=http://localhost:3000
 ANTHROPIC_API_KEY=
+
+# Storage (minio | s3)
 STORAGE_ADAPTER=minio
 MINIO_ENDPOINT=localhost:9000
-MINIO_ACCESS_KEY=
-MINIO_SECRET_KEY=
+MINIO_PUBLIC_ENDPOINT=           # opcional: endpoint público para signed URLs (browser)
+MINIO_ACCESS_KEY=reformai
+MINIO_SECRET_KEY=reformai_dev
 MINIO_BUCKET=reformai
+
+# Alternativa S3 (quando STORAGE_ADAPTER=s3)
+# AWS_REGION=
+# AWS_ACCESS_KEY_ID=
+# AWS_SECRET_ACCESS_KEY=
+# AWS_S3_BUCKET=
+
 NEXT_PUBLIC_APP_URL=http://localhost:3000
+
+# Seed demo (13 casos + usuários de teste). NÃO usar em produção.
+SEED_DEMO=false
 ```
 
 ---
 
 ## 15. USUÁRIOS DE TESTE (seed)
+
+Criados apenas com `SEED_DEMO=true`. Hash scrypt (não SHA-256).
 
 | Email | Senha | Role |
 |-------|-------|------|
@@ -914,28 +1033,44 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 | morador@demo.com | senha123 | CLIENT |
 | parceiro@demo.com | senha123 | PARTNER |
 
+O seed cria também: 1 tenant `demo`, 1 condomínio, 3 units, 1 partner, 1 CommercialPlan e **13 casos demo** cobrindo todo o ciclo de vida (`RF-DEMO-*`).
+
+O `seedEssential()` (roda sempre, inclusive em produção) cria/atualiza a política global padrão (14 regras) e o `ReportSkill` de Memorial Descritivo.
+
 ---
 
 ## 16. COMANDOS
 
 ```bash
-docker-compose up -d        # PostgreSQL + Redis + MinIO
-bun run db:migrate          # prisma migrate dev
-bun run db:seed             # prisma db seed
-bun run dev                 # Next.js dev server
-bun run test                # Vitest
-bun run test:e2e            # Playwright
+docker-compose up -d           # PostgreSQL (5433) + Redis + MinIO
+
+bun run db:generate            # prisma generate (gera cliente em packages/database/generated/)
+bun run db:migrate             # prisma migrate dev
+SEED_DEMO=true bun run db:seed # seed essencial + dados demo
+bun run db:seed                # só seed essencial (política global + ReportSkill)
+bun run db:create-admin        # cria SUPER_ADMIN de produção via ADMIN_EMAIL/ADMIN_PASSWORD
+
+bun run dev                    # Next.js dev server (turbo)
+bun run test                   # Vitest (unit)
+bun run test:e2e               # Playwright (E2E)
+
+# Worker standalone (separado do Next.js):
+bun run apps/web/src/workers/document-worker.ts
 ```
 
 ---
 
 ## 17. NOTAS PARA O CLAUDE CODE
 
-- **Runtime: Bun 1.3.6.** Usar `bun` em todos os comandos. Nunca `npm`, `npx` ou `yarn`.
+- **Runtime: Bun 1.3.10.** Usar `bun` em todos os comandos. Nunca `npm`, `npx` ou `yarn`.
 - **Regra de negócio fica em `domain/`.** Nunca em controller, route handler, componente ou prompt.
-- **`CaseStateMachine` é entidade de domínio pura.** Não é helper, não é enum solto.
+- **`CaseStateMachine` é entidade de domínio pura.** Toda transição de estado passa por ela — inclusive `CreateCaseUseCase`. Não é helper, não é enum solto.
 - **`DeterministicEvaluator` não chama IA.** É puro, determinístico, testável.
 - **`LLMProvider` é interface de domínio.** `AnthropicProvider` é infraestrutura. O domínio não conhece Anthropic.
 - **Toda query ao banco filtra por `tenantId`.** Sem exceção.
 - **Toda saída da IA é validada por Zod antes de ser usada.**
+- **Autorização é por rota** (não há `middleware.ts` global). Padrão: `requireSessionUser()` + checagem de role via `Set` + `forbidden()` de `@/interfaces/http/respond`. Para rotas de parceiro: verificar posse via `prisma.partner.findUnique({ where: { userId: user.id } })`.
+- **Passwords** usam hash scrypt (`scrypt$<saltHex>$<hashHex>`). Existe branch legado SHA-256 em `auth.ts` para transição — não adicionar novos hashes nesse formato.
+- **Autocadastro de morador** é público: `POST /api/v1/auth/register` → `RegisterClientUseCase`. QR code gerado em `/sindico/cadastro`.
+- **Report Skills** (`ReportSkill` model): tipos `MEMORIAL_DESCRITIVO` e `CRONOGRAMA` são gerados via Anthropic Agent Skill configurável pelo SUPER_ADMIN em `/skills`.
 - **Antes de implementar qualquer coisa: proponha, liste hipóteses, aguarde confirmação.**

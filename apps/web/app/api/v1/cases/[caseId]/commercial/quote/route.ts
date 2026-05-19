@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { requireSessionUser } from "@/infrastructure/auth/getSessionUser"
-import { handleError, unauthorized } from "@/interfaces/http/respond"
+import { forbidden, handleError, unauthorized } from "@/interfaces/http/respond"
 import { NotFoundError } from "@/shared/errors/DomainError"
 import { PrismaReformCaseRepository } from "@/modules/case-intake/infrastructure/repositories/PrismaReformCaseRepository"
 import { PrismaCommercialRepository } from "@/modules/commercial-offers/infrastructure/PrismaCommercialRepository"
@@ -22,9 +22,12 @@ const QuoteBodySchema = z.object({
 // Route handler
 // ---------------------------------------------------------------------------
 
+const QUOTE_ROLES = new Set(["ADMIN", "SUPER_ADMIN", "CONDOMINIUM"])
+
 export async function POST(req: NextRequest, ctx: { params: { caseId: string } }) {
   try {
     const user = await requireSessionUser()
+    if (!QUOTE_ROLES.has(user.role)) return forbidden()
     const caseId = ctx.params.caseId
 
     const body = await req.json()

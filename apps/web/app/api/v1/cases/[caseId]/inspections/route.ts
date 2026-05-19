@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { InspectionType } from "@reformai/database"
 import { requireSessionUser } from "@/infrastructure/auth/getSessionUser"
-import { handleError, unauthorized } from "@/interfaces/http/respond"
+import { forbidden, handleError, unauthorized } from "@/interfaces/http/respond"
 import { NotFoundError } from "@/shared/errors/DomainError"
 import { PrismaReformCaseRepository } from "@/modules/case-intake/infrastructure/repositories/PrismaReformCaseRepository"
 import { PrismaInspectionRepository } from "@/modules/inspection-scheduling/infrastructure/PrismaInspectionRepository"
@@ -41,9 +41,12 @@ export async function GET(_: Request, ctx: { params: { caseId: string } }) {
   }
 }
 
+const SCHEDULE_ROLES = new Set(["PARTNER", "ADMIN", "SUPER_ADMIN"])
+
 export async function POST(req: NextRequest, ctx: { params: { caseId: string } }) {
   try {
     const user = await requireSessionUser()
+    if (!SCHEDULE_ROLES.has(user.role)) return forbidden()
     const { caseId } = ctx.params
 
     const body = ScheduleBodySchema.parse(await req.json())

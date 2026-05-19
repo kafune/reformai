@@ -2,6 +2,7 @@ import type { ReformCase } from "@reformai/database"
 import { prisma } from "@/infrastructure/database/prisma"
 import { NotFoundError, TenantIsolationError } from "@/shared/errors/DomainError"
 import { logger } from "@/shared/logger"
+import { CaseStateMachine } from "../domain/entities/CaseStateMachine"
 import type { ReformCaseRepository } from "../domain/repositories/ReformCaseRepository"
 
 export interface CreateCaseRequest {
@@ -31,29 +32,40 @@ export class CreateCaseUseCase {
       protocol,
     })
 
-    await prisma.caseTransitionLog.create({
-      data: {
-        caseId: reformCase.id,
-        fromStatus: "DRAFT",
-        toStatus: "AWAITING_SCOPE_DETAILS",
-        triggeredBy: `user:${req.clientId}`,
-        reason: "Caso criado pelo cliente",
-      },
-    })
-    const advanced = await prisma.reformCase.update({
-      where: { id: reformCase.id },
-      data: { status: "AWAITING_SCOPE_DETAILS" },
+    const machine = new CaseStateMachine("DRAFT", null)
+    machine.transition("AWAITING_SCOPE_DETAILS", {
+      triggeredBy: `user:${req.clientId}`,
+      reason: "Caso criado pelo cliente",
     })
 
-    await prisma.auditLog.create({
-      data: {
-        tenantId: req.tenantId,
-        caseId: reformCase.id,
-        userId: req.clientId,
-        action: "case.created",
-        triggeredBy: `user:${req.clientId}`,
-        details: { protocol },
-      },
+    const advanced = await prisma.$transaction(async (tx) => {
+      const updated = await tx.reformCase.update({
+        where: { id: reformCase.id },
+        data: { status: "AWAITING_SCOPE_DETAILS" },
+      })
+
+      await tx.caseTransitionLog.create({
+        data: {
+          caseId: reformCase.id,
+          fromStatus: "DRAFT",
+          toStatus: "AWAITING_SCOPE_DETAILS",
+          triggeredBy: `user:${req.clientId}`,
+          reason: "Caso criado pelo cliente",
+        },
+      })
+
+      await tx.auditLog.create({
+        data: {
+          tenantId: req.tenantId,
+          caseId: reformCase.id,
+          userId: req.clientId,
+          action: "case.created",
+          triggeredBy: `user:${req.clientId}`,
+          details: { protocol },
+        },
+      })
+
+      return updated
     })
 
     logger.info("case.created", { tenantId: req.tenantId, caseId: reformCase.id, userId: req.clientId })

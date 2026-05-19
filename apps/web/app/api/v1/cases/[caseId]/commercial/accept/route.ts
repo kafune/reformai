@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireSessionUser } from "@/infrastructure/auth/getSessionUser"
-import { handleError, unauthorized } from "@/interfaces/http/respond"
+import { forbidden, handleError, unauthorized } from "@/interfaces/http/respond"
 import { PrismaReformCaseRepository } from "@/modules/case-intake/infrastructure/repositories/PrismaReformCaseRepository"
 import { AcceptOfferUseCase } from "@/modules/commercial-offers/application/AcceptOfferUseCase"
 
@@ -8,9 +8,12 @@ import { AcceptOfferUseCase } from "@/modules/commercial-offers/application/Acce
 // Route handler
 // ---------------------------------------------------------------------------
 
+const ACCEPT_ROLES = new Set(["CLIENT", "ADMIN", "SUPER_ADMIN"])
+
 export async function POST(_req: NextRequest, ctx: { params: { caseId: string } }) {
   try {
     const user = await requireSessionUser()
+    if (!ACCEPT_ROLES.has(user.role)) return forbidden()
     const caseId = ctx.params.caseId
 
     const caseRepo = new PrismaReformCaseRepository()

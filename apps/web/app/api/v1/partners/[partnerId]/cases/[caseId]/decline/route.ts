@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { requireSessionUser } from "@/infrastructure/auth/getSessionUser"
-import { handleError, unauthorized } from "@/interfaces/http/respond"
+import { forbidden, handleError, unauthorized } from "@/interfaces/http/respond"
+import { prisma } from "@/infrastructure/database/prisma"
 import { PartnerDeclineCaseUseCase } from "@/modules/partner-network/application/PartnerDeclineCaseUseCase"
 
 const DeclineBodySchema = z.object({
@@ -14,7 +15,15 @@ export async function POST(
 ) {
   try {
     const user = await requireSessionUser()
+    if (user.role !== "PARTNER") return forbidden()
+
     const { partnerId, caseId } = ctx.params
+
+    const sessionPartner = await prisma.partner.findUnique({
+      where: { userId: user.id },
+      select: { id: true },
+    })
+    if (!sessionPartner || sessionPartner.id !== partnerId) return forbidden()
 
     const body = DeclineBodySchema.parse(await req.json())
 

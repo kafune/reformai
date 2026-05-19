@@ -47,10 +47,10 @@ export class AssignPartnerUseCase {
     })
     if (!condominium) throw new NotFoundError("Condominium", reformCase.condominiumId)
 
-    // (c) Extract servicesNeeded from reformScope JSON
+    // (c) Extract services from reformScope JSON
     const scope = reformCase.reformScope as Record<string, unknown> | null
-    const servicesNeeded: string[] = Array.isArray(scope?.servicesNeeded)
-      ? (scope.servicesNeeded as string[])
+    const servicesNeeded: string[] = Array.isArray(scope?.services)
+      ? (scope.services as string[])
       : []
 
     // (d) Find and rank available partners
