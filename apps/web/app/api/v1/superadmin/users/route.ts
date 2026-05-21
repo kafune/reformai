@@ -27,6 +27,7 @@ const USER_SELECT = {
   active: true,
   createdAt: true,
   tenant: { select: { id: true, name: true, slug: true } },
+  condominium: { select: { id: true, name: true } },
 } as const
 
 const forbidden = () => NextResponse.json({ error: "FORBIDDEN" }, { status: 403 })

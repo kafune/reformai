@@ -21,6 +21,7 @@ interface ManagedUser {
   active: boolean
   createdAt: string
   tenant: TenantRef
+  condominium: CondominiumRef | null
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -57,6 +58,11 @@ export default function UsersPage() {
   const [form, setForm] = useState(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editCondos, setEditCondos] = useState<CondominiumRef[]>([])
+  const [editValue, setEditValue] = useState("")
+  const [editSaving, setEditSaving] = useState(false)
 
   useEffect(() => {
     if (status === "authenticated" && !isSuperAdmin) router.replace("/dashboard")
@@ -130,6 +136,31 @@ export default function UsersPage() {
       setUsers((prev) =>
         prev.map((u) => (u.id === id ? { ...u, active: data.user.active } : u)),
       )
+    }
+  }
+
+  async function openEdit(u: ManagedUser) {
+    setEditingId(u.id)
+    setEditValue(u.condominium?.id ?? "")
+    setEditCondos([])
+    const res = await fetch(`/api/v1/superadmin/condominiums?tenantId=${encodeURIComponent(u.tenant.id)}`)
+    if (res.ok) setEditCondos((await res.json()).condominiums ?? [])
+  }
+
+  async function saveEdit(id: string) {
+    setEditSaving(true)
+    const res = await fetch(`/api/v1/superadmin/users/${id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ condominiumId: editValue || null }),
+    })
+    setEditSaving(false)
+    if (res.ok) {
+      const data = await res.json()
+      setUsers((prev) =>
+        prev.map((u) => (u.id === id ? { ...u, condominium: data.user.condominium } : u)),
+      )
+      setEditingId(null)
     }
   }
 
@@ -260,6 +291,57 @@ export default function UsersPage() {
                   <div>
                     <div className="text-sm font-medium text-ink-900">{u.name}</div>
                     <div className="text-xs text-ink-500">{u.email}</div>
+                    {u.role === "CONDOMINIUM" &&
+                      (editingId === u.id ? (
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          <Select
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            className="min-w-[180px]"
+                          >
+                            <option value="">
+                              {editCondos.length === 0
+                                ? "Nenhum condomínio neste tenant"
+                                : "Sem condomínio"}
+                            </option>
+                            {editCondos.map((c) => (
+                              <option key={c.id} value={c.id}>
+                                {c.name}
+                              </option>
+                            ))}
+                          </Select>
+                          <Button
+                            type="button"
+                            variant="primary"
+                            size="sm"
+                            disabled={editSaving}
+                            onClick={() => saveEdit(u.id)}
+                          >
+                            {editSaving ? "Salvando…" : "Salvar"}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setEditingId(null)}
+                          >
+                            Cancelar
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="mt-1 flex items-center gap-2 text-xs">
+                          <span className={u.condominium ? "text-ink-600" : "text-iron-600"}>
+                            {u.condominium ? u.condominium.name : "Sem condomínio"}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => openEdit(u)}
+                            className="font-medium text-green-700 hover:underline"
+                          >
+                            {u.condominium ? "Alterar" : "Vincular"}
+                          </button>
+                        </div>
+                      ))}
                   </div>
                   <span className="text-sm text-ink-600">{ROLE_LABELS[u.role] ?? u.role}</span>
                   <span className="text-sm text-ink-600">{u.tenant.name}</span>
