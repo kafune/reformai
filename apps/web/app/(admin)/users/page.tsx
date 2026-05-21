@@ -9,6 +9,10 @@ interface TenantRef {
   name: string
   slug: string
 }
+interface CondominiumRef {
+  id: string
+  name: string
+}
 interface ManagedUser {
   id: string
   name: string
@@ -37,6 +41,7 @@ const EMPTY_FORM = {
   password: "",
   role: "ADMIN",
   tenantId: "",
+  condominiumId: "",
 }
 
 export default function UsersPage() {
@@ -46,6 +51,7 @@ export default function UsersPage() {
 
   const [users, setUsers] = useState<ManagedUser[]>([])
   const [tenants, setTenants] = useState<TenantRef[]>([])
+  const [condominiums, setCondominiums] = useState<CondominiumRef[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
@@ -71,6 +77,22 @@ export default function UsersPage() {
     load()
   }, [load])
 
+  useEffect(() => {
+    if (form.role !== "CONDOMINIUM" || !form.tenantId) {
+      setCondominiums([])
+      return
+    }
+    let cancelled = false
+    fetch(`/api/v1/superadmin/condominiums?tenantId=${encodeURIComponent(form.tenantId)}`)
+      .then((res) => (res.ok ? res.json() : { condominiums: [] }))
+      .then((data) => {
+        if (!cancelled) setCondominiums(data.condominiums ?? [])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [form.role, form.tenantId])
+
   async function create(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
@@ -78,11 +100,17 @@ export default function UsersPage() {
       setError("Selecione o tenant.")
       return
     }
+    if (form.role === "CONDOMINIUM" && !form.condominiumId) {
+      setError("Selecione o condomínio do síndico.")
+      return
+    }
     setSaving(true)
+    const { condominiumId, ...rest } = form
+    const payload = condominiumId ? { ...rest, condominiumId } : rest
     const res = await fetch("/api/v1/superadmin/users", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify(payload),
     })
     setSaving(false)
     if (!res.ok) {
@@ -155,7 +183,9 @@ export default function UsersPage() {
               <Select
                 label="Papel"
                 value={form.role}
-                onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, role: e.target.value, condominiumId: "" }))
+                }
               >
                 {ROLES.map((r) => (
                   <option key={r} value={r}>
@@ -166,7 +196,9 @@ export default function UsersPage() {
               <Select
                 label="Tenant"
                 value={form.tenantId}
-                onChange={(e) => setForm((f) => ({ ...f, tenantId: e.target.value }))}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, tenantId: e.target.value, condominiumId: "" }))
+                }
                 required
               >
                 <option value="">Selecione o tenant</option>
@@ -176,6 +208,28 @@ export default function UsersPage() {
                   </option>
                 ))}
               </Select>
+              {form.role === "CONDOMINIUM" && (
+                <Select
+                  label="Condomínio"
+                  value={form.condominiumId}
+                  onChange={(e) => setForm((f) => ({ ...f, condominiumId: e.target.value }))}
+                  required
+                  disabled={!form.tenantId}
+                >
+                  <option value="">
+                    {!form.tenantId
+                      ? "Selecione o tenant primeiro"
+                      : condominiums.length === 0
+                        ? "Nenhum condomínio neste tenant"
+                        : "Selecione o condomínio"}
+                  </option>
+                  {condominiums.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </Select>
+              )}
             </div>
             {error && <p className="mt-3 text-sm text-iron-600">{error}</p>}
             <div className="mt-4">
