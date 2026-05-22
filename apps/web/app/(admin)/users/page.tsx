@@ -9,6 +9,10 @@ interface TenantRef {
   name: string
   slug: string
 }
+interface CondominiumRef {
+  id: string
+  name: string
+}
 interface ManagedUser {
   id: string
   name: string
@@ -17,6 +21,7 @@ interface ManagedUser {
   active: boolean
   createdAt: string
   tenant: TenantRef
+  condominium: CondominiumRef | null
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -37,6 +42,7 @@ const EMPTY_FORM = {
   password: "",
   role: "ADMIN",
   tenantId: "",
+  condominiumId: "",
 }
 
 export default function UsersPage() {
@@ -46,11 +52,17 @@ export default function UsersPage() {
 
   const [users, setUsers] = useState<ManagedUser[]>([])
   const [tenants, setTenants] = useState<TenantRef[]>([])
+  const [condominiums, setCondominiums] = useState<CondominiumRef[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editCondos, setEditCondos] = useState<CondominiumRef[]>([])
+  const [editValue, setEditValue] = useState("")
+  const [editSaving, setEditSaving] = useState(false)
 
   useEffect(() => {
     if (status === "authenticated" && !isSuperAdmin) router.replace("/dashboard")
@@ -71,6 +83,22 @@ export default function UsersPage() {
     load()
   }, [load])
 
+  useEffect(() => {
+    if (form.role !== "CONDOMINIUM" || !form.tenantId) {
+      setCondominiums([])
+      return
+    }
+    let cancelled = false
+    fetch(`/api/v1/superadmin/condominiums?tenantId=${encodeURIComponent(form.tenantId)}`)
+      .then((res) => (res.ok ? res.json() : { condominiums: [] }))
+      .then((data) => {
+        if (!cancelled) setCondominiums(data.condominiums ?? [])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [form.role, form.tenantId])
+
   async function create(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
@@ -78,11 +106,17 @@ export default function UsersPage() {
       setError("Selecione o tenant.")
       return
     }
+    if (form.role === "CONDOMINIUM" && !form.condominiumId) {
+      setError("Selecione o condomínio do síndico.")
+      return
+    }
     setSaving(true)
+    const { condominiumId, ...rest } = form
+    const payload = condominiumId ? { ...rest, condominiumId } : rest
     const res = await fetch("/api/v1/superadmin/users", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify(payload),
     })
     setSaving(false)
     if (!res.ok) {
@@ -102,6 +136,31 @@ export default function UsersPage() {
       setUsers((prev) =>
         prev.map((u) => (u.id === id ? { ...u, active: data.user.active } : u)),
       )
+    }
+  }
+
+  async function openEdit(u: ManagedUser) {
+    setEditingId(u.id)
+    setEditValue(u.condominium?.id ?? "")
+    setEditCondos([])
+    const res = await fetch(`/api/v1/superadmin/condominiums?tenantId=${encodeURIComponent(u.tenant.id)}`)
+    if (res.ok) setEditCondos((await res.json()).condominiums ?? [])
+  }
+
+  async function saveEdit(id: string) {
+    setEditSaving(true)
+    const res = await fetch(`/api/v1/superadmin/users/${id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ condominiumId: editValue || null }),
+    })
+    setEditSaving(false)
+    if (res.ok) {
+      const data = await res.json()
+      setUsers((prev) =>
+        prev.map((u) => (u.id === id ? { ...u, condominium: data.user.condominium } : u)),
+      )
+      setEditingId(null)
     }
   }
 
@@ -155,7 +214,9 @@ export default function UsersPage() {
               <Select
                 label="Papel"
                 value={form.role}
-                onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, role: e.target.value, condominiumId: "" }))
+                }
               >
                 {ROLES.map((r) => (
                   <option key={r} value={r}>
@@ -166,7 +227,9 @@ export default function UsersPage() {
               <Select
                 label="Tenant"
                 value={form.tenantId}
-                onChange={(e) => setForm((f) => ({ ...f, tenantId: e.target.value }))}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, tenantId: e.target.value, condominiumId: "" }))
+                }
                 required
               >
                 <option value="">Selecione o tenant</option>
@@ -176,6 +239,28 @@ export default function UsersPage() {
                   </option>
                 ))}
               </Select>
+              {form.role === "CONDOMINIUM" && (
+                <Select
+                  label="Condomínio"
+                  value={form.condominiumId}
+                  onChange={(e) => setForm((f) => ({ ...f, condominiumId: e.target.value }))}
+                  required
+                  disabled={!form.tenantId}
+                >
+                  <option value="">
+                    {!form.tenantId
+                      ? "Selecione o tenant primeiro"
+                      : condominiums.length === 0
+                        ? "Nenhum condomínio neste tenant"
+                        : "Selecione o condomínio"}
+                  </option>
+                  {condominiums.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </Select>
+              )}
             </div>
             {error && <p className="mt-3 text-sm text-iron-600">{error}</p>}
             <div className="mt-4">
@@ -206,6 +291,57 @@ export default function UsersPage() {
                   <div>
                     <div className="text-sm font-medium text-ink-900">{u.name}</div>
                     <div className="text-xs text-ink-500">{u.email}</div>
+                    {u.role === "CONDOMINIUM" &&
+                      (editingId === u.id ? (
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          <Select
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            className="min-w-[180px]"
+                          >
+                            <option value="">
+                              {editCondos.length === 0
+                                ? "Nenhum condomínio neste tenant"
+                                : "Sem condomínio"}
+                            </option>
+                            {editCondos.map((c) => (
+                              <option key={c.id} value={c.id}>
+                                {c.name}
+                              </option>
+                            ))}
+                          </Select>
+                          <Button
+                            type="button"
+                            variant="primary"
+                            size="sm"
+                            disabled={editSaving}
+                            onClick={() => saveEdit(u.id)}
+                          >
+                            {editSaving ? "Salvando…" : "Salvar"}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setEditingId(null)}
+                          >
+                            Cancelar
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="mt-1 flex items-center gap-2 text-xs">
+                          <span className={u.condominium ? "text-ink-600" : "text-iron-600"}>
+                            {u.condominium ? u.condominium.name : "Sem condomínio"}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => openEdit(u)}
+                            className="font-medium text-green-700 hover:underline"
+                          >
+                            {u.condominium ? "Alterar" : "Vincular"}
+                          </button>
+                        </div>
+                      ))}
                   </div>
                   <span className="text-sm text-ink-600">{ROLE_LABELS[u.role] ?? u.role}</span>
                   <span className="text-sm text-ink-600">{u.tenant.name}</span>

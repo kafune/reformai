@@ -5,13 +5,19 @@ import { handleError, unauthorized } from "@/interfaces/http/respond"
 import { prisma } from "@/infrastructure/database/prisma"
 import { hashPassword } from "@/infrastructure/auth/password"
 
-const CreateUserSchema = z.object({
-  name: z.string().min(1).max(120),
-  email: z.string().email(),
-  password: z.string().min(6).max(200),
-  role: z.enum(["SUPER_ADMIN", "ADMIN", "MANAGER", "CONDOMINIUM", "CLIENT", "PARTNER"]),
-  tenantId: z.string().min(1),
-})
+const CreateUserSchema = z
+  .object({
+    name: z.string().min(1).max(120),
+    email: z.string().email(),
+    password: z.string().min(6).max(200),
+    role: z.enum(["SUPER_ADMIN", "ADMIN", "MANAGER", "CONDOMINIUM", "CLIENT", "PARTNER"]),
+    tenantId: z.string().min(1),
+    condominiumId: z.string().min(1).optional(),
+  })
+  .refine((d) => d.role !== "CONDOMINIUM" || !!d.condominiumId, {
+    message: "Síndico precisa estar vinculado a um condomínio.",
+    path: ["condominiumId"],
+  })
 
 const USER_SELECT = {
   id: true,
@@ -21,6 +27,7 @@ const USER_SELECT = {
   active: true,
   createdAt: true,
   tenant: { select: { id: true, name: true, slug: true } },
+  condominium: { select: { id: true, name: true } },
 } as const
 
 const forbidden = () => NextResponse.json({ error: "FORBIDDEN" }, { status: 403 })
@@ -66,6 +73,18 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    if (body.condominiumId) {
+      const condominium = await prisma.condominium.findUnique({
+        where: { id: body.condominiumId },
+      })
+      if (!condominium || condominium.tenantId !== body.tenantId) {
+        return NextResponse.json(
+          { error: "NOT_FOUND", message: "Condomínio não encontrado neste tenant." },
+          { status: 404 },
+        )
+      }
+    }
+
     const created = await prisma.user.create({
       data: {
         name: body.name.trim(),
@@ -73,6 +92,7 @@ export async function POST(req: NextRequest) {
         passwordHash: await hashPassword(body.password),
         role: body.role,
         tenantId: body.tenantId,
+        condominiumId: body.condominiumId ?? null,
         active: true,
       },
       select: USER_SELECT,
