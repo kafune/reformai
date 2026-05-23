@@ -33,6 +33,16 @@ export interface PolicyData {
   rules: RuleData[]
 }
 
+/**
+ * Ajustes por condomínio aplicados sobre a política resolvida
+ * (CondominiumPolicy.overrides). Permite desabilitar regras e sobrescrever
+ * campos de ação de regras específicas, sem duplicar a política.
+ */
+export interface PolicyOverrides {
+  disabledRuleIds?: string[]
+  ruleActions?: Record<string, Partial<RuleAction>>
+}
+
 export interface TriggeredRule {
   ruleId: string
   ruleName: string

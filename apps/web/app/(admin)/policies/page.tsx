@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { TopBar, Button, Input, Select } from "@/interfaces/components/ui"
 import { PolicyCard } from "./PolicyCard"
+import { SimulatePanel } from "./SimulatePanel"
 import type { Policy } from "./types"
 
 const ADMIN_ROLES = new Set(["SUPER_ADMIN", "ADMIN"])
@@ -20,6 +21,7 @@ export default function PoliciesPage() {
   const [policies, setPolicies] = useState<Policy[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
+  const [showSim, setShowSim] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -80,18 +82,20 @@ export default function PoliciesPage() {
         title="Políticas"
         subtitle={`${policies.length} política(s) — regras determinísticas de triagem`}
         actions={
-          <Button
-            variant="primary"
-            size="sm"
-            icon="plus"
-            onClick={() => setShowForm((s) => !s)}
-          >
-            {showForm ? "Cancelar" : "Nova política"}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="secondary" size="sm" icon="search" onClick={() => setShowSim((s) => !s)}>
+              {showSim ? "Fechar simulação" : "Simular"}
+            </Button>
+            <Button variant="primary" size="sm" icon="plus" onClick={() => setShowForm((s) => !s)}>
+              {showForm ? "Cancelar" : "Nova política"}
+            </Button>
+          </div>
         }
       />
 
       <div className="flex-1 overflow-auto bg-bone-50 px-4 py-6 md:px-8">
+        {showSim && <SimulatePanel policies={policies} />}
+
         {showForm && (
           <form onSubmit={create} className="mb-6 rounded-lg bg-surface p-5 shadow-hair">
             <h2 className="mb-4 text-sm font-semibold text-ink-900">Nova política</h2>

@@ -466,7 +466,7 @@ o código atual. Divergências conhecidas:
 | ~~5~~ | ~~`ClaudeAnalysisAgent` lança em falha (os outros agentes degradam) — pode derrubar o job do worker~~ | ✅ corrigido (degrada para `request_corrections`) |
 | 6 | `PriceCalculator` ignora `riskLevel`/`mandatoryInspection` — risco não afeta preço | Baixa (decisão de produto?) |
 | ~~7~~ | ~~`RegisterClientUseCase` não usa transação — falha parcial deixa `Unit` órfã~~ | ✅ corrigido (`$transaction`) |
-| 8 | `CondominiumPolicy.overrides` lido mas nunca aplicado | Baixa |
+| ~~8~~ | ~~`CondominiumPolicy.overrides` lido mas nunca aplicado~~ | ✅ corrigido (`applyOverrides`: disable de regras + ajuste de ações por condomínio) |
 | ~~9~~ | ~~`GenerateReportUseCase` deixa muitas variáveis de template como `undefined` — relatórios esqueléticos~~ | ✅ corrigido (`loadCaseRelations` + campos por-template) |
 | ~~10~~ | ~~Branch legado SHA-256 de senha — remover após re-seed global~~ | ✅ removido (0 hashes legados em dev/prod) |
 | 11 | `documents` grava `origin` fixo em `CLIENT` — sem rota de upload para parceiro/admin | Baixa |
