@@ -31,14 +31,26 @@ export function DocumentViewButton({ caseId, documentId, isReport = false }: Doc
   }
 
   return (
-    <Button
-      variant="ghost"
-      size="sm"
-      icon="eye"
-      onClick={handleOpen}
-      disabled={loading}
-    >
-      {loading ? "Abrindo…" : "Ver"}
-    </Button>
+    <div className="flex items-center gap-1">
+      <Button variant="ghost" size="sm" icon="eye" onClick={handleOpen} disabled={loading}>
+        {loading ? "Abrindo…" : "Ver"}
+      </Button>
+      {isReport && (
+        <Button
+          variant="ghost"
+          size="sm"
+          icon="doc"
+          onClick={() =>
+            window.open(
+              `/api/v1/cases/${caseId}/reports/${documentId}/pdf`,
+              "_blank",
+              "noopener,noreferrer",
+            )
+          }
+        >
+          PDF
+        </Button>
+      )}
+    </div>
   )
 }

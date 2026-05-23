@@ -13,6 +13,9 @@ const nextConfig = {
   transpilePackages: ["@reformai/database"],
   experimental: {
     serverActions: { allowedOrigins },
+    // pdfkit carrega arquivos .afm de fontes por caminho relativo ao módulo;
+    // mantê-lo externo evita que o webpack quebre esse resolve no servidor.
+    serverComponentsExternalPackages: ["pdfkit"],
   },
 }
 
