@@ -86,6 +86,20 @@ export function passwordResetTemplate(params: {
   return layout("Redefinição de senha", body)
 }
 
+export function inviteTemplate(params: {
+  recipientName: string
+  inviteUrl: string
+  roleLabel: string
+}): string {
+  const body = `
+    <p>Olá, <strong>${params.recipientName}</strong>.</p>
+    <p>Você foi convidado(a) para acessar a plataforma ReformAI como <strong>${params.roleLabel}</strong>.</p>
+    <p>Clique no botão abaixo para criar sua senha e ativar a conta. O convite expira em 7 dias.</p>
+    <p><a class="cta" href="${params.inviteUrl}">Aceitar convite</a></p>
+  `
+  return layout("Convite para a ReformAI", body)
+}
+
 export function triageDoneTemplate(params: {
   residentName: string
   protocol: string

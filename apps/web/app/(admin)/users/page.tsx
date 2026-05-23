@@ -33,8 +33,10 @@ const ROLE_LABELS: Record<string, string> = {
   PARTNER: "Parceiro",
 }
 const ROLES = ["SUPER_ADMIN", "ADMIN", "MANAGER", "CONDOMINIUM", "CLIENT", "PARTNER"] as const
+// Parceiros são criados/geridos em /partners (cria User + Partner juntos).
+const EDITABLE_ROLES = ["SUPER_ADMIN", "ADMIN", "MANAGER", "CONDOMINIUM", "CLIENT"] as const
 
-const COLS = "grid min-w-[760px] grid-cols-[1fr_120px_180px_150px] items-center gap-4"
+const COLS = "grid min-w-[820px] grid-cols-[1fr_120px_160px_220px] items-center gap-4"
 
 const EMPTY_FORM = {
   name: "",
@@ -43,6 +45,13 @@ const EMPTY_FORM = {
   role: "ADMIN",
   tenantId: "",
   condominiumId: "",
+  invite: false,
+}
+
+interface EditState {
+  role: string
+  tenantId: string
+  condominiumId: string
 }
 
 export default function UsersPage() {
@@ -58,11 +67,13 @@ export default function UsersPage() {
   const [form, setForm] = useState(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [flash, setFlash] = useState<string | null>(null)
 
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [edit, setEdit] = useState<EditState>({ role: "", tenantId: "", condominiumId: "" })
   const [editCondos, setEditCondos] = useState<CondominiumRef[]>([])
-  const [editValue, setEditValue] = useState("")
   const [editSaving, setEditSaving] = useState(false)
+  const [resettingId, setResettingId] = useState<string | null>(null)
 
   useEffect(() => {
     if (status === "authenticated" && !isSuperAdmin) router.replace("/dashboard")
@@ -83,6 +94,7 @@ export default function UsersPage() {
     load()
   }, [load])
 
+  // Condomínios do formulário de criação (quando papel = síndico).
   useEffect(() => {
     if (form.role !== "CONDOMINIUM" || !form.tenantId) {
       setCondominiums([])
@@ -99,6 +111,25 @@ export default function UsersPage() {
     }
   }, [form.role, form.tenantId])
 
+  // Condomínios da edição inline (quando papel editado = síndico).
+  useEffect(() => {
+    if (!editingId || edit.role !== "CONDOMINIUM" || !edit.tenantId) {
+      setEditCondos([])
+      return
+    }
+    let cancelled = false
+    fetch(`/api/v1/superadmin/condominiums?tenantId=${encodeURIComponent(edit.tenantId)}`)
+      .then((res) => (res.ok ? res.json() : { condominiums: [] }))
+      .then((data) => {
+        if (!cancelled) setEditCondos(data.condominiums ?? [])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [editingId, edit.role, edit.tenantId])
+
+  const availableRoles = form.invite ? EDITABLE_ROLES : ROLES
+
   async function create(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
@@ -111,9 +142,11 @@ export default function UsersPage() {
       return
     }
     setSaving(true)
-    const { condominiumId, ...rest } = form
-    const payload = condominiumId ? { ...rest, condominiumId } : rest
-    const res = await fetch("/api/v1/superadmin/users", {
+    const { condominiumId, invite, password, ...rest } = form
+    const base = condominiumId ? { ...rest, condominiumId } : rest
+    const endpoint = invite ? "/api/v1/superadmin/users/invite" : "/api/v1/superadmin/users"
+    const payload = invite ? base : { ...base, password }
+    const res = await fetch(endpoint, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(payload),
@@ -121,8 +154,16 @@ export default function UsersPage() {
     setSaving(false)
     if (!res.ok) {
       const data = await res.json().catch(() => ({}))
-      setError(data.message ?? data.error ?? "Erro ao criar usuário.")
+      setError(data.message ?? data.error ?? "Erro ao salvar usuário.")
       return
+    }
+    if (invite) {
+      const data = await res.json().catch(() => ({}))
+      setFlash(
+        data.emailSent
+          ? `Convite enviado para ${form.email}.`
+          : `Usuário convidado, mas o e-mail não foi enviado (provedor não configurado).`,
+      )
     }
     setForm(EMPTY_FORM)
     setShowForm(false)
@@ -133,34 +174,55 @@ export default function UsersPage() {
     const res = await fetch(`/api/v1/superadmin/users/${id}`, { method: "PATCH" })
     if (res.ok) {
       const data = await res.json()
-      setUsers((prev) =>
-        prev.map((u) => (u.id === id ? { ...u, active: data.user.active } : u)),
-      )
+      setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, active: data.user.active } : u)))
     }
   }
 
-  async function openEdit(u: ManagedUser) {
+  function openEdit(u: ManagedUser) {
     setEditingId(u.id)
-    setEditValue(u.condominium?.id ?? "")
-    setEditCondos([])
-    const res = await fetch(`/api/v1/superadmin/condominiums?tenantId=${encodeURIComponent(u.tenant.id)}`)
-    if (res.ok) setEditCondos((await res.json()).condominiums ?? [])
+    setEdit({ role: u.role, tenantId: u.tenant.id, condominiumId: u.condominium?.id ?? "" })
   }
 
   async function saveEdit(id: string) {
+    setError(null)
+    if (edit.role === "CONDOMINIUM" && !edit.condominiumId) {
+      setError("Selecione o condomínio do síndico.")
+      return
+    }
     setEditSaving(true)
     const res = await fetch(`/api/v1/superadmin/users/${id}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ condominiumId: editValue || null }),
+      body: JSON.stringify({
+        role: edit.role,
+        tenantId: edit.tenantId,
+        condominiumId: edit.role === "CONDOMINIUM" ? edit.condominiumId : null,
+      }),
     })
     setEditSaving(false)
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      setError(data.message ?? data.error ?? "Erro ao salvar edição.")
+      return
+    }
+    setEditingId(null)
+    load()
+  }
+
+  async function resetPassword(u: ManagedUser) {
+    setResettingId(u.id)
+    setFlash(null)
+    const res = await fetch(`/api/v1/superadmin/users/${u.id}/reset-password`, { method: "POST" })
+    setResettingId(null)
+    const data = await res.json().catch(() => ({}))
     if (res.ok) {
-      const data = await res.json()
-      setUsers((prev) =>
-        prev.map((u) => (u.id === id ? { ...u, condominium: data.user.condominium } : u)),
+      setFlash(
+        data.emailSent
+          ? `E-mail de redefinição enviado para ${u.email}.`
+          : `Não foi possível enviar o e-mail (provedor não configurado).`,
       )
-      setEditingId(null)
+    } else {
+      setFlash("Falha ao solicitar redefinição de senha.")
     }
   }
 
@@ -185,9 +247,20 @@ export default function UsersPage() {
       />
 
       <div className="flex-1 overflow-auto bg-bone-50 px-4 py-6 md:px-8">
+        {flash && (
+          <div className="mb-4 flex items-center justify-between rounded-md bg-green-100 px-4 py-2.5 text-sm text-green-700">
+            <span>{flash}</span>
+            <button type="button" onClick={() => setFlash(null)} className="text-xs underline">
+              ok
+            </button>
+          </div>
+        )}
+
         {showForm && (
           <form onSubmit={create} className="mb-6 rounded-lg bg-surface p-5 shadow-hair">
-            <h2 className="mb-4 text-sm font-semibold text-ink-900">Novo usuário</h2>
+            <h2 className="mb-4 text-sm font-semibold text-ink-900">
+              {form.invite ? "Convidar usuário" : "Novo usuário"}
+            </h2>
             <div className="grid gap-3 md:grid-cols-2">
               <Input
                 label="Nome"
@@ -202,23 +275,23 @@ export default function UsersPage() {
                 onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
                 required
               />
-              <Input
-                label="Senha"
-                type="password"
-                value={form.password}
-                onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-                required
-                minLength={6}
-                placeholder="Mínimo 6 caracteres"
-              />
+              {!form.invite && (
+                <Input
+                  label="Senha"
+                  type="password"
+                  value={form.password}
+                  onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+                  required
+                  minLength={6}
+                  placeholder="Mínimo 6 caracteres"
+                />
+              )}
               <Select
                 label="Papel"
                 value={form.role}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, role: e.target.value, condominiumId: "" }))
-                }
+                onChange={(e) => setForm((f) => ({ ...f, role: e.target.value, condominiumId: "" }))}
               >
-                {ROLES.map((r) => (
+                {availableRoles.map((r) => (
                   <option key={r} value={r}>
                     {ROLE_LABELS[r]}
                   </option>
@@ -262,10 +335,27 @@ export default function UsersPage() {
                 </Select>
               )}
             </div>
+
+            <label className="mt-3 flex items-center gap-2 text-sm text-ink-600">
+              <input
+                type="checkbox"
+                checked={form.invite}
+                onChange={(e) =>
+                  setForm((f) => {
+                    const invite = e.target.checked
+                    // Convite não cria parceiro; troca papel se estava em PARTNER.
+                    const role = invite && f.role === "PARTNER" ? "ADMIN" : f.role
+                    return { ...f, invite, role, password: "" }
+                  })
+                }
+              />
+              Convidar por e-mail (o usuário define a própria senha)
+            </label>
+
             {error && <p className="mt-3 text-sm text-iron-600">{error}</p>}
             <div className="mt-4">
               <Button type="submit" variant="primary" size="sm" disabled={saving}>
-                {saving ? "Criando…" : "Criar usuário"}
+                {saving ? "Salvando…" : form.invite ? "Enviar convite" : "Criar usuário"}
               </Button>
             </div>
           </form>
@@ -283,82 +373,135 @@ export default function UsersPage() {
               <Eyebrow>Usuário</Eyebrow>
               <Eyebrow>Papel</Eyebrow>
               <Eyebrow>Tenant</Eyebrow>
-              <Eyebrow>Status</Eyebrow>
+              <Eyebrow>Status / Ações</Eyebrow>
             </div>
             <div className="divide-y divide-divider">
-              {users.map((u) => (
-                <div key={u.id} className={`${COLS} px-5 py-4 transition-colors hover:bg-bone-50`}>
-                  <div>
-                    <div className="text-sm font-medium text-ink-900">{u.name}</div>
-                    <div className="text-xs text-ink-500">{u.email}</div>
-                    {u.role === "CONDOMINIUM" &&
-                      (editingId === u.id ? (
-                        <div className="mt-2 flex flex-wrap items-center gap-2">
+              {users.map((u) => {
+                const editing = editingId === u.id
+                return (
+                  <div key={u.id} className={`${COLS} px-5 py-4 transition-colors hover:bg-bone-50`}>
+                    <div>
+                      <div className="text-sm font-medium text-ink-900">{u.name}</div>
+                      <div className="text-xs text-ink-500">{u.email}</div>
+                      {editing && (
+                        <div className="mt-2 grid gap-2">
+                          {u.role === "PARTNER" ? (
+                            <p className="text-xs text-iron-600">
+                              Papel de parceiro é gerido em Parceiros.
+                            </p>
+                          ) : (
+                            <Select
+                              value={edit.role}
+                              onChange={(e) =>
+                                setEdit((s) => ({ ...s, role: e.target.value, condominiumId: "" }))
+                              }
+                              className="min-w-[180px]"
+                            >
+                              {EDITABLE_ROLES.map((r) => (
+                                <option key={r} value={r}>
+                                  {ROLE_LABELS[r]}
+                                </option>
+                              ))}
+                            </Select>
+                          )}
                           <Select
-                            value={editValue}
-                            onChange={(e) => setEditValue(e.target.value)}
+                            value={edit.tenantId}
+                            onChange={(e) =>
+                              setEdit((s) => ({ ...s, tenantId: e.target.value, condominiumId: "" }))
+                            }
                             className="min-w-[180px]"
                           >
-                            <option value="">
-                              {editCondos.length === 0
-                                ? "Nenhum condomínio neste tenant"
-                                : "Sem condomínio"}
-                            </option>
-                            {editCondos.map((c) => (
-                              <option key={c.id} value={c.id}>
-                                {c.name}
+                            {tenants.map((t) => (
+                              <option key={t.id} value={t.id}>
+                                {t.name}
                               </option>
                             ))}
                           </Select>
-                          <Button
-                            type="button"
-                            variant="primary"
-                            size="sm"
-                            disabled={editSaving}
-                            onClick={() => saveEdit(u.id)}
-                          >
-                            {editSaving ? "Salvando…" : "Salvar"}
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setEditingId(null)}
-                          >
-                            Cancelar
-                          </Button>
+                          {edit.role === "CONDOMINIUM" && (
+                            <Select
+                              value={edit.condominiumId}
+                              onChange={(e) =>
+                                setEdit((s) => ({ ...s, condominiumId: e.target.value }))
+                              }
+                              className="min-w-[180px]"
+                            >
+                              <option value="">
+                                {editCondos.length === 0
+                                  ? "Nenhum condomínio neste tenant"
+                                  : "Selecione o condomínio"}
+                              </option>
+                              {editCondos.map((c) => (
+                                <option key={c.id} value={c.id}>
+                                  {c.name}
+                                </option>
+                              ))}
+                            </Select>
+                          )}
+                          <div className="flex items-center gap-2">
+                            <Button
+                              type="button"
+                              variant="primary"
+                              size="sm"
+                              disabled={editSaving}
+                              onClick={() => saveEdit(u.id)}
+                            >
+                              {editSaving ? "Salvando…" : "Salvar"}
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setEditingId(null)}
+                            >
+                              Cancelar
+                            </Button>
+                          </div>
                         </div>
-                      ) : (
-                        <div className="mt-1 flex items-center gap-2 text-xs">
-                          <span className={u.condominium ? "text-ink-600" : "text-iron-600"}>
-                            {u.condominium ? u.condominium.name : "Sem condomínio"}
-                          </span>
+                      )}
+                      {!editing && u.role === "CONDOMINIUM" && (
+                        <div className="mt-1 text-xs text-ink-500">
+                          {u.condominium ? u.condominium.name : "Sem condomínio"}
+                        </div>
+                      )}
+                    </div>
+                    <span className="text-sm text-ink-600">{ROLE_LABELS[u.role] ?? u.role}</span>
+                    <span className="text-sm text-ink-600">{u.tenant.name}</span>
+                    <div className="flex flex-col items-start gap-1.5">
+                      <div className="flex items-center gap-2">
+                        <Badge tone={u.active ? "green" : "neutral"}>
+                          {u.active ? "Ativo" : "Inativo"}
+                        </Badge>
+                        <button
+                          type="button"
+                          onClick={() => toggleActive(u.id)}
+                          className="text-xs font-medium text-green-700 hover:underline"
+                        >
+                          {u.active ? "Desativar" : "Ativar"}
+                        </button>
+                      </div>
+                      {!editing && (
+                        <div className="flex items-center gap-3">
                           <button
                             type="button"
                             onClick={() => openEdit(u)}
-                            className="font-medium text-green-700 hover:underline"
+                            className="text-xs font-medium text-green-700 hover:underline"
                           >
-                            {u.condominium ? "Alterar" : "Vincular"}
+                            Editar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => resetPassword(u)}
+                            disabled={resettingId === u.id}
+                            className="text-xs font-medium text-green-700 hover:underline disabled:opacity-60"
+                          >
+                            {resettingId === u.id ? "Enviando…" : "Resetar senha"}
                           </button>
                         </div>
-                      ))}
+                      )}
+                    </div>
                   </div>
-                  <span className="text-sm text-ink-600">{ROLE_LABELS[u.role] ?? u.role}</span>
-                  <span className="text-sm text-ink-600">{u.tenant.name}</span>
-                  <div className="flex items-center gap-2">
-                    <Badge tone={u.active ? "green" : "neutral"}>
-                      {u.active ? "Ativo" : "Inativo"}
-                    </Badge>
-                    <button
-                      type="button"
-                      onClick={() => toggleActive(u.id)}
-                      className="text-xs font-medium text-green-700 hover:underline"
-                    >
-                      {u.active ? "Desativar" : "Ativar"}
-                    </button>
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         )}

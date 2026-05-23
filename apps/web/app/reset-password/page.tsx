@@ -8,6 +8,7 @@ function ResetForm() {
   const router = useRouter()
   const params = useSearchParams()
   const token = params.get("token") ?? ""
+  const isInvite = params.get("invite") === "1"
 
   const [password, setPassword] = useState("")
   const [confirm, setConfirm] = useState("")
@@ -62,7 +63,9 @@ function ResetForm() {
   return (
     <>
       <p className="mb-5 mt-1.5 text-base text-ink-500">
-        Crie uma nova senha para sua conta.
+        {isInvite
+          ? "Bem-vindo(a)! Crie sua senha para ativar a conta."
+          : "Crie uma nova senha para sua conta."}
       </p>
       <form onSubmit={onSubmit} className="flex flex-col gap-3">
         <Input
@@ -92,7 +95,7 @@ function ResetForm() {
           disabled={loading}
           className="mt-1 w-full"
         >
-          {loading ? "Salvando…" : "Redefinir senha"}
+          {loading ? "Salvando…" : isInvite ? "Ativar conta" : "Redefinir senha"}
         </Button>
       </form>
     </>
