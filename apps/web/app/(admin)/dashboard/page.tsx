@@ -4,6 +4,7 @@ import { getSessionUser } from "@/infrastructure/auth/getSessionUser"
 import { prisma } from "@/infrastructure/database/prisma"
 import { CaseStatus, RiskLevel } from "@reformai/database"
 import { TopBar, Eyebrow, Badge, StatusChip, RiskBadge } from "@/interfaces/components/ui"
+import { getDashboardAnalytics } from "@/modules/analytics/application/getDashboardAnalytics"
 
 export const dynamic = "force-dynamic"
 
@@ -81,6 +82,10 @@ export default async function DashboardPage() {
   ]
 
   const totalWithRisk = riskDistribution.reduce((sum, r) => sum + r.count, 0)
+
+  const analytics = await getDashboardAnalytics(tenantId)
+  const maxFunnel = Math.max(1, ...analytics.funnel.map((s) => s.count))
+  const approvalPct = Math.round(analytics.approval.rate * 100)
 
   return (
     <>
@@ -249,6 +254,112 @@ export default async function DashboardPage() {
                 ))}
               </ul>
             </div>
+          </div>
+        </div>
+
+        {/* Analytics: funil + aprovação */}
+        <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-3">
+          <div className="rounded-lg bg-surface shadow-hair sm:col-span-2">
+            <div className="border-b border-divider px-5 py-4">
+              <h2 className="text-sm font-semibold tracking-snug text-ink-900">Funil de casos</h2>
+            </div>
+            <ul className="space-y-2.5 px-5 py-4">
+              {analytics.funnel.map((stage) => (
+                <li key={stage.key} className="flex items-center gap-3">
+                  <span className="w-28 shrink-0 text-xs text-ink-600">{stage.label}</span>
+                  <div className="h-3 flex-1 overflow-hidden rounded-full bg-bone-100">
+                    <div
+                      className="h-full rounded-full bg-green-500"
+                      style={{ width: `${(stage.count / maxFunnel) * 100}%` }}
+                    />
+                  </div>
+                  <span className="w-8 text-right font-mono text-sm font-medium text-ink-900">
+                    {stage.count}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="rounded-lg bg-surface shadow-hair">
+            <div className="border-b border-divider px-5 py-4">
+              <h2 className="text-sm font-semibold tracking-snug text-ink-900">Taxa de aprovação</h2>
+            </div>
+            <div className="px-5 py-6 text-center">
+              <div className="font-mono text-4xl font-semibold tabular-nums text-ink-900">
+                {approvalPct}%
+              </div>
+              <p className="mt-2 text-xs text-ink-500">
+                {analytics.approval.approved} de {analytics.approval.decided} casos decididos
+                foram aprovados
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Analytics: tempo por estado + SLA parceiros */}
+        <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2">
+          <div className="rounded-lg bg-surface shadow-hair">
+            <div className="border-b border-divider px-5 py-4">
+              <h2 className="text-sm font-semibold tracking-snug text-ink-900">
+                Tempo médio por estado
+              </h2>
+            </div>
+            {analytics.timePerStatus.length === 0 ? (
+              <p className="px-5 py-6 text-center text-sm text-ink-400">
+                Ainda sem transições suficientes.
+              </p>
+            ) : (
+              <ul className="divide-y divide-divider px-5 py-2">
+                {analytics.timePerStatus.slice(0, 8).map((d) => (
+                  <li key={d.status} className="flex items-center justify-between py-2.5">
+                    <StatusChip status={d.status as CaseStatus} />
+                    <span className="font-mono text-sm text-ink-700">
+                      {d.avgDays} d{" "}
+                      <span className="text-xs text-ink-400">({d.samples})</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div className="rounded-lg bg-surface shadow-hair">
+            <div className="border-b border-divider px-5 py-4">
+              <h2 className="text-sm font-semibold tracking-snug text-ink-900">SLA de parceiros</h2>
+            </div>
+            {analytics.partners.length === 0 ? (
+              <p className="px-5 py-6 text-center text-sm text-ink-400">Nenhum parceiro.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-divider text-left">
+                      <th className="px-5 py-2 text-xs font-medium text-ink-500">Parceiro</th>
+                      <th className="px-2 py-2 text-xs font-medium text-ink-500">Atrib.</th>
+                      <th className="px-2 py-2 text-xs font-medium text-ink-500">Concl.</th>
+                      <th className="px-5 py-2 text-xs font-medium text-ink-500">Vistorias</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-divider">
+                    {analytics.partners.map((p) => (
+                      <tr key={p.partnerId}>
+                        <td className="px-5 py-2.5 text-ink-900">{p.name}</td>
+                        <td className="px-2 py-2.5 font-mono tabular-nums text-ink-700">
+                          {p.assignedCases}
+                        </td>
+                        <td className="px-2 py-2.5 font-mono tabular-nums text-ink-700">
+                          {p.concludedCases}
+                        </td>
+                        <td className="px-5 py-2.5 font-mono tabular-nums text-ink-700">
+                          {p.completedInspections}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       </div>
