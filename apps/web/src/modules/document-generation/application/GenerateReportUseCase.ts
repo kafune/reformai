@@ -7,7 +7,7 @@ import { buildStorageKey } from "@/infrastructure/storage/StorageAdapter"
 import { SIGNED_URL_TTL_SECONDS } from "@/infrastructure/storage/StorageFactory"
 import type { ReformCaseRepository } from "@/modules/case-intake/domain/repositories/ReformCaseRepository"
 import type { DocumentRepository } from "@/modules/document-management/domain/repositories/DocumentRepository"
-import type { ReportAgent } from "../domain/ReportAgent"
+import type { ReportAgent, CaseRelations } from "../domain/ReportAgent"
 import type { ReportRepository } from "../infrastructure/PrismaReportRepository"
 
 // ─── ReportType → TemplateId mapping ─────────────────────────────────────────
@@ -41,6 +41,12 @@ export interface GenerateReportDeps {
   reportRepo: ReportRepository
   storage: StorageAdapter
   reportAgent: ReportAgent
+  /**
+   * Resolve nomes/relações do caso (condomínio, unidade, proprietário,
+   * parceiro, plano, síndico). Opcional: sem ele, os relatórios caem para
+   * os IDs crus. A rota injeta uma implementação Prisma.
+   */
+  loadRelations?: (caseId: string, tenantId: string) => Promise<CaseRelations>
 }
 
 // ─── Use Case ────────────────────────────────────────────────────────────────
@@ -50,7 +56,7 @@ export class GenerateReportUseCase {
 
   async execute(input: GenerateReportInput): Promise<Report> {
     const { caseId, tenantId, reportType, generatedBy, enrichWithAI = false } = input
-    const { caseRepo, docRepo, reportRepo, storage, reportAgent } = this.deps
+    const { caseRepo, docRepo, reportRepo, storage, reportAgent, loadRelations } = this.deps
 
     // 1. Fetch the case (enforces tenant isolation)
     const reformCase = await caseRepo.findById(caseId, tenantId)
@@ -58,6 +64,9 @@ export class GenerateReportUseCase {
 
     // 2. Fetch documents for context
     const documents = await docRepo.findByCaseId(caseId, tenantId)
+
+    // 2b. Resolve nomes/relações (opcional)
+    const relations = loadRelations ? await loadRelations(caseId, tenantId) : undefined
 
     // 3. Map ReportType → TemplateId
     const templateId = REPORT_TYPE_TO_TEMPLATE[reportType]
@@ -74,7 +83,7 @@ export class GenerateReportUseCase {
     // 4. Generate report content via the agent
     const { content } = await reportAgent.generateReport(
       templateId,
-      { reformCase, documents: documents as Document[] },
+      { reformCase, documents: documents as Document[], relations },
       { enrichWithAI },
     )
 

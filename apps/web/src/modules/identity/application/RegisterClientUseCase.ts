@@ -45,38 +45,43 @@ export class RegisterClientUseCase {
       throw new NotFoundError("Condominium", input.condominiumId)
     }
 
-    const existing = await prisma.user.findUnique({ where: { email } })
-    if (existing) {
-      throw new ValidationError("E-mail já cadastrado.")
-    }
+    const passwordHash = await hashPassword(input.password)
 
-    let unit = await prisma.unit.findFirst({
-      where: { condominiumId: condominium.id, block, identifier },
-    })
-    if (!unit) {
-      unit = await prisma.unit.create({
-        data: {
-          condominiumId: condominium.id,
-          identifier,
-          block,
-          ownerName: input.name.trim(),
-          ownerEmail: email,
-        },
+    // Unit + User criados atomicamente: falha parcial não deixa Unit órfã.
+    const user = await prisma.$transaction(async (tx) => {
+      const existing = await tx.user.findUnique({ where: { email } })
+      if (existing) {
+        throw new ValidationError("E-mail já cadastrado.")
+      }
+
+      const unit = await tx.unit.findFirst({
+        where: { condominiumId: condominium.id, block, identifier },
       })
-    }
+      if (!unit) {
+        await tx.unit.create({
+          data: {
+            condominiumId: condominium.id,
+            identifier,
+            block,
+            ownerName: input.name.trim(),
+            ownerEmail: email,
+          },
+        })
+      }
 
-    const user = await prisma.user.create({
-      data: {
-        tenantId: condominium.tenantId,
-        condominiumId: condominium.id,
-        name: input.name.trim(),
-        email,
-        passwordHash: await hashPassword(input.password),
-        role: "CLIENT",
-        active: true,
-        lgpdConsentAt: new Date(),
-      },
-      select: { id: true, name: true, email: true, role: true },
+      return tx.user.create({
+        data: {
+          tenantId: condominium.tenantId,
+          condominiumId: condominium.id,
+          name: input.name.trim(),
+          email,
+          passwordHash,
+          role: "CLIENT",
+          active: true,
+          lgpdConsentAt: new Date(),
+        },
+        select: { id: true, name: true, email: true, role: true },
+      })
     })
 
     logger.info("client.registered", {

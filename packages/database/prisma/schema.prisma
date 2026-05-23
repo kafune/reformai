@@ -82,12 +82,41 @@ model User {
   lgpdConsentAt  DateTime?
   createdAt      DateTime  @default(now())
 
-  tenant        Tenant          @relation(fields: [tenantId], references: [id])
-  condominium   Condominium?    @relation("CondominiumUsers", fields: [condominiumId], references: [id])
-  cases         ReformCase[]    @relation("ClientCases")
-  auditLogs     AuditLog[]
-  partner       Partner?
-  notifications Notification[]
+  tenant              Tenant               @relation(fields: [tenantId], references: [id])
+  condominium         Condominium?         @relation("CondominiumUsers", fields: [condominiumId], references: [id])
+  cases               ReformCase[]         @relation("ClientCases")
+  auditLogs           AuditLog[]
+  partner             Partner?
+  notifications       Notification[]
+  passwordResetTokens PasswordResetToken[]
+  pushSubscriptions   PushSubscription[]
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique // sha256 do token bruto enviado por e-mail
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
 }
 
 enum UserRole {

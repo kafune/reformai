@@ -1070,7 +1070,7 @@ bun run apps/web/src/workers/document-worker.ts
 - **Toda query ao banco filtra por `tenantId`.** Sem exceção.
 - **Toda saída da IA é validada por Zod antes de ser usada.**
 - **Autorização é por rota** (não há `middleware.ts` global). Padrão: `requireSessionUser()` + checagem de role via `Set` + `forbidden()` de `@/interfaces/http/respond`. Para rotas de parceiro: verificar posse via `prisma.partner.findUnique({ where: { userId: user.id } })`.
-- **Passwords** usam hash scrypt (`scrypt$<saltHex>$<hashHex>`). Existe branch legado SHA-256 em `auth.ts` para transição — não adicionar novos hashes nesse formato.
+- **Passwords** usam hash scrypt (`scrypt$<saltHex>$<hashHex>`) — único formato suportado. O branch legado SHA-256 foi removido de `auth.ts` e `seed-utils.ts` após confirmar 0 hashes legados em dev e prod.
 - **Autocadastro de morador** é público: `POST /api/v1/auth/register` → `RegisterClientUseCase`. QR code gerado em `/sindico/cadastro`.
 - **Report Skills** (`ReportSkill` model): tipos `MEMORIAL_DESCRITIVO` e `CRONOGRAMA` são gerados via Anthropic Agent Skill configurável pelo SUPER_ADMIN em `/skills`.
 - **Antes de implementar qualquer coisa: proponha, liste hipóteses, aguarde confirmação.**

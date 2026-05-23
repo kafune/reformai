@@ -1,0 +1,88 @@
+import { describe, expect, it, vi, beforeEach } from "vitest"
+import { ForbiddenError, NotFoundError } from "@/shared/errors/DomainError"
+import type { SessionUser } from "@/infrastructure/auth/getSessionUser"
+
+const findUniqueCase = vi.fn()
+const findUniquePartner = vi.fn()
+
+vi.mock("@/infrastructure/database/prisma", () => ({
+  prisma: {
+    reformCase: { findUnique: (...a: unknown[]) => findUniqueCase(...a) },
+    partner: { findUnique: (...a: unknown[]) => findUniquePartner(...a) },
+  },
+}))
+
+import { assertCaseAccess, requireRole } from "../guards"
+
+const CASE = {
+  id: "case-1",
+  tenantId: "tenant-1",
+  clientId: "client-1",
+  condominiumId: "cond-1",
+  unitId: "unit-1",
+  partnerId: "partner-1",
+}
+
+function user(partial: Partial<SessionUser>): SessionUser {
+  return {
+    id: "u",
+    tenantId: "tenant-1",
+    role: "CLIENT",
+    email: "u@x.com",
+    name: "U",
+    condominiumId: null,
+    ...partial,
+  }
+}
+
+beforeEach(() => {
+  findUniqueCase.mockReset()
+  findUniquePartner.mockReset()
+  findUniqueCase.mockResolvedValue(CASE)
+})
+
+describe("requireRole", () => {
+  it("permite papel na lista", () => {
+    expect(() => requireRole(user({ role: "ADMIN" }), ["ADMIN", "SUPER_ADMIN"])).not.toThrow()
+  })
+  it("bloqueia papel fora da lista", () => {
+    expect(() => requireRole(user({ role: "CLIENT" }), ["ADMIN"])).toThrow(ForbiddenError)
+  })
+})
+
+describe("assertCaseAccess", () => {
+  it("404 quando o caso é de outro tenant", async () => {
+    findUniqueCase.mockResolvedValue({ ...CASE, tenantId: "outro" })
+    await expect(assertCaseAccess(user({ role: "ADMIN" }), "case-1")).rejects.toBeInstanceOf(NotFoundError)
+  })
+
+  it("404 quando o caso não existe", async () => {
+    findUniqueCase.mockResolvedValue(null)
+    await expect(assertCaseAccess(user({ role: "ADMIN" }), "case-1")).rejects.toBeInstanceOf(NotFoundError)
+  })
+
+  it("ADMIN acessa qualquer caso do tenant", async () => {
+    await expect(assertCaseAccess(user({ role: "ADMIN", id: "x" }), "case-1")).resolves.toMatchObject({ id: "case-1" })
+  })
+
+  it("CLIENT acessa só o próprio caso", async () => {
+    await expect(assertCaseAccess(user({ role: "CLIENT", id: "client-1" }), "case-1")).resolves.toBeTruthy()
+    await expect(assertCaseAccess(user({ role: "CLIENT", id: "outro" }), "case-1")).rejects.toBeInstanceOf(ForbiddenError)
+  })
+
+  it("CONDOMINIUM acessa só casos do seu condomínio", async () => {
+    await expect(assertCaseAccess(user({ role: "CONDOMINIUM", condominiumId: "cond-1" }), "case-1")).resolves.toBeTruthy()
+    await expect(assertCaseAccess(user({ role: "CONDOMINIUM", condominiumId: "cond-2" }), "case-1")).rejects.toBeInstanceOf(ForbiddenError)
+  })
+
+  it("PARTNER acessa só casos atribuídos ao seu Partner", async () => {
+    findUniquePartner.mockResolvedValue({ id: "partner-1" })
+    await expect(assertCaseAccess(user({ role: "PARTNER", id: "pu" }), "case-1")).resolves.toBeTruthy()
+
+    findUniquePartner.mockResolvedValue({ id: "partner-2" })
+    await expect(assertCaseAccess(user({ role: "PARTNER", id: "pu" }), "case-1")).rejects.toBeInstanceOf(ForbiddenError)
+
+    findUniquePartner.mockResolvedValue(null)
+    await expect(assertCaseAccess(user({ role: "PARTNER", id: "pu" }), "case-1")).rejects.toBeInstanceOf(ForbiddenError)
+  })
+})

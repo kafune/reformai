@@ -3,15 +3,16 @@ import { z } from "zod"
 import { ReportType } from "@reformai/database"
 import { requireSessionUser } from "@/infrastructure/auth/getSessionUser"
 import { handleError, unauthorized } from "@/interfaces/http/respond"
+import { assertCaseAccess } from "@/interfaces/http/guards"
 import { prisma } from "@/infrastructure/database/prisma"
 import { createStorageAdapter } from "@/infrastructure/storage/StorageFactory"
-import { NotFoundError } from "@/shared/errors/DomainError"
 import { PrismaReformCaseRepository } from "@/modules/case-intake/infrastructure/repositories/PrismaReformCaseRepository"
 import { PrismaDocumentRepository } from "@/modules/document-management/infrastructure/PrismaDocumentRepository"
 import { AnthropicProvider } from "@/modules/document-intelligence/infrastructure/llm/AnthropicProvider"
 import { ClaudeReportAgent } from "@/modules/document-generation/application/ClaudeReportAgent"
 import { GenerateReportUseCase } from "@/modules/document-generation/application/GenerateReportUseCase"
 import { PrismaReportRepository } from "@/modules/document-generation/infrastructure/PrismaReportRepository"
+import { loadCaseRelations } from "@/modules/document-generation/infrastructure/loadCaseRelations"
 
 const BodySchema = z.object({
   reportType: z.nativeEnum(ReportType),
@@ -25,11 +26,10 @@ export async function POST(req: NextRequest, ctx: { params: { caseId: string } }
 
     const body = BodySchema.parse(await req.json())
 
-    // Verify the case belongs to the tenant before proceeding
-    const caseRepo = new PrismaReformCaseRepository()
-    const reformCase = await caseRepo.findById(caseId, user.tenantId)
-    if (!reformCase) throw new NotFoundError("ReformCase", caseId)
+    // Verifica tenant + posse antes de prosseguir
+    await assertCaseAccess(user, caseId)
 
+    const caseRepo = new PrismaReformCaseRepository()
     const docRepo = new PrismaDocumentRepository(prisma)
     const reportRepo = new PrismaReportRepository(prisma)
     const storage = createStorageAdapter()
@@ -42,6 +42,7 @@ export async function POST(req: NextRequest, ctx: { params: { caseId: string } }
       reportRepo,
       storage,
       reportAgent,
+      loadRelations: loadCaseRelations,
     })
 
     const report = await useCase.execute({

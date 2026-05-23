@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server"
 import { requireSessionUser } from "@/infrastructure/auth/getSessionUser"
 import { handleError, unauthorized } from "@/interfaces/http/respond"
+import { assertCaseAccess } from "@/interfaces/http/guards"
 import { prisma } from "@/infrastructure/database/prisma"
 import { createStorageAdapter } from "@/infrastructure/storage/StorageFactory"
-import { NotFoundError } from "@/shared/errors/DomainError"
-import { PrismaReformCaseRepository } from "@/modules/case-intake/infrastructure/repositories/PrismaReformCaseRepository"
 import { PrismaDocumentRepository } from "@/modules/document-management/infrastructure/PrismaDocumentRepository"
 import { GetDocumentUrlUseCase } from "@/modules/document-management/application/GetDocumentUrlUseCase"
 
@@ -15,10 +14,8 @@ export async function GET(
   try {
     const user = await requireSessionUser()
 
-    // Confirm the case belongs to the tenant before exposing a signed URL.
-    const caseRepo = new PrismaReformCaseRepository()
-    const reformCase = await caseRepo.findById(ctx.params.caseId, user.tenantId)
-    if (!reformCase) throw new NotFoundError("ReformCase", ctx.params.caseId)
+    // Confirma tenant + posse antes de expor uma signed URL.
+    await assertCaseAccess(user, ctx.params.caseId)
 
     const storage = createStorageAdapter()
     const repo = new PrismaDocumentRepository(prisma)

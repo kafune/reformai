@@ -1,5 +1,9 @@
 import { NextRequest } from "next/server"
 import { requireSessionUser } from "@/infrastructure/auth/getSessionUser"
+import { assertCaseAccess } from "@/interfaces/http/guards"
+import { prisma } from "@/infrastructure/database/prisma"
+import { buildEmailProvider } from "@/infrastructure/email/ResendEmailProvider"
+import { triageDoneTemplate } from "@/infrastructure/email/templates"
 import { PrismaReformCaseRepository } from "@/modules/case-intake/infrastructure/repositories/PrismaReformCaseRepository"
 import { TriageAgent } from "@/modules/case-intake/application/TriageAgent"
 import { AnthropicProvider } from "@/modules/document-intelligence/infrastructure/llm/AnthropicProvider"
@@ -40,6 +44,11 @@ export async function GET(req: NextRequest, ctx: { params: { caseId: string } })
   if (content.length > MAX_CONTENT) return jsonError("VALIDATION", 400)
 
   const tenantId = user.tenantId
+  try {
+    await assertCaseAccess(user, caseId)
+  } catch (err) {
+    return jsonError((err as Error & { code?: string }).code === "FORBIDDEN" ? "FORBIDDEN" : "NOT_FOUND", (err as Error & { code?: string }).code === "FORBIDDEN" ? 403 : 404)
+  }
   const repo = new PrismaReformCaseRepository()
   const reformCase = await repo.findById(caseId, tenantId)
   if (!reformCase) return jsonError("NOT_FOUND", 404)
@@ -95,6 +104,35 @@ export async function GET(req: NextRequest, ctx: { params: { caseId: string } })
               title: "Triagem técnica concluída",
               body: `Caso ${reformCase.protocol}: risco ${evaluation.riskLevel}, score ${evaluation.triageScore}.`,
             })
+
+            // Email com template específico de triagem
+            const emailProvider = buildEmailProvider()
+            if (emailProvider) {
+              const client = await prisma.user.findUnique({
+                where: { id: reformCase.clientId },
+                select: { email: true, name: true },
+              })
+              if (client) {
+                emailProvider
+                  .send({
+                    to: client.email,
+                    subject: `Triagem técnica concluída — ${reformCase.protocol}`,
+                    html: triageDoneTemplate({
+                      residentName: client.name,
+                      protocol: reformCase.protocol,
+                      riskLevel: evaluation.riskLevel,
+                      triageScore: evaluation.triageScore,
+                    }),
+                  })
+                  .catch((err) =>
+                    logger.warn("case.triage.email_failed", {
+                      tenantId,
+                      caseId,
+                      message: err instanceof Error ? err.message : "erro desconhecido",
+                    }),
+                  )
+              }
+            }
           } catch (notifyErr) {
             logger.warn("case.triage.notify_failed", {
               tenantId,

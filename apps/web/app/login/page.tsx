@@ -68,6 +68,12 @@ function LoginForm() {
             </p>
           )}
 
+          {params.get("reset") === "1" && (
+            <p className="mb-4 rounded-sm bg-green-100 px-3 py-2 text-sm text-green-700">
+              Senha redefinida com sucesso. Entre com sua nova senha.
+            </p>
+          )}
+
           <form onSubmit={onSubmit} className="flex flex-col gap-3">
             <Input
               label="E-mail"
@@ -90,12 +96,12 @@ function LoginForm() {
                 autoComplete="current-password"
                 data-testid="login-password"
               />
-              <a
-                href="#"
+              <Link
+                href="/forgot-password"
                 className="absolute right-0 top-0 text-xs text-green-700 hover:underline"
               >
                 Esqueci a senha
-              </a>
+              </Link>
             </div>
 
             {error && (
@@ -117,19 +123,6 @@ function LoginForm() {
                 {loading ? "Entrando…" : "Entrar"}
               </Button>
             </div>
-
-            {/* divider */}
-            <div className="relative my-2 flex items-center gap-3">
-              <div className="h-px flex-1 bg-line" />
-              <span className="font-mono text-[10px] uppercase tracking-caps text-ink-400">
-                ou
-              </span>
-              <div className="h-px flex-1 bg-line" />
-            </div>
-
-            <Button variant="secondary" size="lg" className="w-full">
-              Continuar com o condomínio
-            </Button>
           </form>
 
           <p className="mt-5 text-sm text-ink-500">

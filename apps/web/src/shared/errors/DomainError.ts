@@ -34,6 +34,13 @@ export class TenantIsolationError extends DomainError {
   }
 }
 
+export class ForbiddenError extends DomainError {
+  readonly code = "FORBIDDEN"
+  constructor(message = "Operação não permitida para este usuário") {
+    super(message)
+  }
+}
+
 export class ValidationError extends DomainError {
   readonly code = "VALIDATION"
   constructor(message: string, public readonly details?: unknown) {

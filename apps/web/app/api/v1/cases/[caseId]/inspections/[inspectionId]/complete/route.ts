@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { requireSessionUser } from "@/infrastructure/auth/getSessionUser"
 import { handleError, unauthorized } from "@/interfaces/http/respond"
+import { assertCaseAccess } from "@/interfaces/http/guards"
 import { PrismaInspectionRepository } from "@/modules/inspection-scheduling/infrastructure/PrismaInspectionRepository"
 import { CompleteInspectionUseCase } from "@/modules/inspection-scheduling/application/CompleteInspectionUseCase"
 
@@ -19,6 +20,8 @@ export async function POST(
     const { caseId, inspectionId } = ctx.params
 
     const body = CompleteBodySchema.parse(await req.json())
+
+    await assertCaseAccess(user, caseId)
 
     const repo = new PrismaInspectionRepository()
     const useCase = new CompleteInspectionUseCase(repo)

@@ -329,11 +329,13 @@ A área do morador é `app/cases/` simples — o route-group `(client)` do CLAUD
 ## 11. AUTH / STORAGE / FILA
 
 **Auth** (`src/infrastructure/auth/`): NextAuth v4, sessão **JWT** (sem tabela de
-sessão), `CredentialsProvider` único. `verifyPassword` aceita 2 formatos —
-moderno `scrypt$salt$hash` (node:crypto, `timingSafeEqual`) e **branch legado
-SHA-256** (`sha256(senha + "reformai_salt")`) mantido para janela de transição.
-JWT carrega `uid/tenantId/role/condominiumId`. `getSessionUser()` /
-`requireSessionUser()` para server components e rotas.
+sessão), `CredentialsProvider` único. `verifyPassword` aceita **apenas** o formato
+`scrypt$salt$hash` (node:crypto, `timingSafeEqual`) — o branch legado SHA-256 foi
+removido após confirmar 0 hashes legados em dev/prod. Login e autocadastro têm
+rate-limit por e-mail/IP (Redis sliding-window). JWT carrega
+`uid/tenantId/role/condominiumId`. `getSessionUser()` / `requireSessionUser()`
+para server components e rotas; posse de caso via `assertCaseAccess` em
+`interfaces/http/guards.ts`.
 
 **Storage** (`src/infrastructure/storage/`): `createStorageAdapter()` escolhe por
 `STORAGE_ADAPTER` (`minio`|`s3`). `MinIOAdapter` auto-cria o bucket e usa um
@@ -459,14 +461,14 @@ o código atual. Divergências conhecidas:
 |---|------|-----------|
 | ~~1~~ | ~~`AssignPartnerUseCase` lê `scope.servicesNeeded` — campo inexistente; correto é `services`~~ | ✅ corrigido |
 | 2 | `/login`: "Esqueci a senha" e "Continuar com o condomínio" são botões mortos; não há fluxo de reset de senha | Média |
-| ~~3~~ | ~~POSTs de mudança de estado só checavam "existe sessão", sem role nem posse~~ | ✅ corrigido |
+| ~~3~~ | ~~POSTs de mudança de estado só checavam "existe sessão", sem role nem posse~~ | ✅ corrigido (posse via `assertCaseAccess` em todas as rotas escopadas por caso) |
 | ~~4~~ | ~~`CreateCaseUseCase` transicionava o caso sem `CaseStateMachine`~~ | ✅ corrigido |
-| 5 | `ClaudeAnalysisAgent` lança em falha (os outros agentes degradam) — pode derrubar o job do worker | Média |
+| ~~5~~ | ~~`ClaudeAnalysisAgent` lança em falha (os outros agentes degradam) — pode derrubar o job do worker~~ | ✅ corrigido (degrada para `request_corrections`) |
 | 6 | `PriceCalculator` ignora `riskLevel`/`mandatoryInspection` — risco não afeta preço | Baixa (decisão de produto?) |
-| 7 | `RegisterClientUseCase` não usa transação — falha parcial deixa `Unit` órfã | Baixa |
+| ~~7~~ | ~~`RegisterClientUseCase` não usa transação — falha parcial deixa `Unit` órfã~~ | ✅ corrigido (`$transaction`) |
 | 8 | `CondominiumPolicy.overrides` lido mas nunca aplicado | Baixa |
-| 9 | `GenerateReportUseCase` deixa muitas variáveis de template como `undefined` — relatórios esqueléticos | Média |
-| 10 | Branch legado SHA-256 de senha — remover após re-seed global | Débito transitório |
+| ~~9~~ | ~~`GenerateReportUseCase` deixa muitas variáveis de template como `undefined` — relatórios esqueléticos~~ | ✅ corrigido (`loadCaseRelations` + campos por-template) |
+| ~~10~~ | ~~Branch legado SHA-256 de senha — remover após re-seed global~~ | ✅ removido (0 hashes legados em dev/prod) |
 | 11 | `documents` grava `origin` fixo em `CLIENT` — sem rota de upload para parceiro/admin | Baixa |
 | 12 | Métodos de repositório virando código morto (Inspection/Partner) por uso direto de `prisma` | Baixa (limpeza) |
 | 13 | `DeterministicEvaluator` (módulo crítico) só tem 3 casos de teste | Baixa (cobertura) |

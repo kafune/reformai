@@ -3,10 +3,9 @@ import { z } from "zod"
 import { DocumentType } from "@reformai/database"
 import { requireSessionUser } from "@/infrastructure/auth/getSessionUser"
 import { handleError, unauthorized } from "@/interfaces/http/respond"
+import { assertCaseAccess } from "@/interfaces/http/guards"
 import { prisma } from "@/infrastructure/database/prisma"
 import { createStorageAdapter } from "@/infrastructure/storage/StorageFactory"
-import { NotFoundError } from "@/shared/errors/DomainError"
-import { PrismaReformCaseRepository } from "@/modules/case-intake/infrastructure/repositories/PrismaReformCaseRepository"
 import { PrismaDocumentRepository } from "@/modules/document-management/infrastructure/PrismaDocumentRepository"
 import { QueueDocumentJob } from "@/modules/document-management/infrastructure/QueueDocumentJob"
 import { UploadDocumentUseCase } from "@/modules/document-management/application/UploadDocumentUseCase"
@@ -81,10 +80,8 @@ export async function POST(req: NextRequest, ctx: { params: { caseId: string } }
       )
     }
 
-    // Resolve condominiumId + unitId from the case while enforcing tenant isolation.
-    const caseRepo = new PrismaReformCaseRepository()
-    const reformCase = await caseRepo.findById(caseId, user.tenantId)
-    if (!reformCase) throw new NotFoundError("ReformCase", caseId)
+    // Resolve condominiumId + unitId from the case enforcing tenant + posse.
+    const reformCase = await assertCaseAccess(user, caseId)
 
     const buffer = Buffer.from(await fileEntry.arrayBuffer())
 
@@ -117,9 +114,7 @@ export async function GET(_: Request, ctx: { params: { caseId: string } }) {
     const user = await requireSessionUser()
     const caseId = ctx.params.caseId
 
-    const caseRepo = new PrismaReformCaseRepository()
-    const reformCase = await caseRepo.findById(caseId, user.tenantId)
-    if (!reformCase) throw new NotFoundError("ReformCase", caseId)
+    await assertCaseAccess(user, caseId)
 
     const repo = new PrismaDocumentRepository(prisma)
     const useCase = new GetDocumentsByCase({ repo })

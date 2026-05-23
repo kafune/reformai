@@ -81,18 +81,36 @@ function buildNarrativePrompt(templateId: TemplateId, caseData: ReformCaseData):
 
 // ─── Template variable builders ───────────────────────────────────────────────
 
+const DOC_TYPE_PT: Record<string, string> = {
+  ART_RRT: "ART/RRT",
+  MEMORIAL: "Memorial descritivo",
+  PROJECT: "Projeto",
+  SCHEDULE: "Cronograma",
+  WORKFORCE: "Mão de obra",
+  WORKER_DOCS: "Documentos dos trabalhadores",
+  AUTHORIZATION: "Autorização",
+  PHOTOS: "Fotos",
+  INSPECTION_REPORT: "Relatório de vistoria",
+  ART_RRT_FINAL: "ART/RRT final",
+  OTHER: "Outros",
+}
+
+function docLabel(doc: { type: string; fileName: string }): string {
+  return `${DOC_TYPE_PT[doc.type] ?? doc.type} (${doc.fileName})`
+}
+
 function buildBaseVariables(
   templateId: TemplateId,
   caseData: ReformCaseData,
   narrative: NarrativeFields,
 ): TemplateVariables {
-  const { reformCase } = caseData
+  const { reformCase, documents, relations } = caseData
   const now = new Date().toLocaleDateString("pt-BR")
 
   const evaluation = reformCase.evaluationResult as Record<string, unknown> | null
   const scope = reformCase.reformScope as Record<string, unknown> | null
 
-  // Extract triggered rules text
+  // Regras acionadas (avaliação determinística)
   const triggeredRules = evaluation?.triggeredRules as Array<{
     ruleName: string
     reason: string
@@ -102,7 +120,7 @@ function buildBaseVariables(
       ? triggeredRules.map((r) => `- **${r.ruleName}**: ${r.reason}`).join("\n")
       : "(nenhuma regra acionada)"
 
-  // Extract services from scope
+  // Serviços do escopo
   const services = scope?.services as string[] | null
   const servicosText =
     services && services.length > 0
@@ -111,13 +129,48 @@ function buildBaseVariables(
         ? String(scope.description)
         : "(não especificado)"
 
+  // Campos derivados do escopo
+  const areasAffected = scope?.areasAffected as string[] | null
+  const estimatedArea = scope?.estimatedArea as number | null
+  const areaAfetada =
+    areasAffected && areasAffected.length > 0
+      ? areasAffected.join(", ")
+      : estimatedArea
+        ? `${estimatedArea} m²`
+        : undefined
+  const durationDays = scope?.estimatedDurationDays as number | null
+  const prazoExecucao = durationDays ? `${durationDays} dias` : undefined
+  const etapas =
+    services && services.length > 0
+      ? services.map((s, i) => `${i + 1}. ${s}`).join("\n")
+      : undefined
+
+  // Documentos: válidos x pendentes + inconsistências
+  const validDocs = documents.filter((d) => d.status === "VALID" || d.status === "VALID_WITH_CAVEATS")
+  const pendingDocs = documents.filter(
+    (d) => d.status === "PENDING" || d.status === "PROCESSING" || d.status === "INVALID" || d.status === "MISSING",
+  )
+  const documentosValidos =
+    validDocs.length > 0 ? validDocs.map((d) => `- ${docLabel(d)}`).join("\n") : undefined
+  const documentosPendentes =
+    pendingDocs.length > 0 ? pendingDocs.map((d) => `- ${docLabel(d)}`).join("\n") : undefined
+  const inconsistenciasList = documents.flatMap((d) => {
+    const p = d.pendencies as { inconsistencies?: Array<{ description: string }> } | null
+    return p?.inconsistencies?.map((inc) => `- ${inc.description}`) ?? []
+  })
+  const inconsistencias = inconsistenciasList.length > 0 ? inconsistenciasList.join("\n") : undefined
+
+  // Relações resolvidas (nomes em vez de IDs)
+  const partner = relations?.partner ?? null
+  const plan = relations?.plan ?? null
+
   const base: TemplateVariables = {
     protocolo: reformCase.protocol,
     data: now,
     data_analise: now,
-    condominio: reformCase.condominiumId,
-    unidade: reformCase.unitId,
-    proprietario: reformCase.clientId,
+    condominio: relations?.condominiumName ?? reformCase.condominiumId,
+    unidade: relations?.unitLabel ?? reformCase.unitId,
+    proprietario: relations?.clientName ?? reformCase.clientId,
     risco: reformCase.riskLevel ?? undefined,
     score_triagem: reformCase.triageScore ?? undefined,
     requer_art: reformCase.requiresART != null ? (reformCase.requiresART ? "Sim" : "Não") : undefined,
@@ -133,10 +186,10 @@ function buildBaseVariables(
   // Template-specific fields
   if (templateId === "proposta-comercial") {
     Object.assign(base, {
-      plano: undefined,
-      valor_base: undefined,
+      plano: plan?.name,
+      valor_base: plan ? `R$ ${plan.basePrice}` : undefined,
       vistorias_inclusas: "3",
-      valor_vistoria_extra: undefined,
+      valor_vistoria_extra: plan ? `R$ ${plan.extraInspectionPrice}` : undefined,
       servicos_inclusos: servicosText,
       validade_proposta: "30 dias",
       forma_pagamento: undefined,
@@ -145,46 +198,46 @@ function buildBaseVariables(
 
   if (templateId === "ordem-servico") {
     Object.assign(base, {
-      parceiro: undefined,
-      crea_parceiro: undefined,
+      parceiro: partner?.name,
+      crea_parceiro: partner?.creaNumber,
       servicos_autorizados: servicosText,
       data_inicio: undefined,
       restricoes_horario: undefined,
-      contato_sindico: undefined,
+      contato_sindico: relations?.sindicoContact?.name,
     })
   }
 
   if (templateId === "memorial-descritivo") {
     Object.assign(base, {
-      responsavel_tecnico: undefined,
+      responsavel_tecnico: partner?.name,
       materiais: undefined,
-      area_afetada: undefined,
-      prazo_execucao: undefined,
+      area_afetada: areaAfetada,
+      prazo_execucao: prazoExecucao,
     })
   }
 
   if (templateId === "cronograma-basico") {
     Object.assign(base, {
-      responsavel_execucao: undefined,
+      responsavel_execucao: partner?.name,
       data_inicio_prevista: undefined,
-      duracao_dias: undefined,
-      etapas: undefined,
+      duracao_dias: durationDays ?? undefined,
+      etapas,
     })
   }
 
   if (templateId === "parecer-pendencias") {
     Object.assign(base, {
-      documentos_validos: undefined,
-      documentos_pendentes: undefined,
-      inconsistencias: undefined,
+      documentos_validos: documentosValidos,
+      documentos_pendentes: documentosPendentes,
+      inconsistencias,
       prazo_correcao: "15 dias corridos",
-      nome_responsavel: undefined,
+      nome_responsavel: partner?.name,
     })
   }
 
   if (templateId === "relatorio-analise") {
     Object.assign(base, {
-      nome_responsavel: undefined,
+      nome_responsavel: partner?.name,
     })
   }
 

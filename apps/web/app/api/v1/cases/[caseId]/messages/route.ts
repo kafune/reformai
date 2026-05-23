@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { requireSessionUser } from "@/infrastructure/auth/getSessionUser"
 import { handleError, unauthorized } from "@/interfaces/http/respond"
+import { assertCaseAccess } from "@/interfaces/http/guards"
 import { PrismaReformCaseRepository } from "@/modules/case-intake/infrastructure/repositories/PrismaReformCaseRepository"
 import { TriageAgent } from "@/modules/case-intake/application/TriageAgent"
 import { AnthropicProvider } from "@/modules/document-intelligence/infrastructure/llm/AnthropicProvider"
@@ -13,6 +14,7 @@ const MessageSchema = z.object({ content: z.string().min(1).max(4000) })
 export async function GET(_: Request, ctx: { params: { caseId: string } }) {
   try {
     const user = await requireSessionUser()
+    await assertCaseAccess(user, ctx.params.caseId)
     const repo = new PrismaReformCaseRepository()
     const messages = await repo.listMessages(ctx.params.caseId, user.tenantId)
     return NextResponse.json({ messages })
@@ -29,6 +31,7 @@ export async function POST(req: NextRequest, ctx: { params: { caseId: string } }
     const repo = new PrismaReformCaseRepository()
     const caseId = ctx.params.caseId
 
+    await assertCaseAccess(user, caseId)
     const existing = await repo.findById(caseId, user.tenantId)
     if (!existing) throw new NotFoundError("ReformCase", caseId)
 

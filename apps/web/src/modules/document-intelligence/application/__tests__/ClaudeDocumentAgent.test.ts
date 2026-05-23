@@ -1,5 +1,4 @@
 import { describe, expect, it, vi } from "vitest"
-import { ValidationError } from "@/shared/errors/DomainError"
 import type { LLMProvider } from "../../domain/LLMProvider"
 import { ClaudeAnalysisAgent } from "../ClaudeAnalysisAgent"
 import { ClaudeDocumentAgent } from "../ClaudeDocumentAgent"
@@ -126,16 +125,23 @@ describe("ClaudeAnalysisAgent", () => {
     expect(result.recommendation).toBe("request_corrections")
   })
 
-  it("lança ValidationError quando a resposta do LLM falha na validação Zod", async () => {
+  it("degrada para revisão manual quando a resposta do LLM falha na validação Zod", async () => {
     const llmResponse = `<analysis>{"consistent":"not-a-boolean","inconsistencies":[],"pendencies":[],"recommendation":"approve","reasoning":""}</analysis>`
     const agent = new ClaudeAnalysisAgent(makeLLM(llmResponse))
 
-    await expect(agent.analyze([])).rejects.toBeInstanceOf(ValidationError)
+    const result = await agent.analyze([])
+
+    expect(result.consistent).toBe(false)
+    expect(result.recommendation).toBe("request_corrections")
+    expect(result.pendencies.length).toBeGreaterThan(0)
   })
 
-  it("lança ValidationError quando não há tags <analysis> na resposta", async () => {
+  it("degrada para revisão manual quando não há tags <analysis> na resposta", async () => {
     const agent = new ClaudeAnalysisAgent(makeLLM("resposta sem tags"))
 
-    await expect(agent.analyze([])).rejects.toBeInstanceOf(ValidationError)
+    const result = await agent.analyze([])
+
+    expect(result.consistent).toBe(false)
+    expect(result.recommendation).toBe("request_corrections")
   })
 })

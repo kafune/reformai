@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { requireSessionUser } from "@/infrastructure/auth/getSessionUser"
 import { forbidden, handleError, unauthorized } from "@/interfaces/http/respond"
-import { NotFoundError } from "@/shared/errors/DomainError"
+import { assertCaseAccess } from "@/interfaces/http/guards"
 import { PrismaReformCaseRepository } from "@/modules/case-intake/infrastructure/repositories/PrismaReformCaseRepository"
 import { PrismaCommercialRepository } from "@/modules/commercial-offers/infrastructure/PrismaCommercialRepository"
 import { CommercialAgent } from "@/modules/commercial-offers/application/CommercialAgent"
@@ -32,6 +32,8 @@ export async function POST(req: NextRequest, ctx: { params: { caseId: string } }
 
     const body = await req.json()
     const { planId, extraInspections } = QuoteBodySchema.parse(body)
+
+    await assertCaseAccess(user, caseId)
 
     const caseRepo = new PrismaReformCaseRepository()
     const commercialRepo = new PrismaCommercialRepository()

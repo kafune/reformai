@@ -19,7 +19,12 @@ export function handleError(err: unknown) {
     )
   }
   if (err instanceof DomainError) {
-    const status = err.code === "NOT_FOUND" ? 404 : err.code === "TENANT_ISOLATION" ? 403 : 422
+    const status =
+      err.code === "NOT_FOUND"
+        ? 404
+        : err.code === "TENANT_ISOLATION" || err.code === "FORBIDDEN"
+          ? 403
+          : 422
     return NextResponse.json({ error: err.code, message: err.message }, { status })
   }
   logger.error("unhandled.error", { message: (err as Error)?.message })

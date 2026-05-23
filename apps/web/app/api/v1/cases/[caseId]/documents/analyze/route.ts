@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server"
 import { requireSessionUser } from "@/infrastructure/auth/getSessionUser"
 import { handleError, unauthorized } from "@/interfaces/http/respond"
+import { assertCaseAccess } from "@/interfaces/http/guards"
 import { prisma } from "@/infrastructure/database/prisma"
-import { NotFoundError } from "@/shared/errors/DomainError"
-import { PrismaReformCaseRepository } from "@/modules/case-intake/infrastructure/repositories/PrismaReformCaseRepository"
 import { PrismaDocumentRepository } from "@/modules/document-management/infrastructure/PrismaDocumentRepository"
 import { QueueDocumentJob } from "@/modules/document-management/infrastructure/QueueDocumentJob"
 import { GetDocumentsByCase } from "@/modules/document-management/application/GetDocumentsByCase"
@@ -20,9 +19,7 @@ export async function POST(_: Request, ctx: { params: { caseId: string } }) {
 
     const caseId = ctx.params.caseId
 
-    const caseRepo = new PrismaReformCaseRepository()
-    const reformCase = await caseRepo.findById(caseId, user.tenantId)
-    if (!reformCase) throw new NotFoundError("ReformCase", caseId)
+    await assertCaseAccess(user, caseId)
 
     const repo = new PrismaDocumentRepository(prisma)
     const queue = new QueueDocumentJob()

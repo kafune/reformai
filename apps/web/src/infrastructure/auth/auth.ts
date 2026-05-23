@@ -1,22 +1,14 @@
 import type { NextAuthOptions } from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
-import { createHash, scrypt, timingSafeEqual } from "node:crypto"
+import { scrypt, timingSafeEqual } from "node:crypto"
 import { promisify } from "node:util"
 import { prisma } from "@/infrastructure/database/prisma"
+import { checkRateLimit } from "@/infrastructure/rate-limiter/RateLimiter"
 
 const scryptAsync = promisify(scrypt)
-const LEGACY_SHA256 = /^[0-9a-f]{64}$/i
 
-/**
- * Verifica a senha. Hashes novos são scrypt (node:crypto, memory-hard).
- * O ramo legado SHA-256 existe apenas para a janela de transição —
- * pode ser removido após o re-seed de todas as contas.
- */
+/** Verifica a senha contra um hash scrypt no formato `scrypt$<saltHex>$<hashHex>`. */
 async function verifyPassword(password: string, hash: string): Promise<boolean> {
-  if (LEGACY_SHA256.test(hash)) {
-    const legacy = createHash("sha256").update(password + "reformai_salt").digest("hex")
-    return legacy === hash
-  }
   const parts = hash.split("$")
   if (parts.length !== 3 || parts[0] !== "scrypt" || !parts[1] || !parts[2]) return false
   const salt = Buffer.from(parts[1], "hex")
@@ -56,6 +48,11 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(creds) {
         if (!creds?.email || !creds.password) return null
+
+        // Rate limit by email: 10 attempts per 15 minutes prevents brute force.
+        const rl = await checkRateLimit(`login:${creds.email}`, 10, 900)
+        if (!rl.allowed) return null
+
         const user = await prisma.user.findUnique({ where: { email: creds.email } })
         if (!user || !user.active) return null
         if (!(await verifyPassword(creds.password, user.passwordHash))) return null

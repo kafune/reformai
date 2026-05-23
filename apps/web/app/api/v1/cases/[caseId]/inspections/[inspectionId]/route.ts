@@ -4,6 +4,7 @@ import { InspectionStatus } from "@reformai/database"
 import { prisma } from "@/infrastructure/database/prisma"
 import { requireSessionUser } from "@/infrastructure/auth/getSessionUser"
 import { handleError, unauthorized } from "@/interfaces/http/respond"
+import { assertCaseAccess } from "@/interfaces/http/guards"
 import {
   BusinessRuleViolationError,
   NotFoundError,
@@ -24,6 +25,8 @@ export async function PATCH(
     const { caseId, inspectionId } = ctx.params
 
     const body = PatchBodySchema.parse(await req.json())
+
+    await assertCaseAccess(user, caseId)
 
     const repo = new PrismaInspectionRepository()
     const inspection = await repo.findById(inspectionId, user.tenantId)

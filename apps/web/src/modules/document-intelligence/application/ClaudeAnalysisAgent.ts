@@ -1,4 +1,4 @@
-import { ValidationError } from "@/shared/errors/DomainError"
+import { logger } from "@/shared/logger"
 import {
   DocumentAnalysisResultSchema,
   type AnalysisAgent,
@@ -54,39 +54,47 @@ export class ClaudeAnalysisAgent implements AnalysisAgent {
   async analyze(documents: AnalysisAgentInput[]): Promise<DocumentAnalysisResult> {
     const messages: LLMMessage[] = [{ role: "user", content: buildUserPrompt(documents) }]
 
-    const raw = await this.llm.complete(messages, {
-      system: SYSTEM_PROMPT,
-      maxTokens: 3000,
-      temperature: 0,
-    })
+    let raw: string
+    try {
+      raw = await this.llm.complete(messages, {
+        system: SYSTEM_PROMPT,
+        maxTokens: 3000,
+        temperature: 0,
+      })
+    } catch (err) {
+      return this.failure("Falha na chamada ao LLM", { error: (err as Error).message })
+    }
 
     const json = extractJsonBetweenTags(raw)
     if (json === null) {
-      throw new ValidationError(
-        "AnalysisAgent: saída do LLM falhou na validação Zod",
-        { reason: "Tags <analysis>...</analysis> não encontradas na resposta", raw },
-      )
+      return this.failure("Tags <analysis>...</analysis> não encontradas na resposta")
     }
 
     let parsed: unknown
     try {
       parsed = JSON.parse(json)
     } catch (err) {
-      throw new ValidationError("AnalysisAgent: saída do LLM falhou na validação Zod", {
-        reason: "JSON inválido",
-        error: (err as Error).message,
-        json,
-      })
+      return this.failure("JSON inválido na resposta", { error: (err as Error).message })
     }
 
     const validation = DocumentAnalysisResultSchema.safeParse(parsed)
     if (!validation.success) {
-      throw new ValidationError("AnalysisAgent: saída do LLM falhou na validação Zod", {
-        reason: "Shape inválido",
-        issues: validation.error.issues,
-      })
+      return this.failure("Shape inválido", { issues: validation.error.issues })
     }
 
     return validation.data
+  }
+
+  // Degrada para revisão manual em vez de lançar — assim uma resposta ruim do
+  // LLM não derruba o job de processamento documental (BullMQ, 3 tentativas).
+  private failure(reason: string, meta?: Record<string, unknown>): DocumentAnalysisResult {
+    logger.warn("analysis.agent.degraded", { reason, ...meta })
+    return {
+      consistent: false,
+      inconsistencies: [],
+      pendencies: ["Análise automática indisponível — requer revisão manual."],
+      recommendation: "request_corrections",
+      reasoning: `Análise automática não pôde ser concluída: ${reason}.`,
+    }
   }
 }

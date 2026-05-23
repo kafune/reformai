@@ -2,6 +2,19 @@ import type { TemplateId } from "@reformai/templates"
 import type { ReformCase, Document } from "@reformai/database"
 
 /**
+ * Nomes e dados relacionados ao caso, resolvidos a partir das chaves do
+ * ReformCase. Quando ausentes, os builders caem para os IDs crus.
+ */
+export interface CaseRelations {
+  condominiumName?: string
+  unitLabel?: string
+  clientName?: string
+  partner?: { name: string; creaNumber: string } | null
+  plan?: { name: string; basePrice: string; extraInspectionPrice: string } | null
+  sindicoContact?: { name: string; email: string } | null
+}
+
+/**
  * Rich data snapshot of a reform case used for report generation.
  * Assembled by GenerateReportUseCase from the case + its documents.
  */
@@ -10,6 +23,8 @@ export interface ReformCaseData {
   reformCase: ReformCase
   /** All documents attached to the case (extracted data included). */
   documents: Document[]
+  /** Nomes/relações resolvidos (condomínio, unidade, proprietário, etc.). */
+  relations?: CaseRelations
 }
 
 /**

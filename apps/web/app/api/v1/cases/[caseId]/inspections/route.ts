@@ -3,8 +3,7 @@ import { z } from "zod"
 import { InspectionType } from "@reformai/database"
 import { requireSessionUser } from "@/infrastructure/auth/getSessionUser"
 import { forbidden, handleError, unauthorized } from "@/interfaces/http/respond"
-import { NotFoundError } from "@/shared/errors/DomainError"
-import { PrismaReformCaseRepository } from "@/modules/case-intake/infrastructure/repositories/PrismaReformCaseRepository"
+import { assertCaseAccess } from "@/interfaces/http/guards"
 import { PrismaInspectionRepository } from "@/modules/inspection-scheduling/infrastructure/PrismaInspectionRepository"
 import { GetCaseInspectionsUseCase } from "@/modules/inspection-scheduling/application/GetCaseInspectionsUseCase"
 import { ScheduleInspectionUseCase } from "@/modules/inspection-scheduling/application/ScheduleInspectionUseCase"
@@ -20,9 +19,7 @@ export async function GET(_: Request, ctx: { params: { caseId: string } }) {
     const user = await requireSessionUser()
     const { caseId } = ctx.params
 
-    const caseRepo = new PrismaReformCaseRepository()
-    const reformCase = await caseRepo.findById(caseId, user.tenantId)
-    if (!reformCase) throw new NotFoundError("ReformCase", caseId)
+    await assertCaseAccess(user, caseId)
 
     const repo = new PrismaInspectionRepository()
     const useCase = new GetCaseInspectionsUseCase(repo)
@@ -48,6 +45,8 @@ export async function POST(req: NextRequest, ctx: { params: { caseId: string } }
     const user = await requireSessionUser()
     if (!SCHEDULE_ROLES.has(user.role)) return forbidden()
     const { caseId } = ctx.params
+
+    await assertCaseAccess(user, caseId)
 
     const body = ScheduleBodySchema.parse(await req.json())
 

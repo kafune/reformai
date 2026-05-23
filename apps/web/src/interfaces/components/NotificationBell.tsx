@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react"
 import { cn } from "@/shared/cn"
 import { Icon } from "./ui/Icon"
+import { isPushSupported, vapidPublicKey, isSubscribed, enablePush, disablePush } from "@/shared/push-client"
 
 interface Notification {
   id: string
@@ -15,6 +16,8 @@ interface Notification {
 export function NotificationBell() {
   const [items, setItems] = useState<Notification[]>([])
   const [open, setOpen] = useState(false)
+  const [pushOn, setPushOn] = useState<boolean | null>(null) // null = indisponível
+  const [pushBusy, setPushBusy] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
   async function load() {
@@ -31,6 +34,29 @@ export function NotificationBell() {
   useEffect(() => {
     load()
   }, [])
+
+  useEffect(() => {
+    if (!isPushSupported() || !vapidPublicKey()) {
+      setPushOn(null)
+      return
+    }
+    isSubscribed().then(setPushOn).catch(() => setPushOn(false))
+  }, [])
+
+  async function togglePush() {
+    setPushBusy(true)
+    try {
+      if (pushOn) {
+        await disablePush()
+        setPushOn(false)
+      } else {
+        const ok = await enablePush()
+        setPushOn(ok)
+      }
+    } finally {
+      setPushBusy(false)
+    }
+  }
 
   useEffect(() => {
     function onClick(e: MouseEvent) {
@@ -101,6 +127,21 @@ export function NotificationBell() {
               ))
             )}
           </div>
+          {pushOn !== null && (
+            <button
+              type="button"
+              onClick={togglePush}
+              disabled={pushBusy}
+              className="flex w-full items-center gap-2 border-t border-divider px-3 py-2.5 text-left text-xs font-medium text-ink-700 hover:bg-bone-100 disabled:opacity-60"
+            >
+              <Icon name={pushOn ? "bell" : "bell"} size={14} />
+              {pushBusy
+                ? "Aguarde…"
+                : pushOn
+                  ? "Desativar notificações do navegador"
+                  : "Ativar notificações no navegador"}
+            </button>
+          )}
         </div>
       )}
     </div>
