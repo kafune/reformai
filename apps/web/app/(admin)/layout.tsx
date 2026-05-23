@@ -11,6 +11,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/condominiums", icon: "home", label: "Condomínios" },
   { href: "/partners", icon: "star", label: "Parceiros" },
   { href: "/policies", icon: "shield", label: "Políticas" },
+  { href: "/audit", icon: "list", label: "Auditoria" },
 ]
 
 /** Itens exclusivos do SUPER_ADMIN — gestão da plataforma. */
