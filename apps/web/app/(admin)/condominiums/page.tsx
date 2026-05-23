@@ -4,18 +4,20 @@ import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { TopBar, Button, Input, Select } from "@/interfaces/components/ui"
 import { CondominiumCard } from "./CondominiumCard"
-import { UFS, type Condominium } from "./constants"
+import { UFS, type Condominium, type TenantRef } from "./constants"
 
 const ADMIN_ROLES = new Set(["SUPER_ADMIN", "ADMIN"])
 
-const EMPTY_FORM = { name: "", cnpj: "", address: "", city: "", state: "SP" }
+const EMPTY_FORM = { name: "", cnpj: "", address: "", city: "", state: "SP", tenantId: "" }
 
 export default function CondominiumsPage() {
   const router = useRouter()
   const { data: session, status } = useSession()
   const isAdmin = ADMIN_ROLES.has(session?.user?.role ?? "")
+  const isSuperAdmin = session?.user?.role === "SUPER_ADMIN"
 
   const [condominiums, setCondominiums] = useState<Condominium[]>([])
+  const [tenants, setTenants] = useState<TenantRef[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
@@ -37,14 +39,27 @@ export default function CondominiumsPage() {
     load()
   }, [load])
 
+  useEffect(() => {
+    if (!isSuperAdmin) return
+    fetch("/api/v1/superadmin/tenants")
+      .then((res) => (res.ok ? res.json() : { tenants: [] }))
+      .then((data) => setTenants(data.tenants ?? []))
+  }, [isSuperAdmin])
+
   async function create(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
+    if (isSuperAdmin && !form.tenantId) {
+      setError("Selecione o tenant do condomínio.")
+      return
+    }
     setSaving(true)
+    const { tenantId, ...rest } = form
+    const payload = isSuperAdmin && tenantId ? { ...rest, tenantId } : rest
     const res = await fetch("/api/v1/admin/condominiums", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify(payload),
     })
     setSaving(false)
     if (!res.ok) {
@@ -129,6 +144,21 @@ export default function CondominiumsPage() {
                   </option>
                 ))}
               </Select>
+              {isSuperAdmin && (
+                <Select
+                  label="Tenant"
+                  value={form.tenantId}
+                  onChange={(e) => setForm((f) => ({ ...f, tenantId: e.target.value }))}
+                  required
+                >
+                  <option value="">Selecione o tenant</option>
+                  {tenants.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                    </option>
+                  ))}
+                </Select>
+              )}
             </div>
             {error && <p className="mt-3 text-sm text-iron-600">{error}</p>}
             <div className="mt-4">
@@ -154,6 +184,8 @@ export default function CondominiumsPage() {
               <CondominiumCard
                 key={c.id}
                 condominium={c}
+                tenants={tenants}
+                isSuperAdmin={isSuperAdmin}
                 onUpdated={handleUpdated}
                 onDeleted={handleDeleted}
               />

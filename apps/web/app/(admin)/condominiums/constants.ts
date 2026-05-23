@@ -4,6 +4,11 @@ export const UFS = [
   "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO",
 ] as const
 
+export interface TenantRef {
+  id: string
+  name: string
+}
+
 export interface Condominium {
   id: string
   name: string
@@ -13,6 +18,8 @@ export interface Condominium {
   state: string
   active: boolean
   createdAt: string
+  tenantId: string
+  tenant: TenantRef | null
   unitCount: number
   caseCount: number
 }

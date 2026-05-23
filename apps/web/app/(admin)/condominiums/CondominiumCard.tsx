@@ -2,7 +2,7 @@
 import { useState } from "react"
 import { Button, Input, Select, Badge, Icon } from "@/interfaces/components/ui"
 import { UnitsPanel } from "./UnitsPanel"
-import { UFS, type Condominium } from "./constants"
+import { UFS, type Condominium, type TenantRef } from "./constants"
 
 const toForm = (c: Condominium) => ({
   name: c.name,
@@ -15,10 +15,14 @@ const toForm = (c: Condominium) => ({
 /** Cartão de um condomínio: exibe dados, edição inline e painel de unidades. */
 export function CondominiumCard({
   condominium,
+  tenants,
+  isSuperAdmin,
   onUpdated,
   onDeleted,
 }: {
   condominium: Condominium
+  tenants: TenantRef[]
+  isSuperAdmin: boolean
   onUpdated: (c: Condominium) => void
   onDeleted: (id: string) => void
 }) {
@@ -27,8 +31,32 @@ export function CondominiumCard({
   const [form, setForm] = useState(toForm(condominium))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [moving, setMoving] = useState(false)
+  const [moveTenantId, setMoveTenantId] = useState("")
 
   const base = `/api/v1/admin/condominiums/${condominium.id}`
+
+  async function confirmMove() {
+    if (!moveTenantId) return
+    setError(null)
+    setSaving(true)
+    const res = await fetch(base, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ tenantId: moveTenantId }),
+    })
+    setSaving(false)
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      setError(data.message ?? data.error ?? "Erro ao mover condomínio.")
+      return
+    }
+    onUpdated((await res.json()).condominium)
+    setMoving(false)
+    setMoveTenantId("")
+  }
+
+  const canMove = condominium.caseCount === 0
 
   async function saveEdit(e: React.FormEvent) {
     e.preventDefault()
@@ -149,6 +177,7 @@ export function CondominiumCard({
               <div className="mt-0.5 text-xs text-ink-500">
                 {condominium.address} — {condominium.city}/{condominium.state}
                 {condominium.cnpj && ` · CNPJ ${condominium.cnpj}`}
+                {isSuperAdmin && condominium.tenant && ` · Tenant: ${condominium.tenant.name}`}
               </div>
             </div>
           </button>
@@ -172,6 +201,24 @@ export function CondominiumCard({
             >
               Editar
             </button>
+            {isSuperAdmin && (
+              <button
+                type="button"
+                onClick={() => {
+                  setMoveTenantId("")
+                  setMoving((s) => !s)
+                }}
+                disabled={!canMove}
+                title={
+                  canMove
+                    ? "Mover para outro tenant"
+                    : "Condomínio com casos não pode ser movido"
+                }
+                className="text-xs font-medium text-azulejo-700 hover:underline disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Mover
+              </button>
+            )}
             <button
               type="button"
               onClick={toggleActive}
@@ -193,6 +240,39 @@ export function CondominiumCard({
               Excluir
             </button>
           </div>
+        </div>
+      )}
+
+      {moving && !editing && (
+        <div className="flex flex-wrap items-end gap-2 border-t border-divider px-5 py-3">
+          <div className="min-w-[220px] flex-1">
+            <Select
+              label="Mover para o tenant"
+              value={moveTenantId}
+              onChange={(e) => setMoveTenantId(e.target.value)}
+            >
+              <option value="">Selecione o tenant de destino</option>
+              {tenants
+                .filter((t) => t.id !== condominium.tenantId)
+                .map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+            </Select>
+          </div>
+          <Button
+            type="button"
+            variant="primary"
+            size="sm"
+            disabled={saving || !moveTenantId}
+            onClick={confirmMove}
+          >
+            {saving ? "Movendo…" : "Confirmar"}
+          </Button>
+          <Button type="button" variant="ghost" size="sm" onClick={() => setMoving(false)}>
+            Cancelar
+          </Button>
         </div>
       )}
 
