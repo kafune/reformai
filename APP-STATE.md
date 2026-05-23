@@ -469,7 +469,7 @@ o código atual. Divergências conhecidas:
 | ~~8~~ | ~~`CondominiumPolicy.overrides` lido mas nunca aplicado~~ | ✅ corrigido (`applyOverrides`: disable de regras + ajuste de ações por condomínio) |
 | ~~9~~ | ~~`GenerateReportUseCase` deixa muitas variáveis de template como `undefined` — relatórios esqueléticos~~ | ✅ corrigido (`loadCaseRelations` + campos por-template) |
 | ~~10~~ | ~~Branch legado SHA-256 de senha — remover após re-seed global~~ | ✅ removido (0 hashes legados em dev/prod) |
-| 11 | `documents` grava `origin` fixo em `CLIENT` — sem rota de upload para parceiro/admin | Baixa |
+| ~~11~~ | ~~`documents` grava `origin` fixo em `CLIENT` — sem rota de upload para parceiro/admin~~ | ✅ corrigido (origin por papel + rota de fotos de vistoria) |
 | 12 | Métodos de repositório virando código morto (Inspection/Partner) por uso direto de `prisma` | Baixa (limpeza) |
 | 13 | `DeterministicEvaluator` (módulo crítico) só tem 3 casos de teste | Baixa (cobertura) |
 

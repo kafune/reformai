@@ -6,6 +6,7 @@ import { handleError, unauthorized } from "@/interfaces/http/respond"
 import { assertCaseAccess } from "@/interfaces/http/guards"
 import { prisma } from "@/infrastructure/database/prisma"
 import { createStorageAdapter } from "@/infrastructure/storage/StorageFactory"
+import { originForRole } from "@/modules/document-management/domain/documentOrigin"
 import { PrismaDocumentRepository } from "@/modules/document-management/infrastructure/PrismaDocumentRepository"
 import { QueueDocumentJob } from "@/modules/document-management/infrastructure/QueueDocumentJob"
 import { UploadDocumentUseCase } from "@/modules/document-management/application/UploadDocumentUseCase"
@@ -99,7 +100,7 @@ export async function POST(req: NextRequest, ctx: { params: { caseId: string } }
       fileName: fileEntry.name,
       mimeType,
       documentType,
-      origin: "CLIENT",
+      origin: originForRole(user.role),
     })
 
     return NextResponse.json(toPublicDocument(doc), { status: 201 })
