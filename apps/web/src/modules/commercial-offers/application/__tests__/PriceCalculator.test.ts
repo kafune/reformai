@@ -137,11 +137,35 @@ describe("PriceCalculator", () => {
     })
   })
 
-  describe("riskLevel", () => {
-    it("não altera o preço base (risco é informativo na cotação)", () => {
-      const low = calculatePrice(makeInput({ riskLevel: "LOW" }))
-      const critical = calculatePrice(makeInput({ riskLevel: "CRITICAL" }))
-      expect(low.totalPrice).toBe(critical.totalPrice)
+  describe("riskLevel — sobretaxa de risco", () => {
+    it("LOW e MEDIUM não têm sobretaxa", () => {
+      const low = calculatePrice(makeInput({ riskLevel: "LOW", basePrice: 1000 }))
+      const medium = calculatePrice(makeInput({ riskLevel: "MEDIUM", basePrice: 1000 }))
+      expect(low.riskSurcharge).toBe(0)
+      expect(medium.riskSurcharge).toBe(0)
+      expect(low.totalPrice).toBe(1000)
+    })
+
+    it("HIGH adiciona +15% sobre o preço base", () => {
+      const r = calculatePrice(makeInput({ riskLevel: "HIGH", basePrice: 1000 }))
+      expect(r.riskSurcharge).toBe(150)
+      expect(r.totalPrice).toBe(1150)
+    })
+
+    it("CRITICAL adiciona +30% sobre o preço base", () => {
+      const r = calculatePrice(makeInput({ riskLevel: "CRITICAL", basePrice: 1000 }))
+      expect(r.riskSurcharge).toBe(300)
+      expect(r.totalPrice).toBe(1300)
+    })
+
+    it("sobretaxa entra no breakdown e soma com vistorias extras", () => {
+      const r = calculatePrice(
+        makeInput({ riskLevel: "HIGH", basePrice: 1000, extraInspections: 2, extraInspectionPrice: 100 }),
+      )
+      // base 1000 + risco 150 + extras 200 = 1350
+      expect(r.totalPrice).toBe(1350)
+      // [base, sobretaxa, extras, total]
+      expect(r.breakdown).toHaveLength(4)
     })
   })
 
