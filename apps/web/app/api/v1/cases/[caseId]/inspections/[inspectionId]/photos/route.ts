@@ -46,10 +46,25 @@ export async function POST(
       )
     }
 
+    // Geolocalização opcional (mesma ordem dos arquivos): campos lat/lng/accuracy.
+    const lats = form.getAll("lat").map((v) => Number(v))
+    const lngs = form.getAll("lng").map((v) => Number(v))
+    const accs = form.getAll("accuracy").map((v) => Number(v))
+
+    const existing = await prisma.inspection.findUnique({
+      where: { id: inspectionId },
+      select: { photoMeta: true },
+    })
+    const photoMeta: Record<string, unknown> = {
+      ...((existing?.photoMeta as Record<string, unknown> | null) ?? {}),
+    }
+
     const storage = createStorageAdapter()
     const newKeys: string[] = []
 
+    let idx = -1
     for (const file of files) {
+      idx++
       if (!(ALLOWED_MIME as readonly string[]).includes(file.type)) {
         return NextResponse.json(
           { error: "VALIDATION", message: `mimeType não suportado: ${file.type}`, details: { allowed: ALLOWED_MIME } },
@@ -75,11 +90,22 @@ export async function POST(
       const buffer = Buffer.from(await file.arrayBuffer())
       await storage.upload(key, buffer, file.type)
       newKeys.push(key)
+
+      const lat = lats[idx]
+      const lng = lngs[idx]
+      if (lat != null && lng != null && Number.isFinite(lat) && Number.isFinite(lng)) {
+        photoMeta[key] = {
+          lat,
+          lng,
+          accuracy: Number.isFinite(accs[idx]) ? accs[idx] : null,
+          takenAt: new Date().toISOString(),
+        }
+      }
     }
 
     await prisma.inspection.update({
       where: { id: inspectionId },
-      data: { photoKeys: { push: newKeys } },
+      data: { photoKeys: { push: newKeys }, photoMeta: photoMeta as object },
     })
 
     return NextResponse.json({ uploaded: newKeys.length, photoKeys: newKeys }, { status: 201 })

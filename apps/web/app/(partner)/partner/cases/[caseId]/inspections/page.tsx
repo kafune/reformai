@@ -52,8 +52,10 @@ function formatDayMonth(date: Date | null | undefined): { day: string; month: st
 
 export default async function PartnerInspectionsPage({
   params,
+  searchParams,
 }: {
   params: { caseId: string }
+  searchParams: { queued?: string }
 }) {
   const user = await getSessionUser()
   if (!user) redirect("/login")
@@ -107,6 +109,14 @@ export default async function PartnerInspectionsPage({
       />
 
       <div className="flex-1 bg-bone-50 p-4 md:p-8 space-y-6">
+        {searchParams.queued === "1" && (
+          <div className="flex items-center gap-2 rounded-sm border border-ochre-300 bg-ochre-100 px-4 py-2.5 text-sm text-ochre-700">
+            <Icon name="info" size={14} className="shrink-0" />
+            Vistoria salva no dispositivo (offline). Será sincronizada automaticamente quando a
+            conexão voltar.
+          </div>
+        )}
+
         {/* Agendar nova vistoria */}
         <Card>
           <div className="flex items-center gap-2 mb-5">
