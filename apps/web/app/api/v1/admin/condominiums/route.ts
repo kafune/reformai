@@ -4,7 +4,7 @@ import { requireSessionUser } from "@/infrastructure/auth/getSessionUser"
 import { handleError, unauthorized } from "@/interfaces/http/respond"
 import { prisma } from "@/infrastructure/database/prisma"
 
-const ADMIN_ROLES = new Set(["SUPER_ADMIN", "ADMIN"])
+const ADMIN_ROLES = new Set(["SUPER_ADMIN", "ADMIN", "MANAGER"])
 const forbidden = () => NextResponse.json({ error: "FORBIDDEN" }, { status: 403 })
 
 const CreateCondominiumSchema = z.object({

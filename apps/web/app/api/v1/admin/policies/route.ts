@@ -4,7 +4,7 @@ import { requireSessionUser } from "@/infrastructure/auth/getSessionUser"
 import { handleError, unauthorized } from "@/interfaces/http/respond"
 import { prisma } from "@/infrastructure/database/prisma"
 
-const ADMIN_ROLES = new Set(["SUPER_ADMIN", "ADMIN"])
+const ADMIN_ROLES = new Set(["SUPER_ADMIN", "ADMIN", "MANAGER"])
 const forbidden = (message?: string) =>
   NextResponse.json({ error: "FORBIDDEN", message }, { status: 403 })
 

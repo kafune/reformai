@@ -6,7 +6,7 @@ import { handleError, unauthorized } from "@/interfaces/http/respond"
 import { prisma } from "@/infrastructure/database/prisma"
 import { NotFoundError } from "@/shared/errors/DomainError"
 
-const ADMIN_ROLES = new Set(["SUPER_ADMIN", "ADMIN"])
+const ADMIN_ROLES = new Set(["SUPER_ADMIN", "ADMIN", "MANAGER"])
 const forbidden = (message?: string) =>
   NextResponse.json({ error: "FORBIDDEN", message }, { status: 403 })
 

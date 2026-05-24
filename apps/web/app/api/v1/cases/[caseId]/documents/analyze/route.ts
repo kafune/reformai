@@ -7,7 +7,7 @@ import { PrismaDocumentRepository } from "@/modules/document-management/infrastr
 import { QueueDocumentJob } from "@/modules/document-management/infrastructure/QueueDocumentJob"
 import { GetDocumentsByCase } from "@/modules/document-management/application/GetDocumentsByCase"
 
-const ALLOWED_ROLES = new Set(["ADMIN", "SUPER_ADMIN", "CONDOMINIUM"])
+const ALLOWED_ROLES = new Set(["ADMIN", "SUPER_ADMIN", "CONDOMINIUM", "MANAGER"])
 
 export async function POST(_: Request, ctx: { params: { caseId: string } }) {
   try {

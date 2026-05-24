@@ -7,7 +7,7 @@ import { TopBar, RiskBadge, StatusChip, Eyebrow } from "@/interfaces/components/
 
 export const dynamic = "force-dynamic"
 
-const ADMIN_ROLES = new Set(["SUPER_ADMIN", "ADMIN"])
+const ADMIN_ROLES = new Set(["SUPER_ADMIN", "ADMIN", "MANAGER"])
 
 export default async function ReviewQueuePage() {
   const user = await getSessionUser()

@@ -5,7 +5,7 @@ import { handleError, unauthorized } from "@/interfaces/http/respond"
 import { prisma } from "@/infrastructure/database/prisma"
 import { hashPassword } from "@/infrastructure/auth/password"
 
-const ADMIN_ROLES = new Set(["SUPER_ADMIN", "ADMIN"])
+const ADMIN_ROLES = new Set(["SUPER_ADMIN", "ADMIN", "MANAGER"])
 const forbidden = () => NextResponse.json({ error: "FORBIDDEN" }, { status: 403 })
 
 const CreatePartnerSchema = z.object({

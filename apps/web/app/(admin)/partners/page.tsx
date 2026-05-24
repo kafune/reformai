@@ -6,7 +6,7 @@ import { TopBar, Button, Input, Select } from "@/interfaces/components/ui"
 import { PartnerCard } from "./PartnerCard"
 import { fromCsv, type Partner } from "./types"
 
-const ADMIN_ROLES = new Set(["SUPER_ADMIN", "ADMIN"])
+const ADMIN_ROLES = new Set(["SUPER_ADMIN", "ADMIN", "MANAGER"])
 
 const EMPTY_FORM = {
   name: "",

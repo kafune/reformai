@@ -8,7 +8,7 @@ import { getDashboardAnalytics } from "@/modules/analytics/application/getDashbo
 
 export const dynamic = "force-dynamic"
 
-const ADMIN_ROLES = new Set(["SUPER_ADMIN", "ADMIN"])
+const ADMIN_ROLES = new Set(["SUPER_ADMIN", "ADMIN", "MANAGER"])
 
 const STATUS_LABELS: Record<CaseStatus, string> = {
   DRAFT: "Rascunho",

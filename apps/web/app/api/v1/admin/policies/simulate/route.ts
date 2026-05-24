@@ -9,7 +9,7 @@ import { DeterministicEvaluator } from "@/modules/rule-engine/domain/Determinist
 import { PrismaPolicyRepository } from "@/modules/rule-engine/infrastructure/PrismaPolicyRepository"
 import type { PolicyData, RuleAction, RuleCondition } from "@/modules/rule-engine/domain/types"
 
-const ADMIN_ROLES = new Set(["SUPER_ADMIN", "ADMIN"])
+const ADMIN_ROLES = new Set(["SUPER_ADMIN", "ADMIN", "MANAGER"])
 const forbidden = () => NextResponse.json({ error: "FORBIDDEN" }, { status: 403 })
 
 const SimulateSchema = z.object({

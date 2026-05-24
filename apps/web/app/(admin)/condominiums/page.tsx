@@ -6,7 +6,7 @@ import { TopBar, Button, Input, Select } from "@/interfaces/components/ui"
 import { CondominiumCard } from "./CondominiumCard"
 import { UFS, type Condominium, type Tenant } from "./constants"
 
-const ADMIN_ROLES = new Set(["SUPER_ADMIN", "ADMIN"])
+const ADMIN_ROLES = new Set(["SUPER_ADMIN", "ADMIN", "MANAGER"])
 
 const EMPTY_FORM = { name: "", cnpj: "", address: "", city: "", state: "SP", tenantId: "" }
 

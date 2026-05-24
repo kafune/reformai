@@ -31,7 +31,15 @@
       "WebSearch",
       "Bash(mkdir -p \"E:/appART/apps/web/app/api/v1/cases/[id]/commercial/quote\")",
       "Bash(mkdir -p \"E:/appART/apps/web/app/api/v1/cases/[id]/commercial/accept\")",
-      "Bash(mkdir -p \"E:/appART/apps/web/app/api/v1/cases/[id]/commercial/confirm-payment\")"
+      "Bash(mkdir -p \"E:/appART/apps/web/app/api/v1/cases/[id]/commercial/confirm-payment\")",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(bunx tsc *)",
+      "Bash(git add *)",
+      "Bash(tee /tmp/project.json)",
+      "Bash(jq '{appName,customGitUrl,customGitBranch,customGitSSHKeyId,dockerfile,buildType,env:.env[0:50]}')",
+      "Read(//home/paiva/.ssh/**)",
+      "Bash(ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -N \"\" -C \"kafune@app-art\" -q)"
     ]
   }
 }

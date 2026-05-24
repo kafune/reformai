@@ -14,7 +14,7 @@ import {
 
 export const dynamic = "force-dynamic"
 
-const ADMIN_ROLES = new Set(["SUPER_ADMIN", "ADMIN"])
+const ADMIN_ROLES = new Set(["SUPER_ADMIN", "ADMIN", "MANAGER"])
 
 interface TriggeredRule {
   ruleId: string

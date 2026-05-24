@@ -38,7 +38,7 @@ export async function GET(_: Request, ctx: { params: { caseId: string } }) {
   }
 }
 
-const SCHEDULE_ROLES = new Set(["PARTNER", "ADMIN", "SUPER_ADMIN"])
+const SCHEDULE_ROLES = new Set(["PARTNER", "ADMIN", "SUPER_ADMIN", "MANAGER"])
 
 export async function POST(req: NextRequest, ctx: { params: { caseId: string } }) {
   try {

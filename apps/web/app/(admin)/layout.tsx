@@ -3,7 +3,7 @@ import { getSessionUser } from "@/infrastructure/auth/getSessionUser"
 import { SignOutButton } from "@/interfaces/components/SignOutButton"
 import { AppShell, type NavItem } from "@/interfaces/components/ui"
 
-const ADMIN_ROLES = new Set(["SUPER_ADMIN", "ADMIN"])
+const ADMIN_ROLES = new Set(["SUPER_ADMIN", "ADMIN", "MANAGER"])
 
 const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard", icon: "grid", label: "Dashboard" },

@@ -4,7 +4,7 @@ import { handleError, unauthorized } from "@/interfaces/http/respond"
 import { ValidationError } from "@/shared/errors/DomainError"
 import { prisma } from "@/infrastructure/database/prisma"
 
-const ALLOWED_ROLES = ["ADMIN", "SUPER_ADMIN", "CONDOMINIUM"]
+const ALLOWED_ROLES = ["ADMIN", "SUPER_ADMIN", "CONDOMINIUM", "MANAGER"]
 
 export async function GET(req: NextRequest) {
   try {

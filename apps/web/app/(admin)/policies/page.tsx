@@ -7,7 +7,7 @@ import { PolicyCard } from "./PolicyCard"
 import { SimulatePanel } from "./SimulatePanel"
 import type { Policy } from "./types"
 
-const ADMIN_ROLES = new Set(["SUPER_ADMIN", "ADMIN"])
+const ADMIN_ROLES = new Set(["SUPER_ADMIN", "ADMIN", "MANAGER"])
 
 const EMPTY_FORM = { name: "", description: "", scope: "tenant" }
 

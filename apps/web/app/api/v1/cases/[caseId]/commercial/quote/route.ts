@@ -22,7 +22,7 @@ const QuoteBodySchema = z.object({
 // Route handler
 // ---------------------------------------------------------------------------
 
-const QUOTE_ROLES = new Set(["ADMIN", "SUPER_ADMIN", "CONDOMINIUM"])
+const QUOTE_ROLES = new Set(["ADMIN", "SUPER_ADMIN", "CONDOMINIUM", "MANAGER"])
 
 export async function POST(req: NextRequest, ctx: { params: { caseId: string } }) {
   try {

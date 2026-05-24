@@ -7,7 +7,7 @@ import { prisma } from "@/infrastructure/database/prisma"
 import { CaseStateMachine } from "@/modules/case-intake/domain/entities/CaseStateMachine"
 import { NotFoundError, BusinessRuleViolationError } from "@/shared/errors/DomainError"
 
-const ADMIN_ROLES = new Set(["SUPER_ADMIN", "ADMIN"])
+const ADMIN_ROLES = new Set(["SUPER_ADMIN", "ADMIN", "MANAGER"])
 
 const BodySchema = z.object({
   decision: z.enum(["approve", "approve_with_conditions", "reject", "request_corrections"]),
