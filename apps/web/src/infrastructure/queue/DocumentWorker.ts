@@ -326,7 +326,11 @@ export class DocumentWorker {
     }
 
     const docs = await this.repo.findByCaseId(data.caseId, data.tenantId)
-    const allValid = docs.length > 0 && docs.every((d) => FINAL_STATUSES.has(d.status))
+    const checklist = DocumentChecklist.evaluate(reformCase.riskLevel ?? "LOW", docs)
+    const allValid =
+      checklist.complete &&
+      docs.length > 0 &&
+      docs.every((d) => FINAL_STATUSES.has(d.status))
 
     if (reformCase.status === "AWAITING_DOCUMENTS" && allValid) {
       await this.transitionToUnderReview(reformCase)
