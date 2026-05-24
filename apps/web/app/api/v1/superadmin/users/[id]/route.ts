@@ -61,7 +61,12 @@ export async function DELETE(_req: Request, ctx: { params: { id: string } }) {
       )
     }
 
-    await prisma.user.delete({ where: { id: target.id } })
+    // Notification.userId é não-nulo sem cascade — deleta antes do usuário.
+    // AuditLog.userId é nullable (SetNull automático pelo Prisma).
+    await prisma.$transaction([
+      prisma.notification.deleteMany({ where: { userId: target.id } }),
+      prisma.user.delete({ where: { id: target.id } }),
+    ])
 
     return NextResponse.json({ success: true })
   } catch (err) {
