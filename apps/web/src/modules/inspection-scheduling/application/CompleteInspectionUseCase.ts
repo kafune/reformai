@@ -53,7 +53,9 @@ export class CompleteInspectionUseCase {
           status: "COMPLETED",
           completedAt: new Date(),
           notes,
-          photoKeys: photoStorageKeys ?? [],
+          ...(photoStorageKeys && photoStorageKeys.length > 0
+            ? { photoKeys: { push: photoStorageKeys } }
+            : {}),
         },
       })
 
