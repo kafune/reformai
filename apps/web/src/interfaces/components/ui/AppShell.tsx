@@ -82,12 +82,15 @@ export function AppShell({
 
       <aside
         className={cn(
-          "flex w-[236px] flex-col gap-2 overflow-y-auto bg-ink-900 px-4 pb-5 pt-6 text-bone-100",
+          // overflow-y-auto removido do aside — estava criando BFC que clipava
+          // o dropdown de notificações (absolute child). Scroll fica apenas no <nav>.
+          "flex w-[236px] flex-col gap-2 bg-ink-900 px-4 pb-5 pt-6 text-bone-100",
           "fixed inset-y-0 left-0 z-50 transition-transform duration-200 ease-rai",
           "lg:static lg:z-auto lg:w-auto lg:translate-x-0 lg:transition-none",
           navOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
         )}
       >
+        {/* ── Cabeçalho ── */}
         <div className="flex items-center justify-between px-2 pb-5">
           <Logo
             size={32}
@@ -104,13 +107,17 @@ export function AppShell({
             <Icon name="close" size={18} />
           </button>
         </div>
+
+        {/* ── Identidade do tenant / condomínio ── */}
         {brandLabel && (
           <div className="mb-2 border-b border-white/10 px-2 pb-3">
             <Eyebrow className="text-bone-400">{brandSub}</Eyebrow>
             <div className="mt-0.5 text-sm font-medium text-bone-50">{brandLabel}</div>
           </div>
         )}
-        <nav className="flex flex-col gap-1">
+
+        {/* ── Navegação — scrollável se tiver muitos itens ── */}
+        <nav className="flex flex-1 flex-col gap-1 overflow-y-auto">
           {nav.map((n) => {
             const active = resolvedActiveHref === n.href
             return (
@@ -119,7 +126,8 @@ export function AppShell({
                 href={n.href}
                 onClick={() => setNavOpen(false)}
                 className={cn(
-                  "flex items-center gap-3 rounded-sm px-3 py-2 text-sm transition-colors",
+                  // py-2.5 → ~44px touch target (ícone 20px + padding)
+                  "flex items-center gap-3 rounded-sm px-3 py-2.5 text-sm transition-colors",
                   active
                     ? "bg-[rgba(58,129,99,0.18)] font-medium text-green-300"
                     : "text-bone-200 hover:bg-white/5",
@@ -131,7 +139,9 @@ export function AppShell({
             )
           })}
         </nav>
-        <div className="flex-1" />
+
+        {/* ── Rodapé: usuário + notificações ── */}
+        {/* overflow-visible (herdado) permite que o dropdown escape o aside */}
         <div className="flex items-center gap-2.5 border-t border-white/10 px-2 pt-3">
           <Avatar name={user.name} size={32} color={user.color} />
           <div className="min-w-0 flex-1">
@@ -140,6 +150,7 @@ export function AppShell({
           </div>
           <NotificationBell />
         </div>
+
         {footer && <div className="px-2 pt-2">{footer}</div>}
       </aside>
       <main className="flex min-w-0 flex-col">{children}</main>
