@@ -61,9 +61,11 @@ export async function DELETE(_req: Request, ctx: { params: { id: string } }) {
       )
     }
 
-    // Notification.userId é não-nulo sem cascade — deleta antes do usuário.
-    // AuditLog.userId é nullable (SetNull automático pelo Prisma).
+    // Remove registros dependentes com userId não-nulo sem cascade configurado.
+    // AuditLog.userId é nullable → SetNull automático pelo Prisma (não precisa tratar).
     await prisma.$transaction([
+      prisma.pushSubscription.deleteMany({ where: { userId: target.id } }),
+      prisma.passwordResetToken.deleteMany({ where: { userId: target.id } }),
       prisma.notification.deleteMany({ where: { userId: target.id } }),
       prisma.user.delete({ where: { id: target.id } }),
     ])
