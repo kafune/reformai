@@ -2,6 +2,15 @@
 import { useCallback, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
+
+const ROLE_HOME: Record<string, string> = {
+  SUPER_ADMIN: "/dashboard",
+  ADMIN: "/dashboard",
+  MANAGER: "/dashboard",
+  CLIENT: "/cases",
+  CONDOMINIUM: "/sindico/dashboard",
+  PARTNER: "/partner/dashboard",
+}
 import { TopBar, Button, Input, Select, Badge, Eyebrow } from "@/interfaces/components/ui"
 
 interface TenantRef {
@@ -49,6 +58,8 @@ const EMPTY_FORM = {
 }
 
 interface EditState {
+  name: string
+  email: string
   role: string
   tenantId: string
   condominiumId: string
@@ -56,7 +67,7 @@ interface EditState {
 
 export default function UsersPage() {
   const router = useRouter()
-  const { data: session, status } = useSession()
+  const { data: session, status, update } = useSession()
   const isSuperAdmin = session?.user?.role === "SUPER_ADMIN"
 
   const [users, setUsers] = useState<ManagedUser[]>([])
@@ -68,12 +79,16 @@ export default function UsersPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [flash, setFlash] = useState<string | null>(null)
+  const [flashError, setFlashError] = useState(false)
 
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [edit, setEdit] = useState<EditState>({ role: "", tenantId: "", condominiumId: "" })
+  const [edit, setEdit] = useState<EditState>({ name: "", email: "", role: "", tenantId: "", condominiumId: "" })
   const [editCondos, setEditCondos] = useState<CondominiumRef[]>([])
   const [editSaving, setEditSaving] = useState(false)
   const [resettingId, setResettingId] = useState<string | null>(null)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [viewingAsId, setViewingAsId] = useState<string | null>(null)
 
   useEffect(() => {
     if (status === "authenticated" && !isSuperAdmin) router.replace("/dashboard")
@@ -159,6 +174,7 @@ export default function UsersPage() {
     }
     if (invite) {
       const data = await res.json().catch(() => ({}))
+      setFlashError(false)
       setFlash(
         data.emailSent
           ? `Convite enviado para ${form.email}.`
@@ -180,11 +196,19 @@ export default function UsersPage() {
 
   function openEdit(u: ManagedUser) {
     setEditingId(u.id)
-    setEdit({ role: u.role, tenantId: u.tenant.id, condominiumId: u.condominium?.id ?? "" })
+    setEdit({ name: u.name, email: u.email, role: u.role, tenantId: u.tenant.id, condominiumId: u.condominium?.id ?? "" })
   }
 
   async function saveEdit(id: string) {
     setError(null)
+    if (!edit.name.trim()) {
+      setError("Nome é obrigatório.")
+      return
+    }
+    if (!edit.email.trim()) {
+      setError("E-mail é obrigatório.")
+      return
+    }
     if (edit.role === "CONDOMINIUM" && !edit.condominiumId) {
       setError("Selecione o condomínio do síndico.")
       return
@@ -194,6 +218,8 @@ export default function UsersPage() {
       method: "PATCH",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
+        name: edit.name.trim(),
+        email: edit.email.trim().toLowerCase(),
         role: edit.role,
         tenantId: edit.tenantId,
         condominiumId: edit.role === "CONDOMINIUM" ? edit.condominiumId : null,
@@ -209,6 +235,41 @@ export default function UsersPage() {
     load()
   }
 
+  async function deleteUser(id: string) {
+    setDeletingId(id)
+    setFlash(null)
+    const res = await fetch(`/api/v1/superadmin/users/${id}`, { method: "DELETE" })
+    setDeletingId(null)
+    setConfirmDeleteId(null)
+    if (res.ok) {
+      setUsers((prev) => prev.filter((u) => u.id !== id))
+      setFlashError(false)
+      setFlash("Usuário excluído com sucesso.")
+    } else {
+      const data = await res.json().catch(() => ({}))
+      setFlashError(true)
+      setFlash(data.message ?? data.error ?? "Não foi possível excluir o usuário.")
+    }
+  }
+
+  async function viewAs(u: ManagedUser) {
+    setViewingAsId(u.id)
+    setFlash(null)
+    const res = await fetch(`/api/v1/superadmin/users/${u.id}/impersonate`, { method: "POST" })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      setViewingAsId(null)
+      setFlashError(true)
+      setFlash(data.message ?? data.error ?? "Não foi possível iniciar a visualização.")
+      return
+    }
+    const { user: target } = await res.json()
+    // Sobrescreve o JWT com os dados do usuário-alvo (segurança aplicada no callback jwt de auth.ts).
+    await update({ startImpersonation: target })
+    // Reload completo para garantir sessão e cache consistentes.
+    window.location.href = ROLE_HOME[target.role] ?? "/dashboard"
+  }
+
   async function resetPassword(u: ManagedUser) {
     setResettingId(u.id)
     setFlash(null)
@@ -216,6 +277,7 @@ export default function UsersPage() {
     setResettingId(null)
     const data = await res.json().catch(() => ({}))
     if (res.ok) {
+      setFlashError(false)
       setFlash(
         data.emailSent
           ? `E-mail de redefinição enviado para ${u.email}.`
@@ -248,9 +310,19 @@ export default function UsersPage() {
 
       <div className="flex-1 overflow-auto bg-bone-50 px-4 py-6 md:px-8">
         {flash && (
-          <div className="mb-4 flex items-center justify-between rounded-md bg-green-100 px-4 py-2.5 text-sm text-green-700">
+          <div
+            className={`mb-4 flex items-center justify-between rounded-md px-4 py-2.5 text-sm ${
+              flashError
+                ? "bg-red-100 text-red-700"
+                : "bg-green-100 text-green-700"
+            }`}
+          >
             <span>{flash}</span>
-            <button type="button" onClick={() => setFlash(null)} className="text-xs underline">
+            <button
+              type="button"
+              onClick={() => { setFlash(null); setFlashError(false) }}
+              className="text-xs underline"
+            >
               ok
             </button>
           </div>
@@ -385,6 +457,20 @@ export default function UsersPage() {
                       <div className="text-xs text-ink-500">{u.email}</div>
                       {editing && (
                         <div className="mt-2 grid gap-2">
+                          {/* Nome e e-mail — editáveis para todos os papéis */}
+                          <Input
+                            label="Nome"
+                            value={edit.name}
+                            onChange={(e) => setEdit((s) => ({ ...s, name: e.target.value }))}
+                            className="min-w-[180px]"
+                          />
+                          <Input
+                            label="E-mail"
+                            type="email"
+                            value={edit.email}
+                            onChange={(e) => setEdit((s) => ({ ...s, email: e.target.value }))}
+                            className="min-w-[180px]"
+                          />
                           {u.role === "PARTNER" ? (
                             <p className="text-xs text-iron-600">
                               Papel de parceiro é gerido em Parceiros.
@@ -479,7 +565,7 @@ export default function UsersPage() {
                           {u.active ? "Desativar" : "Ativar"}
                         </button>
                       </div>
-                      {!editing && (
+                      {!editing && confirmDeleteId !== u.id && (
                         <div className="flex items-center gap-3">
                           <button
                             type="button"
@@ -495,6 +581,42 @@ export default function UsersPage() {
                             className="text-xs font-medium text-green-700 hover:underline disabled:opacity-60"
                           >
                             {resettingId === u.id ? "Enviando…" : "Resetar senha"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => viewAs(u)}
+                            disabled={!u.active || viewingAsId === u.id}
+                            title={!u.active ? "Usuário inativo" : "Ver plataforma como este usuário"}
+                            className="text-xs font-medium text-amber-600 hover:underline disabled:opacity-40"
+                          >
+                            {viewingAsId === u.id ? "Entrando…" : "Ver como"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setConfirmDeleteId(u.id)}
+                            className="text-xs font-medium text-red-600 hover:underline"
+                          >
+                            Excluir
+                          </button>
+                        </div>
+                      )}
+                      {!editing && confirmDeleteId === u.id && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-ink-600">Confirmar exclusão?</span>
+                          <button
+                            type="button"
+                            onClick={() => deleteUser(u.id)}
+                            disabled={deletingId === u.id}
+                            className="text-xs font-semibold text-red-600 hover:underline disabled:opacity-60"
+                          >
+                            {deletingId === u.id ? "Excluindo…" : "Sim, excluir"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setConfirmDeleteId(null)}
+                            className="text-xs font-medium text-ink-500 hover:underline"
+                          >
+                            Cancelar
                           </button>
                         </div>
                       )}

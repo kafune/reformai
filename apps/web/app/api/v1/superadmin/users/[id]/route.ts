@@ -16,6 +16,7 @@ const USER_SELECT = {
 
 const UpdateUserSchema = z.object({
   name: z.string().min(1).max(120).optional(),
+  email: z.string().email("E-mail inválido.").optional(),
   role: z.enum(["SUPER_ADMIN", "ADMIN", "MANAGER", "CONDOMINIUM", "CLIENT", "PARTNER"]).optional(),
   tenantId: z.string().min(1).optional(),
   condominiumId: z.string().min(1).nullable().optional(),
@@ -25,6 +26,49 @@ const forbidden = () => NextResponse.json({ error: "FORBIDDEN" }, { status: 403 
 const business = (message: string) =>
   NextResponse.json({ error: "BUSINESS_RULE_VIOLATION", message }, { status: 422 })
 const notFound = (message: string) => NextResponse.json({ error: "NOT_FOUND", message }, { status: 404 })
+
+/**
+ * Exclui um usuário (SUPER_ADMIN).
+ * Bloqueado se: própria conta | tem casos vinculados | tem registro de parceiro.
+ */
+export async function DELETE(_req: Request, ctx: { params: { id: string } }) {
+  try {
+    const sessionUser = await requireSessionUser()
+    if (sessionUser.role !== "SUPER_ADMIN") return forbidden()
+
+    const target = await prisma.user.findUnique({
+      where: { id: ctx.params.id },
+      include: {
+        partner: { select: { id: true } },
+        cases: { select: { id: true }, take: 1 },
+      },
+    })
+    if (!target) return notFound("Usuário não encontrado.")
+
+    if (target.id === sessionUser.id) {
+      return business("Você não pode excluir a própria conta.")
+    }
+
+    if (target.partner) {
+      return business(
+        "Este usuário tem cadastro de parceiro. Remova-o em Gestão de Parceiros antes de excluir.",
+      )
+    }
+
+    if (target.cases.length > 0) {
+      return business(
+        "Este usuário possui casos vinculados e não pode ser excluído. Desative-o em vez disso.",
+      )
+    }
+
+    await prisma.user.delete({ where: { id: target.id } })
+
+    return NextResponse.json({ success: true })
+  } catch (err) {
+    if ((err as Error).message === "UNAUTHORIZED") return unauthorized()
+    return handleError(err)
+  }
+}
 
 /**
  * Atualiza um usuário (SUPER_ADMIN). Suporta:
@@ -61,6 +105,12 @@ export async function PATCH(req: Request, ctx: { params: { id: string } }) {
     // ─── Edição de campos ──────────────────────────────────────────
     const finalRole = body.role ?? target.role
     const finalTenantId = body.tenantId ?? target.tenantId
+
+    // Unicidade de e-mail: verifica colisão com outro usuário.
+    if (body.email && body.email.toLowerCase() !== target.email.toLowerCase()) {
+      const conflict = await prisma.user.findUnique({ where: { email: body.email.toLowerCase() } })
+      if (conflict) return business("Este e-mail já está em uso por outro usuário.")
+    }
 
     // Não permitir auto-rebaixamento (evita lockout do dono da plataforma).
     if (target.id === sessionUser.id && finalRole !== "SUPER_ADMIN") {
@@ -106,6 +156,7 @@ export async function PATCH(req: Request, ctx: { params: { id: string } }) {
       where: { id: target.id },
       data: {
         name: body.name?.trim() ?? undefined,
+        email: body.email ? body.email.trim().toLowerCase() : undefined,
         role: finalRole,
         tenantId: finalTenantId,
         condominiumId: finalCondominiumId,

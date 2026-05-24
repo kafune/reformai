@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next"
 import { IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google"
 import "./globals.css"
 import { AuthProvider } from "@/interfaces/components/AuthProvider"
+import { ImpersonationBanner } from "@/interfaces/components/ImpersonationBanner"
 import { PwaRegistrar } from "@/interfaces/components/PwaRegistrar"
 
 const plexSans = IBM_Plex_Sans({
@@ -37,7 +38,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="pt-BR" className={`${plexSans.variable} ${plexMono.variable}`}>
       <body>
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <ImpersonationBanner />
+          {children}
+        </AuthProvider>
         <PwaRegistrar />
       </body>
     </html>

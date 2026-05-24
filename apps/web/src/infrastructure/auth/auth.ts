@@ -19,7 +19,16 @@ async function verifyPassword(password: string, hash: string): Promise<boolean> 
 
 declare module "next-auth" {
   interface Session {
-    user: { id: string; tenantId: string; role: string; email: string; name: string; condominiumId?: string | null }
+    user: {
+      id: string
+      tenantId: string
+      role: string
+      email: string
+      name: string
+      condominiumId?: string | null
+      /** Presente quando um SUPER_ADMIN está impersonando outro usuário. */
+      impersonatedBy?: { id: string; name: string; email: string } | null
+    }
   }
   interface User {
     id: string
@@ -34,6 +43,13 @@ declare module "next-auth/jwt" {
     tenantId: string
     role: string
     condominiumId?: string | null
+    /** Dados originais do SUPER_ADMIN durante impersonação. */
+    impersonatedBy?: {
+      uid: string
+      name: string
+      email: string
+      tenantId: string
+    } | null
   }
 }
 
@@ -68,23 +84,65 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    jwt({ token, user }) {
+    jwt({ token, user, trigger, session }) {
+      // Login normal — popula o token com os dados do banco.
       if (user) {
         token.uid = user.id
         token.tenantId = user.tenantId
         token.role = user.role
         token.condominiumId = user.condominiumId ?? null
       }
+
+      if (trigger === "update" && session) {
+        // ── Iniciar impersonação ──────────────────────────────────────
+        // Só permitido quando o token atual já é SUPER_ADMIN.
+        if (session.startImpersonation && token.role === "SUPER_ADMIN") {
+          const target = session.startImpersonation as {
+            id: string; name: string; email: string
+            role: string; tenantId: string; condominiumId?: string | null
+          }
+          // Salva os dados originais do superadmin antes de sobrescrever.
+          token.impersonatedBy = {
+            uid: token.uid,
+            name: token.name as string,
+            email: token.email as string,
+            tenantId: token.tenantId,
+          }
+          token.uid = target.id
+          token.name = target.name
+          token.email = target.email
+          token.role = target.role
+          token.tenantId = target.tenantId
+          token.condominiumId = target.condominiumId ?? null
+        }
+
+        // ── Sair da impersonação ──────────────────────────────────────
+        if (session.exitImpersonation && token.impersonatedBy) {
+          const orig = token.impersonatedBy
+          token.uid = orig.uid
+          token.name = orig.name
+          token.email = orig.email
+          token.tenantId = orig.tenantId
+          token.role = "SUPER_ADMIN"
+          token.condominiumId = null
+          token.impersonatedBy = null
+        }
+      }
+
       return token
     },
+
     session({ session, token }) {
       session.user = {
         id: token.uid,
         tenantId: token.tenantId,
         role: token.role,
-        email: session.user?.email ?? "",
-        name: session.user?.name ?? "",
+        email: (token.email as string) ?? session.user?.email ?? "",
+        name: (token.name as string) ?? session.user?.name ?? "",
         condominiumId: token.condominiumId ?? null,
+        impersonatedBy: token.impersonatedBy
+          ? { id: token.impersonatedBy.uid, name: token.impersonatedBy.name, email: token.impersonatedBy.email }
+          : null,
       }
       return session
     },

@@ -8,6 +8,8 @@ export interface SessionUser {
   email: string
   name: string
   condominiumId?: string | null
+  /** Presente quando um SUPER_ADMIN está com impersonação ativa. */
+  impersonatedBy?: { id: string; name: string; email: string } | null
 }
 
 export async function getSessionUser(): Promise<SessionUser | null> {
