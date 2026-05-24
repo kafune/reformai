@@ -2,7 +2,9 @@
 FROM oven/bun:1.3.10 AS base
 WORKDIR /app
 
-# ─── deps (apenas node_modules hoisted na root) ────────────────
+# ─── deps ──────────────────────────────────────────────────────
+# Instala todas as dependências (root + workspace node_modules)
+# com apenas os package.json presentes — sem código-fonte.
 FROM base AS deps
 COPY package.json bun.lock turbo.json ./
 COPY apps/web/package.json ./apps/web/package.json
@@ -13,17 +15,21 @@ RUN bun install --frozen-lockfile
 # ─── build ─────────────────────────────────────────────────────
 FROM base AS build
 ENV NEXT_TELEMETRY_DISABLED=1
-COPY --from=deps /app/node_modules ./node_modules
+
+# Copia /app inteiro do estágio deps — preserva root + workspace node_modules
+# (incluindo node_modules/.bun que contém os packages reais via symlink).
+# COPY . . apenas sobrepõe o código-fonte (node_modules excluído por .dockerignore).
+COPY --from=deps /app ./
 COPY . .
-# Reinstala com o código completo presente: relinka os pacotes de workspace
-# (@reformai/*) e garante os binários (prisma) no node_modules. Rápido, pois
-# as dependências já vieram do estágio deps (sem novos downloads).
-RUN bun install --frozen-lockfile
+
+# Gera o Prisma client e faz o build do Next.js
 RUN bun run --cwd packages/database db:generate
 RUN bun run --cwd apps/web build
-# Remove o cache local do Bun (binários para todas as plataformas, incluindo
-# DLLs Win32 de onnxruntime-node via tesseract.js). Não é necessário em runtime.
-RUN rm -rf node_modules/.bun
+
+# Remove APENAS os binários nativos de outras plataformas para economizar espaço.
+# NÃO remova node_modules/.bun inteiro — ele contém os packages reais (symlinks apontam para cá).
+RUN find node_modules/.bun -type d -name "onnxruntime-node*" -exec rm -rf {} + 2>/dev/null || true
+RUN find node_modules/.bun -name "*.dll" -o -name "*.pdb" | xargs rm -f 2>/dev/null || true
 
 # ─── runtime ───────────────────────────────────────────────────
 FROM base AS runtime

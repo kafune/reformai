@@ -12,14 +12,16 @@ RUN bun install --frozen-lockfile
 
 # ─── build (gera Prisma client) ────────────────────────────────
 FROM base AS build
-COPY --from=deps /app/node_modules ./node_modules
+
+# Copia /app inteiro do estágio deps — preserva node_modules/.bun (symlink target)
+COPY --from=deps /app ./
 COPY . .
-# Reinstala com o código completo presente: relinka os pacotes de workspace
-# (@reformai/*) e garante o bin do prisma no node_modules (sem novos downloads).
-RUN bun install --frozen-lockfile
+
 RUN bun run --cwd packages/database db:generate
-# Remove o cache local do Bun — não é necessário em runtime.
-RUN rm -rf node_modules/.bun
+
+# Remove binários de outras plataformas (NÃO remove .bun inteiro — symlinks dependem dele)
+RUN find node_modules/.bun -type d -name "onnxruntime-node*" -exec rm -rf {} + 2>/dev/null || true
+RUN find node_modules/.bun -name "*.dll" -o -name "*.pdb" | xargs rm -f 2>/dev/null || true
 
 # ─── runtime ───────────────────────────────────────────────────
 FROM base AS runtime
