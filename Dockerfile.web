@@ -21,6 +21,9 @@ COPY . .
 RUN bun install --frozen-lockfile
 RUN bun run --cwd packages/database db:generate
 RUN bun run --cwd apps/web build
+# Remove o cache local do Bun (binários para todas as plataformas, incluindo
+# DLLs Win32 de onnxruntime-node via tesseract.js). Não é necessário em runtime.
+RUN rm -rf node_modules/.bun
 
 # ─── runtime ───────────────────────────────────────────────────
 FROM base AS runtime

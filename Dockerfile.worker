@@ -18,6 +18,8 @@ COPY . .
 # (@reformai/*) e garante o bin do prisma no node_modules (sem novos downloads).
 RUN bun install --frozen-lockfile
 RUN bun run --cwd packages/database db:generate
+# Remove o cache local do Bun — não é necessário em runtime.
+RUN rm -rf node_modules/.bun
 
 # ─── runtime ───────────────────────────────────────────────────
 FROM base AS runtime
