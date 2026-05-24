@@ -15,6 +15,15 @@ export interface Condominium {
   createdAt: string
   unitCount: number
   caseCount: number
+  tenantId: string
+  tenantName: string
+}
+
+export interface Tenant {
+  id: string
+  name: string
+  slug: string
+  type: string
 }
 
 export interface Unit {

@@ -4,18 +4,22 @@ import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { TopBar, Button, Input, Select } from "@/interfaces/components/ui"
 import { CondominiumCard } from "./CondominiumCard"
-import { UFS, type Condominium } from "./constants"
+import { UFS, type Condominium, type Tenant } from "./constants"
 
 const ADMIN_ROLES = new Set(["SUPER_ADMIN", "ADMIN"])
 
-const EMPTY_FORM = { name: "", cnpj: "", address: "", city: "", state: "SP" }
+const EMPTY_FORM = { name: "", cnpj: "", address: "", city: "", state: "SP", tenantId: "" }
 
 export default function CondominiumsPage() {
   const router = useRouter()
   const { data: session, status } = useSession()
-  const isAdmin = ADMIN_ROLES.has(session?.user?.role ?? "")
+  const role = session?.user?.role ?? ""
+  const isAdmin = ADMIN_ROLES.has(role)
+  const isSuperAdmin = role === "SUPER_ADMIN"
 
   const [condominiums, setCondominiums] = useState<Condominium[]>([])
+  const [tenants, setTenants] = useState<Tenant[]>([])
+  const [filterTenantId, setFilterTenantId] = useState("")
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
@@ -26,12 +30,22 @@ export default function CondominiumsPage() {
     if (status === "authenticated" && !isAdmin) router.replace("/dashboard")
   }, [status, isAdmin, router])
 
+  /** Carrega a lista de tenants (só SUPER_ADMIN precisa). */
+  useEffect(() => {
+    if (!isSuperAdmin) return
+    fetch("/api/v1/superadmin/tenants")
+      .then((r) => r.json())
+      .then((d) => setTenants(d.tenants ?? []))
+      .catch(() => {})
+  }, [isSuperAdmin])
+
   const load = useCallback(async () => {
     setLoading(true)
-    const res = await fetch("/api/v1/admin/condominiums")
+    const qs = filterTenantId ? `?tenantId=${filterTenantId}` : ""
+    const res = await fetch(`/api/v1/admin/condominiums${qs}`)
     if (res.ok) setCondominiums((await res.json()).condominiums ?? [])
     setLoading(false)
-  }, [])
+  }, [filterTenantId])
 
   useEffect(() => {
     load()
@@ -40,11 +54,25 @@ export default function CondominiumsPage() {
   async function create(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
+
+    if (isSuperAdmin && !form.tenantId) {
+      setError("Selecione o tenant para o qual o condomínio será criado.")
+      return
+    }
+
     setSaving(true)
+    const payload = {
+      name: form.name,
+      cnpj: form.cnpj || undefined,
+      address: form.address,
+      city: form.city,
+      state: form.state,
+      ...(isSuperAdmin && form.tenantId ? { tenantId: form.tenantId } : {}),
+    }
     const res = await fetch("/api/v1/admin/condominiums", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify(payload),
     })
     setSaving(false)
     if (!res.ok) {
@@ -88,10 +116,48 @@ export default function CondominiumsPage() {
       />
 
       <div className="flex-1 overflow-auto bg-bone-50 px-4 py-6 md:px-8">
+        {/* Filtro por tenant (só SUPER_ADMIN) */}
+        {isSuperAdmin && (
+          <div className="mb-4 flex items-center gap-3">
+            <Select
+              label="Filtrar por tenant"
+              value={filterTenantId}
+              onChange={(e) => setFilterTenantId(e.target.value)}
+            >
+              <option value="">Todos os tenants</option>
+              {tenants.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </Select>
+          </div>
+        )}
+
+        {/* Formulário de criação */}
         {showForm && (
           <form onSubmit={create} className="mb-6 rounded-lg bg-surface p-5 shadow-hair">
             <h2 className="mb-4 text-sm font-semibold text-ink-900">Novo condomínio</h2>
             <div className="grid gap-3 md:grid-cols-2">
+              {/* Seletor de tenant (só SUPER_ADMIN) */}
+              {isSuperAdmin && (
+                <div className="md:col-span-2">
+                  <Select
+                    label="Tenant *"
+                    value={form.tenantId}
+                    onChange={(e) => setForm((f) => ({ ...f, tenantId: e.target.value }))}
+                    required
+                  >
+                    <option value="">Selecione o tenant</option>
+                    {tenants.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name} ({t.slug})
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+              )}
+
               <Input
                 label="Nome"
                 value={form.name}
@@ -154,6 +220,8 @@ export default function CondominiumsPage() {
               <CondominiumCard
                 key={c.id}
                 condominium={c}
+                isSuperAdmin={isSuperAdmin}
+                tenants={tenants}
                 onUpdated={handleUpdated}
                 onDeleted={handleDeleted}
               />

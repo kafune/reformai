@@ -13,18 +13,37 @@ const CreateCondominiumSchema = z.object({
   address: z.string().min(1).max(240),
   city: z.string().min(1).max(120),
   state: z.string().length(2),
+  /** Apenas SUPER_ADMIN: permite atribuir o condomínio a um tenant específico. */
+  tenantId: z.string().min(1).optional(),
 })
 
-/** Lista os condomínios do tenant do usuário, com contagem de unidades e casos. */
-export async function GET() {
+/**
+ * Lista os condomínios.
+ * SUPER_ADMIN vê todos; filtro opcional via ?tenantId=.
+ * ADMIN vê apenas o próprio tenant.
+ */
+export async function GET(req: NextRequest) {
   try {
     const user = await requireSessionUser()
     if (!ADMIN_ROLES.has(user.role)) return forbidden()
 
+    const { searchParams } = new URL(req.url)
+    const filterTenantId = searchParams.get("tenantId")
+
+    const where =
+      user.role === "SUPER_ADMIN"
+        ? filterTenantId
+          ? { tenantId: filterTenantId }
+          : {}
+        : { tenantId: user.tenantId }
+
     const condominiums = await prisma.condominium.findMany({
-      where: { tenantId: user.tenantId },
+      where,
       orderBy: { name: "asc" },
-      include: { _count: { select: { units: true, cases: true } } },
+      include: {
+        _count: { select: { units: true, cases: true } },
+        tenant: { select: { id: true, name: true } },
+      },
     })
 
     return NextResponse.json({
@@ -39,6 +58,8 @@ export async function GET() {
         createdAt: c.createdAt,
         unitCount: c._count.units,
         caseCount: c._count.cases,
+        tenantId: c.tenantId,
+        tenantName: c.tenant.name,
       })),
     })
   } catch (err) {
@@ -47,7 +68,10 @@ export async function GET() {
   }
 }
 
-/** Cria um condomínio no tenant do usuário. */
+/**
+ * Cria um condomínio.
+ * SUPER_ADMIN pode especificar tenantId; ADMIN usa o próprio tenant.
+ */
 export async function POST(req: NextRequest) {
   try {
     const user = await requireSessionUser()
@@ -55,14 +79,30 @@ export async function POST(req: NextRequest) {
 
     const body = CreateCondominiumSchema.parse(await req.json())
 
+    let targetTenantId = user.tenantId
+
+    if (user.role === "SUPER_ADMIN" && body.tenantId) {
+      const tenant = await prisma.tenant.findUnique({ where: { id: body.tenantId } })
+      if (!tenant) {
+        return NextResponse.json(
+          { error: "NOT_FOUND", message: "Tenant não encontrado." },
+          { status: 404 },
+        )
+      }
+      targetTenantId = body.tenantId
+    }
+
     const condominium = await prisma.condominium.create({
       data: {
-        tenantId: user.tenantId,
+        tenantId: targetTenantId,
         name: body.name.trim(),
         cnpj: body.cnpj?.trim() || null,
         address: body.address.trim(),
         city: body.city.trim(),
         state: body.state.trim().toUpperCase(),
+      },
+      include: {
+        tenant: { select: { id: true, name: true } },
       },
     })
 
@@ -79,6 +119,8 @@ export async function POST(req: NextRequest) {
           createdAt: condominium.createdAt,
           unitCount: 0,
           caseCount: 0,
+          tenantId: condominium.tenantId,
+          tenantName: condominium.tenant.name,
         },
       },
       { status: 201 },
