@@ -31,7 +31,10 @@ export interface ChatMessageDTO {
 export interface ReformCaseRepository {
   create(input: CreateCaseInput): Promise<ReformCase>
   findById(id: string, tenantId: string): Promise<ReformCase | null>
-  listByTenant(tenantId: string, filters?: { clientId?: string }): Promise<ReformCase[]>
+  listByTenant(
+    tenantId: string,
+    filters?: { clientId?: string; condominiumId?: string; partnerId?: string },
+  ): Promise<ReformCase[]>
   applyScopeClassification(caseId: string, tenantId: string, input: UpdateScopeInput): Promise<ReformCase>
   appendMessage(caseId: string, tenantId: string, role: "USER" | "ASSISTANT" | "SYSTEM", content: string, metadata?: unknown): Promise<ChatMessageDTO>
   listMessages(caseId: string, tenantId: string): Promise<ChatMessageDTO[]>

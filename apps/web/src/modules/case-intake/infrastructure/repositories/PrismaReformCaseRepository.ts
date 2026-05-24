@@ -29,10 +29,15 @@ export class PrismaReformCaseRepository implements ReformCaseRepository {
 
   async listByTenant(
     tenantId: string,
-    filters?: { clientId?: string },
+    filters?: { clientId?: string; condominiumId?: string; partnerId?: string },
   ): Promise<ReformCase[]> {
     return prisma.reformCase.findMany({
-      where: { tenantId, ...(filters?.clientId ? { clientId: filters.clientId } : {}) },
+      where: {
+        tenantId,
+        ...(filters?.clientId ? { clientId: filters.clientId } : {}),
+        ...(filters?.condominiumId ? { condominiumId: filters.condominiumId } : {}),
+        ...(filters?.partnerId ? { partnerId: filters.partnerId } : {}),
+      },
       orderBy: { createdAt: "desc" },
     })
   }

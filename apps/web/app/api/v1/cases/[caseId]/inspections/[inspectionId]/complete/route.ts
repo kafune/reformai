@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { requireSessionUser } from "@/infrastructure/auth/getSessionUser"
-import { handleError, unauthorized } from "@/interfaces/http/respond"
+import { forbidden, handleError, unauthorized } from "@/interfaces/http/respond"
 import { assertCaseAccess } from "@/interfaces/http/guards"
+
+/** Apenas parceiros e gestores podem concluir vistorias. */
+const COMPLETE_ROLES = new Set(["PARTNER", "ADMIN", "MANAGER", "SUPER_ADMIN"])
 import { PrismaInspectionRepository } from "@/modules/inspection-scheduling/infrastructure/PrismaInspectionRepository"
 import { CompleteInspectionUseCase } from "@/modules/inspection-scheduling/application/CompleteInspectionUseCase"
 
@@ -18,6 +21,8 @@ export async function POST(
   try {
     const user = await requireSessionUser()
     const { caseId, inspectionId } = ctx.params
+
+    if (!COMPLETE_ROLES.has(user.role)) return forbidden()
 
     const body = CompleteBodySchema.parse(await req.json())
 
