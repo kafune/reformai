@@ -3,7 +3,7 @@ import { requireSessionUser } from "@/infrastructure/auth/getSessionUser"
 import { handleError, unauthorized } from "@/interfaces/http/respond"
 import { prisma } from "@/infrastructure/database/prisma"
 import { RequestPasswordResetUseCase } from "@/modules/identity/application/RequestPasswordResetUseCase"
-import { buildEmailProvider } from "@/infrastructure/email/ResendEmailProvider"
+import { buildEmailProvider } from "@/infrastructure/email/EmailFactory"
 import { passwordResetTemplate } from "@/infrastructure/email/templates"
 import { logger } from "@/shared/logger"
 

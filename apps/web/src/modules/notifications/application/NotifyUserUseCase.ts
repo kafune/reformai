@@ -1,5 +1,5 @@
 import { prisma } from "@/infrastructure/database/prisma"
-import { buildEmailProvider } from "@/infrastructure/email/ResendEmailProvider"
+import { buildEmailProvider } from "@/infrastructure/email/EmailFactory"
 import { notificationTemplate } from "@/infrastructure/email/templates"
 import { buildWebPushProvider, type WebPushProvider } from "@/infrastructure/push/WebPushProvider"
 import { logger } from "@/shared/logger"

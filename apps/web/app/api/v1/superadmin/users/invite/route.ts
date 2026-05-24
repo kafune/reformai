@@ -3,7 +3,7 @@ import { z } from "zod"
 import { requireSessionUser } from "@/infrastructure/auth/getSessionUser"
 import { handleError, unauthorized } from "@/interfaces/http/respond"
 import { CreateInviteUseCase } from "@/modules/identity/application/CreateInviteUseCase"
-import { buildEmailProvider } from "@/infrastructure/email/ResendEmailProvider"
+import { buildEmailProvider } from "@/infrastructure/email/EmailFactory"
 import { inviteTemplate } from "@/infrastructure/email/templates"
 import { logger } from "@/shared/logger"
 
