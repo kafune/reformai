@@ -113,7 +113,7 @@ model NormChunk {
   norm      String // ex.: "NBR 16280"
   section   String?
   content   String
-  embedding Unsupported("vector(1024)")?
+  embedding Unsupported("vector(384)")?
   createdAt DateTime                      @default(now())
 
   @@index([norm])

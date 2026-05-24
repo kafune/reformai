@@ -13,9 +13,10 @@ const nextConfig = {
   transpilePackages: ["@reformai/database"],
   experimental: {
     serverActions: { allowedOrigins },
-    // pdfkit carrega arquivos .afm de fontes por caminho relativo ao módulo;
-    // mantê-lo externo evita que o webpack quebre esse resolve no servidor.
-    serverComponentsExternalPackages: ["pdfkit"],
+    // Pacotes que carregam binários nativos / arquivos por caminho relativo ao
+    // módulo (fontes .afm do pdfkit, onnxruntime do transformers.js). Mantê-los
+    // externos evita que o webpack quebre esses resolves no servidor.
+    serverComponentsExternalPackages: ["pdfkit", "@huggingface/transformers", "onnxruntime-node"],
   },
 }
 
