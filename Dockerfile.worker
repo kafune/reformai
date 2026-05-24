@@ -14,6 +14,9 @@ RUN bun install --frozen-lockfile
 FROM base AS build
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+# Reinstala com o código completo presente: relinka os pacotes de workspace
+# (@reformai/*) e garante o bin do prisma no node_modules (sem novos downloads).
+RUN bun install --frozen-lockfile
 RUN bun run --cwd packages/database db:generate
 
 # ─── runtime ───────────────────────────────────────────────────
