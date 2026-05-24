@@ -125,13 +125,6 @@ function LoginForm() {
             </div>
           </form>
 
-          <p className="mt-5 text-sm text-ink-500">
-            Não tem conta?{" "}
-            <Link href="/register" className="font-medium text-green-700 hover:underline">
-              Criar conta de morador
-            </Link>
-          </p>
-
           <div className="mt-6 border-t border-divider pt-4 text-xs leading-relaxed text-ink-500">
             Ao continuar, você concorda com os{" "}
             <a href="#" className="text-ink-700 underline">
