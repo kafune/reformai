@@ -10,7 +10,7 @@ if (process.env.NEXT_PUBLIC_APP_URL) {
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  transpilePackages: ["@reformai/database"],
+  transpilePackages: ["@reformai/database", "@reformai/templates"],
   experimental: {
     serverActions: { allowedOrigins },
     // Pacotes que carregam binários nativos / arquivos por caminho relativo ao

@@ -15,6 +15,10 @@ FROM base AS build
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+# Reinstala com o código completo presente: relinka os pacotes de workspace
+# (@reformai/*) e garante os binários (prisma) no node_modules. Rápido, pois
+# as dependências já vieram do estágio deps (sem novos downloads).
+RUN bun install --frozen-lockfile
 RUN bun run --cwd packages/database db:generate
 RUN bun run --cwd apps/web build
 
