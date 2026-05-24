@@ -3,13 +3,13 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "db:generate": "bunx prisma generate",
-    "db:migrate": "bunx prisma migrate dev",
-    "db:migrate:deploy": "bunx prisma migrate deploy",
+    "db:generate": "bunx prisma@6.19.3 generate",
+    "db:migrate": "bunx prisma@6.19.3 migrate dev",
+    "db:migrate:deploy": "bunx prisma@6.19.3 migrate deploy",
     "db:seed": "bun run prisma/seed.ts",
     "db:create-admin": "bun run prisma/create-admin.ts",
-    "db:studio": "bunx prisma studio",
-    "db:reset": "bunx prisma migrate reset --force"
+    "db:studio": "bunx prisma@6.19.3 studio",
+    "db:reset": "bunx prisma@6.19.3 migrate reset --force"
   },
   "dependencies": {
     "@prisma/client": "^6.6.0"
