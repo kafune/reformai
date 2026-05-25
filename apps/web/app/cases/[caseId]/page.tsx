@@ -16,7 +16,7 @@ import {
   Eyebrow,
   StarRating,
 } from "@/interfaces/components/ui"
-import type { RiskLevel } from "@/interfaces/components/ui"
+import type { RiskLevel, IconName } from "@/interfaces/components/ui"
 
 interface Message { id: string; role: string; content: string; createdAt: string }
 interface CaseData {
@@ -25,6 +25,66 @@ interface CaseData {
   partner?: { user?: { name?: string } } | null
 }
 
+// ─── Polling: somente em estados transitórios ────────────────────────────────
+const POLLING_STATUSES = [
+  "DRAFT",
+  "AWAITING_SCOPE_DETAILS",
+  "SCOPE_CLASSIFIED",
+  "AWAITING_SYNDIC_APPROVAL",
+  "AWAITING_DOCUMENTS",
+  "DOCUMENTS_UNDER_REVIEW",
+  "HUMAN_REVIEW_REQUIRED",
+]
+
+// ─── Banners contextuais por status ─────────────────────────────────────────
+const STATUS_MESSAGES: Partial<
+  Record<string, { icon: IconName; text: string; tone: "info" | "warning" | "success" | "error" }>
+> = {
+  DRAFT:                    { icon: "clock",    text: "Iniciando triagem…",                                          tone: "info"    },
+  AWAITING_SCOPE_DETAILS:   { icon: "chat",     text: "Descreva a reforma no chat ao lado.",                         tone: "info"    },
+  SCOPE_CLASSIFIED:         { icon: "check",    text: "Escopo classificado. Envie os documentos para continuar.",    tone: "success" },
+  AWAITING_SYNDIC_APPROVAL: { icon: "clock",    text: "Aguardando aprovação do síndico.",                           tone: "warning" },
+  AWAITING_DOCUMENTS:       { icon: "upload",   text: "Envie os documentos necessários.",                            tone: "info"    },
+  DOCUMENTS_UNDER_REVIEW:   { icon: "search",   text: "Documentos em análise pela IA.",                             tone: "info"    },
+  PENDING_CORRECTIONS:      { icon: "alert",    text: "Alguns documentos precisam de correção.",                     tone: "warning" },
+  ELIGIBLE_FOR_RELEASE:     { icon: "check",    text: "Sua reforma está apta para liberação!",                      tone: "success" },
+  RELEASED_WITH_CONDITIONS: { icon: "info",     text: "Reforma liberada. Veja as condições abaixo.",                tone: "warning" },
+  HUMAN_REVIEW_REQUIRED:    { icon: "clock",    text: "Em análise pela nossa equipe técnica. Você será notificado.", tone: "info"   },
+  ASSIGNED_TO_PARTNER:      { icon: "user",     text: "Parceiro técnico atribuído à sua obra.",                     tone: "success" },
+  CONCLUDED:                { icon: "star",     text: "Obra concluída! Avalie sua experiência.",                    tone: "success" },
+  ARCHIVED:                 { icon: "layers",   text: "Este caso foi arquivado.",                                   tone: "error"   },
+}
+
+const TONE_CLASSES: Record<"info" | "warning" | "success" | "error", { wrap: string; icon: string }> = {
+  info:    { wrap: "bg-bone-100 text-ink-700",           icon: "text-ink-500"    },
+  warning: { wrap: "bg-ochre-50 text-ochre-800",         icon: "text-ochre-600"  },
+  success: { wrap: "bg-green-50 text-green-800",         icon: "text-green-600"  },
+  error:   { wrap: "bg-red-50 text-red-700",             icon: "text-red-500"    },
+}
+
+// ─── Timeline: mapa status → índice ─────────────────────────────────────────
+function statusToTimelineIndex(status: string): number {
+  if (["DRAFT", "AWAITING_SCOPE_DETAILS"].includes(status))                                         return 0
+  if (["SCOPE_CLASSIFIED", "AWAITING_SYNDIC_APPROVAL"].includes(status))                            return 1
+  if (["AWAITING_DOCUMENTS", "DOCUMENTS_UNDER_REVIEW", "PENDING_CORRECTIONS"].includes(status))     return 2
+  if (["ELIGIBLE_FOR_RELEASE", "RELEASED_WITH_CONDITIONS", "HUMAN_REVIEW_REQUIRED"].includes(status)) return 3
+  if (["ASSIGNED_TO_PARTNER", "ART_RRT_PENDING", "INSPECTIONS_SCHEDULED", "IN_EXECUTION"].includes(status)) return 4
+  if (status === "CONCLUDED")                                                                        return 5
+  return -1
+}
+
+type Family = "draft" | "progress" | "review" | "attention" | "blocked" | "ok" | "done" | "archived"
+
+const TIMELINE_STEPS: Array<{ title: string; family: Family }> = [
+  { title: "Triagem técnica",   family: "progress" },
+  { title: "Classificação",     family: "progress" },
+  { title: "Documentação",      family: "progress" },
+  { title: "Análise",           family: "review"   },
+  { title: "Execução",          family: "progress" },
+  { title: "Concluído",         family: "done"     },
+]
+
+// ─── Componente principal ────────────────────────────────────────────────────
 export default function CaseDetailPage() {
   const { caseId } = useParams<{ caseId: string }>()
   const { status, data: session } = useSession()
@@ -35,6 +95,17 @@ export default function CaseDetailPage() {
   const [sending, setSending] = useState(false)
   const [streamingContent, setStreamingContent] = useState("")
   const endRef = useRef<HTMLDivElement>(null)
+
+  // Mobile tab
+  const [activeTab, setActiveTab] = useState<"chat" | "details">("chat")
+
+  // Banner "Triagem concluída"
+  const prevStatusRef = useRef<string | null>(null)
+  const [showTriageBanner, setShowTriageBanner] = useState(false)
+  const triageBannerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Triggered rules "Ver mais"
+  const [showAllRules, setShowAllRules] = useState(false)
 
   // Review state
   const [reviewScore, setReviewScore] = useState(0)
@@ -54,6 +125,34 @@ export default function CaseDetailPage() {
     setData(c)
     setMessages(m.messages ?? [])
   }
+
+  // Polling em estados transitórios (10s)
+  useEffect(() => {
+    if (!data) return
+    if (!POLLING_STATUSES.includes(data.status)) return
+    const id = setInterval(reload, 10_000)
+    return () => clearInterval(id)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data?.status])
+
+  // Banner de triagem concluída ao detectar transição → SCOPE_CLASSIFIED
+  useEffect(() => {
+    if (!data) return
+    const prev = prevStatusRef.current
+    if (
+      prev !== null &&
+      prev !== "SCOPE_CLASSIFIED" &&
+      data.status === "SCOPE_CLASSIFIED"
+    ) {
+      setShowTriageBanner(true)
+      if (triageBannerTimerRef.current) clearTimeout(triageBannerTimerRef.current)
+      triageBannerTimerRef.current = setTimeout(() => setShowTriageBanner(false), 8_000)
+    }
+    prevStatusRef.current = data.status
+    return () => {
+      if (triageBannerTimerRef.current) clearTimeout(triageBannerTimerRef.current)
+    }
+  }, [data?.status])
 
   // Fetch existing review when case is CONCLUDED and user is CLIENT
   useEffect(() => {
@@ -124,7 +223,6 @@ export default function CaseDetailPage() {
           es.close()
           setSending(false)
           setStreamingContent("")
-          // reload busca mensagens persistidas + status/risco atualizados do caso
           reload()
           break
         case "error":
@@ -145,17 +243,260 @@ export default function CaseDetailPage() {
   if (status !== "authenticated" || !data) return null
 
   const triggered = data.evaluationResult?.triggeredRules ?? []
+  const visibleRules = showAllRules ? triggered : triggered.slice(0, 5)
+  const hasMoreRules = triggered.length > 5
 
-  // Show review prompt for CLIENT when case is CONCLUDED and no existing review
+  const activeIndex = statusToTimelineIndex(data.status)
+
+  const statusMsg = STATUS_MESSAGES[data.status]
+
   const showReviewPrompt =
     session?.user?.role === "CLIENT" &&
     data.status === "CONCLUDED" &&
-    existingReview !== undefined && // loaded
-    existingReview === null && // no existing review
+    existingReview !== undefined &&
+    existingReview === null &&
     !reviewDismissed &&
     !reviewDone
 
   const partnerName = data.partner?.user?.name ?? "o parceiro"
+
+  // ── Right rail content ───────────────────────────────────────────────────
+  const rightRail = (
+    <aside className="overflow-y-auto border-t border-divider bg-paper p-4 md:p-6 lg:border-l lg:border-t-0">
+      <Eyebrow>Caso em andamento</Eyebrow>
+      <p className="mt-1.5 font-mono text-sm text-ink-500">{data.protocol}</p>
+
+      {/* Status & Risk */}
+      <div className="mt-5 flex items-center justify-between">
+        <div>
+          <Eyebrow className="mb-1.5">Status</Eyebrow>
+          <StatusChip status={data.status} />
+        </div>
+        {data.riskLevel && (
+          <div className="text-right">
+            <Eyebrow className="mb-1.5">Risco</Eyebrow>
+            <RiskBadge
+              level={data.riskLevel as RiskLevel}
+              score={data.triageScore ?? undefined}
+              size="sm"
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Banner contextual de status */}
+      {statusMsg && (
+        <div
+          className={`mt-3 flex items-start gap-2.5 rounded-md px-3 py-2.5 ${TONE_CLASSES[statusMsg.tone].wrap}`}
+          role="status"
+          aria-live="polite"
+        >
+          <Icon
+            name={statusMsg.icon}
+            size={14}
+            className={`mt-0.5 shrink-0 ${TONE_CLASSES[statusMsg.tone].icon}`}
+          />
+          <p className="text-xs leading-relaxed">{statusMsg.text}</p>
+        </div>
+      )}
+
+      {/* ART */}
+      {data.requiresART !== null && (
+        <div className="mt-4 flex items-center gap-2">
+          <Icon name="doc" size={14} className="text-ink-400" />
+          <span className="text-xs text-ink-600">
+            ART/RRT:{" "}
+            <strong>{data.requiresART ? "Exigida" : "Não exigida"}</strong>
+          </span>
+        </div>
+      )}
+
+      {/* Por que essa classificação? (regras disparadas) */}
+      <div className="mt-5" data-testid="evaluation-result">
+        <Eyebrow className="mb-2">Por que essa classificação?</Eyebrow>
+        {triggered.length === 0 ? (
+          <p className="text-xs text-ink-400">Aguardando classificação…</p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {visibleRules.map((r: any) => (
+              <div
+                key={r.ruleId}
+                className="rounded-sm bg-bone-100 px-3 py-2"
+              >
+                <p className="text-xs leading-relaxed text-ink-600">{r.reason}</p>
+              </div>
+            ))}
+            {hasMoreRules && (
+              <button
+                type="button"
+                onClick={() => setShowAllRules((v) => !v)}
+                className="mt-1 cursor-pointer text-left text-xs font-medium text-green-700 underline-offset-2 hover:underline"
+              >
+                {showAllRules
+                  ? "Ver menos"
+                  : `Ver mais ${triggered.length - 5} regra${triggered.length - 5 > 1 ? "s" : ""}`}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Timeline com etapa atual destacada */}
+      <div className="mt-5">
+        <Eyebrow className="mb-3">Etapas do processo</Eyebrow>
+        <Timeline
+          dense
+          items={TIMELINE_STEPS.map((step, i) => ({
+            title: step.title,
+            family: i < activeIndex ? "done" : step.family,
+            current: i === activeIndex,
+          }))}
+        />
+      </div>
+
+      {/* ART/RRT disclaimer — apenas uma vez, no final, discreto */}
+      <div className="mt-5 flex items-start gap-2 rounded-md bg-bone-100 px-3 py-2.5">
+        <Icon name="shield" size={14} className="mt-0.5 shrink-0 text-ink-400" />
+        <p className="text-[11px] leading-relaxed text-ink-400">
+          <strong className="text-ink-500">A plataforma não emite ART/RRT.</strong>{" "}
+          A emissão formal é responsabilidade do profissional habilitado parceiro.
+        </p>
+      </div>
+    </aside>
+  )
+
+  // ── Chat column content ──────────────────────────────────────────────────
+  const chatColumn = (
+    <div className="flex flex-col lg:overflow-hidden" style={{ background: "var(--rai-bone-100)" }}>
+      {/* Banner "Triagem concluída" */}
+      {showTriageBanner && (
+        <div
+          className="mx-4 mt-4 flex items-start justify-between gap-3 rounded-md bg-green-50 px-4 py-3 shadow-hair md:mx-10"
+          role="alert"
+          aria-live="assertive"
+        >
+          <div className="flex items-start gap-2.5">
+            <Icon name="check" size={16} className="mt-0.5 shrink-0 text-green-600" />
+            <div>
+              <p className="text-sm font-semibold text-green-800">
+                Triagem concluída! Seu caso foi classificado.
+              </p>
+              <p className="mt-0.5 text-xs text-green-700">
+                Acesse a aba Documentos para continuar.{" "}
+                <Link
+                  href={`/cases/${caseId}/documents`}
+                  className="font-semibold underline underline-offset-2 hover:no-underline"
+                >
+                  Ir agora →
+                </Link>
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowTriageBanner(false)}
+            className="cursor-pointer text-green-600 hover:text-green-800"
+            aria-label="Fechar aviso"
+          >
+            <Icon name="close" size={14} />
+          </button>
+        </div>
+      )}
+
+      {/* Messages */}
+      <div className="flex flex-1 flex-col gap-5 overflow-y-auto px-4 py-5 md:px-10 md:py-7">
+        {messages.length === 0 && (
+          <AIMessage>
+            Olá! Sou o assistente da ReformAI. Descreva sua reforma em linguagem
+            natural e vou conduzir a triagem técnica.
+          </AIMessage>
+        )}
+        {messages.map((m) => {
+          const isUser = m.role === "USER"
+          const cleanContent = m.content.trim()
+          return isUser ? (
+            <div key={m.id} data-testid="chat-message-user">
+              <UserMessage>
+                {cleanContent || "(coletando dados…)"}
+              </UserMessage>
+            </div>
+          ) : (
+            <div key={m.id} data-testid="chat-message-assistant">
+              <AIMessage
+                disclaimer="Esta análise é assistiva. O Rule Engine valida deterministicamente e casos HIGH/CRITICAL passam por revisão humana."
+              >
+                {cleanContent || "(coletando dados…)"}
+              </AIMessage>
+            </div>
+          )
+        })}
+        {sending && streamingContent && (
+          <div data-testid="chat-message-assistant">
+            <AIMessage>{streamingContent}</AIMessage>
+          </div>
+        )}
+        {sending && !streamingContent && (
+          <div className="flex items-end gap-3">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-green-900">
+              <Icon name="sparkle" size={14} className="text-green-300" />
+            </div>
+            <div className="flex gap-1 rounded-[2px_12px_12px_12px] bg-surface px-4 py-3 shadow-hair">
+              {[0, 1, 2].map((i) => (
+                <span
+                  key={i}
+                  className="h-1.5 w-1.5 rounded-full bg-ink-300"
+                  style={{ opacity: 0.4 + 0.2 * i }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+        <div ref={endRef} />
+      </div>
+
+      {/* Composer */}
+      <div
+        className="border-t border-divider px-4 pb-4 pt-3 md:px-10 md:pb-6 md:pt-4"
+        style={{ background: "var(--rai-bone-100)" }}
+      >
+        <form
+          onSubmit={send}
+          className="flex flex-col gap-2.5 rounded-md bg-surface p-3.5 shadow-1"
+        >
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Descreva a reforma…"
+            className="min-h-[22px] border-none bg-transparent text-sm text-ink-900 outline-none placeholder:text-ink-300"
+            disabled={sending}
+            data-testid="chat-input"
+          />
+          <div className="flex items-center justify-between">
+            {/* Botão de anexar → link para documentos */}
+            <Link
+              href={`/cases/${caseId}/documents`}
+              className="flex h-8 items-center gap-1.5 rounded px-2 text-xs text-ink-500 hover:bg-bone-100 hover:text-ink-700 transition-colors"
+              title="Enviar documentos"
+              tabIndex={-1}
+            >
+              <Icon name="paperclip" size={14} />
+              <span className="hidden sm:inline">Documentos</span>
+            </Link>
+            <Button
+              type="submit"
+              variant="primary"
+              size="sm"
+              iconRight="send"
+              disabled={sending || !input.trim()}
+              data-testid="chat-send"
+            >
+              {sending ? "Enviando…" : "Enviar"}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
 
   return (
     <>
@@ -272,189 +613,56 @@ export default function CaseDetailPage() {
         <span className="sr-only" data-testid="case-risk-level">{data.riskLevel}</span>
       )}
 
-      <div className="grid flex-1 grid-cols-1 lg:grid-cols-[1fr_320px] lg:overflow-hidden">
-        {/* Chat column */}
-        <div className="flex flex-col lg:overflow-hidden" style={{ background: "var(--rai-bone-100)" }}>
-          {/* messages */}
-          <div className="flex flex-1 flex-col gap-5 overflow-y-auto px-4 py-5 md:px-10 md:py-7">
-            {messages.length === 0 && (
-              <AIMessage>
-                Olá! Sou o assistente da ReformAI. Descreva sua reforma em linguagem
-                natural e vou conduzir a triagem técnica.
-              </AIMessage>
-            )}
-            {messages.map((m) => {
-              const isUser = m.role === "USER"
-              const cleanContent = m.content.trim()
-              return isUser ? (
-                <div key={m.id} data-testid="chat-message-user">
-                  <UserMessage>
-                    {cleanContent || "(coletando dados…)"}
-                  </UserMessage>
-                </div>
-              ) : (
-                <div key={m.id} data-testid="chat-message-assistant">
-                  <AIMessage
-                    disclaimer="Esta análise é assistiva. O Rule Engine valida deterministicamente e casos HIGH/CRITICAL passam por revisão humana."
-                  >
-                    {cleanContent || "(coletando dados…)"}
-                  </AIMessage>
-                </div>
-              )
-            })}
-            {sending && streamingContent && (
-              <div data-testid="chat-message-assistant">
-                <AIMessage>{streamingContent}</AIMessage>
-              </div>
-            )}
-            {sending && !streamingContent && (
-              <div className="flex items-end gap-3">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-green-900">
-                  <Icon name="sparkle" size={14} className="text-green-300" />
-                </div>
-                <div className="flex gap-1 rounded-[2px_12px_12px_12px] bg-surface px-4 py-3 shadow-hair">
-                  {[0, 1, 2].map((i) => (
-                    <span
-                      key={i}
-                      className="h-1.5 w-1.5 rounded-full bg-ink-300"
-                      style={{ opacity: 0.4 + 0.2 * i }}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-            <div ref={endRef} />
-          </div>
+      {/* Mobile tabs (oculto em lg) */}
+      <div className="flex border-b border-divider lg:hidden" role="tablist" aria-label="Seções do caso">
+        <button
+          role="tab"
+          aria-selected={activeTab === "chat"}
+          aria-controls="panel-chat"
+          onClick={() => setActiveTab("chat")}
+          className={`flex-1 cursor-pointer py-2.5 text-sm font-medium transition-colors ${
+            activeTab === "chat"
+              ? "border-b-2 border-green-600 text-green-700"
+              : "text-ink-500 hover:text-ink-700"
+          }`}
+        >
+          Chat
+        </button>
+        <button
+          role="tab"
+          aria-selected={activeTab === "details"}
+          aria-controls="panel-details"
+          onClick={() => setActiveTab("details")}
+          className={`flex-1 cursor-pointer py-2.5 text-sm font-medium transition-colors ${
+            activeTab === "details"
+              ? "border-b-2 border-green-600 text-green-700"
+              : "text-ink-500 hover:text-ink-700"
+          }`}
+        >
+          Detalhes
+        </button>
+      </div>
 
-          {/* Composer */}
-          <div
-            className="border-t border-divider px-4 pb-4 pt-3 md:px-10 md:pb-6 md:pt-4"
-            style={{ background: "var(--rai-bone-100)" }}
-          >
-            <form
-              onSubmit={send}
-              className="flex flex-col gap-2.5 rounded-md bg-surface p-3.5 shadow-1"
-            >
-              <input
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="Descreva a reforma…"
-                className="min-h-[22px] border-none bg-transparent text-sm text-ink-900 outline-none placeholder:text-ink-300"
-                disabled={sending}
-                data-testid="chat-input"
-              />
-              <div className="flex items-center justify-between">
-                <div className="flex gap-1">
-                  <button
-                    type="button"
-                    className="flex h-8 w-8 items-center justify-center rounded border-0 bg-transparent text-ink-500 hover:bg-bone-100"
-                    tabIndex={-1}
-                  >
-                    <Icon name="paperclip" size={15} />
-                  </button>
-                </div>
-                <Button
-                  type="submit"
-                  variant="primary"
-                  size="sm"
-                  iconRight="send"
-                  disabled={sending || !input.trim()}
-                  data-testid="chat-send"
-                >
-                  {sending ? "Enviando…" : "Enviar"}
-                </Button>
-              </div>
-            </form>
-          </div>
+      {/* Grid principal */}
+      <div className="grid flex-1 grid-cols-1 lg:grid-cols-[1fr_320px] lg:overflow-hidden">
+        {/* Chat column — oculto em mobile quando aba "details" está ativa */}
+        <div
+          id="panel-chat"
+          role="tabpanel"
+          className={activeTab === "details" ? "hidden lg:flex lg:flex-col lg:overflow-hidden" : "flex flex-col lg:overflow-hidden"}
+          style={{ background: "var(--rai-bone-100)" }}
+        >
+          {chatColumn}
         </div>
 
-        {/* Right rail */}
-        <aside className="overflow-y-auto border-t border-divider bg-paper p-4 md:p-6 lg:border-l lg:border-t-0">
-          <Eyebrow>Caso em andamento</Eyebrow>
-          <p className="mt-1.5 font-mono text-sm text-ink-500">{data.protocol}</p>
-
-          {/* Status & Risk */}
-          <div className="mt-5 flex items-center justify-between">
-            <div>
-              <Eyebrow className="mb-1.5">Status</Eyebrow>
-              <StatusChip status={data.status} />
-            </div>
-            {data.riskLevel && (
-              <div className="text-right">
-                <Eyebrow className="mb-1.5">Risco</Eyebrow>
-                <RiskBadge
-                  level={data.riskLevel as RiskLevel}
-                  score={data.triageScore ?? undefined}
-                  size="sm"
-                />
-              </div>
-            )}
-          </div>
-
-          {/* ART */}
-          {data.requiresART !== null && (
-            <div className="mt-4 flex items-center gap-2">
-              <Icon name="doc" size={14} className="text-ink-400" />
-              <span className="text-xs text-ink-600">
-                ART/RRT:{" "}
-                <strong>{data.requiresART ? "Exigida" : "Não exigida"}</strong>
-              </span>
-            </div>
-          )}
-
-          {/* Evaluation / Triggered rules */}
-          <div className="mt-5" data-testid="evaluation-result">
-            <Eyebrow className="mb-2">Regras disparadas</Eyebrow>
-            {triggered.length === 0 ? (
-              <p className="text-xs text-ink-400">Aguardando classificação…</p>
-            ) : (
-              <div className="flex flex-col gap-2">
-                {triggered.map((r: any) => (
-                  <div
-                    key={r.ruleId}
-                    className="rounded-sm bg-bone-100 px-3 py-2"
-                  >
-                    <p className="text-xs font-semibold text-ink-900">{r.ruleName}</p>
-                    <p className="mt-0.5 text-xs text-ink-500">{r.reason}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Timeline */}
-          {triggered.length > 0 && (
-            <div className="mt-5">
-              <Eyebrow className="mb-3">Próximas etapas</Eyebrow>
-              <Timeline
-                dense
-                items={[
-                  { title: "Triagem técnica", family: "done", current: false },
-                  {
-                    title: "Checklist documental",
-                    family: "progress",
-                    current: data.status === "AWAITING_DOCUMENTS" || data.status === "DOCUMENTS_UNDER_REVIEW",
-                  },
-                  {
-                    title: "Revisão humana",
-                    family: "review",
-                    current: data.status === "HUMAN_REVIEW_REQUIRED",
-                  },
-                  { title: "Liberação", family: "ok", current: data.status === "ELIGIBLE_FOR_RELEASE" },
-                ]}
-              />
-            </div>
-          )}
-
-          {/* ART/RRT disclaimer — always visible */}
-          <div className="mt-5 flex items-start gap-2.5 rounded-md bg-violet-100 px-3.5 py-3">
-            <Icon name="shield" size={16} className="mt-0.5 shrink-0 text-violet-600" />
-            <p className="text-xs leading-relaxed text-violet-600">
-              <strong>A plataforma não emite ART/RRT.</strong> A emissão formal é
-              responsabilidade do profissional habilitado parceiro.
-            </p>
-          </div>
-        </aside>
+        {/* Right rail — oculto em mobile quando aba "chat" está ativa */}
+        <div
+          id="panel-details"
+          role="tabpanel"
+          className={activeTab === "chat" ? "hidden lg:block" : "block"}
+        >
+          {rightRail}
+        </div>
       </div>
     </>
   )
