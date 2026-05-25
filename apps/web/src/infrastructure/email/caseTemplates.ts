@@ -75,6 +75,30 @@ function layout(title: string, body: string): string {
 
 export const CASE_STATUS_TEMPLATES: Partial<Record<CaseStatus, CaseEmailTemplate>> = {
 
+  // ── Síndico: aguardando aprovação ──────────────────────────────────────
+  AWAITING_SYNDIC_APPROVAL: {
+    targets: ["CONDOMINIUM", "CLIENT"],
+    subject: (p) => `[${p}] Reforma aguarda sua aprovação`,
+    html: ({ protocol, caseUrl, recipientName }) =>
+      layout(
+        "Reforma aguarda aprovação do síndico",
+        `
+        <p>Olá, <strong>${recipientName}</strong>!</p>
+        <div class="protocol-badge">${protocol}</div>
+        <div class="alert">
+          <strong>Ação necessária:</strong> uma reforma solicitada no seu condomínio
+          aguarda a sua aprovação antes de prosseguir para a análise técnica.
+        </div>
+        <p>
+          Acesse o painel do síndico para revisar os detalhes da reforma, o escopo
+          declarado e o nível de risco calculado. Você pode aprovar ou recusar
+          com um comentário.
+        </p>
+        <p><a class="cta" href="${caseUrl}">Revisar reforma agora</a></p>
+        `,
+      ),
+  },
+
   // ── Morador: enviar documentos ──────────────────────────────────────────
   AWAITING_DOCUMENTS: {
     targets: ["CLIENT"],
@@ -340,6 +364,7 @@ export const STATUS_LABELS: Partial<Record<CaseStatus, string>> = {
   DRAFT: "Rascunho",
   AWAITING_SCOPE_DETAILS: "Aguardando detalhes do escopo",
   SCOPE_CLASSIFIED: "Escopo classificado",
+  AWAITING_SYNDIC_APPROVAL: "Aguardando aprovação do síndico",
   AWAITING_DOCUMENTS: "Aguardando documentos",
   DOCUMENTS_UNDER_REVIEW: "Documentos em análise",
   PENDING_CORRECTIONS: "Correções pendentes",

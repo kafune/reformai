@@ -2,6 +2,7 @@ export type CaseStatus =
   | "DRAFT"
   | "AWAITING_SCOPE_DETAILS"
   | "SCOPE_CLASSIFIED"
+  | "AWAITING_SYNDIC_APPROVAL"
   | "AWAITING_DOCUMENTS"
   | "DOCUMENTS_UNDER_REVIEW"
   | "PENDING_CORRECTIONS"
@@ -27,11 +28,12 @@ type Family =
   | "done"
   | "archived"
 
-/** Mapa dos 17 estados do caso → 8 famílias visuais + rótulo PT-BR. */
+/** Mapa dos 18 estados do caso → 8 famílias visuais + rótulo PT-BR. */
 const MAP: Record<CaseStatus, { fam: Family; label: string }> = {
   DRAFT: { fam: "draft", label: "Rascunho" },
   AWAITING_SCOPE_DETAILS: { fam: "progress", label: "Aguardando escopo" },
   SCOPE_CLASSIFIED: { fam: "progress", label: "Escopo classificado" },
+  AWAITING_SYNDIC_APPROVAL: { fam: "review", label: "Aguardando síndico" },
   AWAITING_DOCUMENTS: { fam: "progress", label: "Aguardando documentos" },
   DOCUMENTS_UNDER_REVIEW: { fam: "progress", label: "Documentos em análise" },
   PENDING_CORRECTIONS: { fam: "attention", label: "Pendências de correção" },

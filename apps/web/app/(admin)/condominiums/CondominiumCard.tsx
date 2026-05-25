@@ -11,6 +11,7 @@ const toForm = (c: Condominium) => ({
   city: c.city,
   state: c.state,
   tenantId: c.tenantId,
+  requiresSyndicApproval: c.requiresSyndicApproval,
 })
 
 /** Cartão de um condomínio: exibe dados, edição inline e painel de unidades. */
@@ -46,6 +47,7 @@ export function CondominiumCard({
       address: form.address,
       city: form.city,
       state: form.state,
+      requiresSyndicApproval: form.requiresSyndicApproval,
     }
 
     // Inclui tenantId na payload apenas se SUPER_ADMIN alterou
@@ -154,6 +156,29 @@ export function CondominiumCard({
               </option>
             ))}
           </Select>
+          {/* Toggle: exigir aprovação do síndico */}
+          <div className="md:col-span-2">
+            <label className="flex cursor-pointer items-center gap-3">
+              <input
+                type="checkbox"
+                checked={form.requiresSyndicApproval}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, requiresSyndicApproval: e.target.checked }))
+                }
+                className="h-4 w-4 rounded border-divider text-green-600 focus:ring-green-500"
+              />
+              <div>
+                <span className="text-sm font-medium text-ink-900">
+                  Exigir aprovação do síndico antes da análise técnica
+                </span>
+                <p className="text-xs text-ink-500 mt-0.5">
+                  Quando ativado, reformas deste condomínio aguardarão aprovação do síndico
+                  antes de avançar para análise técnica.
+                </p>
+              </div>
+            </label>
+          </div>
+
           {error && <p className="text-sm text-iron-600 md:col-span-2">{error}</p>}
           <div className="flex gap-2 md:col-span-2">
             <Button type="submit" variant="primary" size="sm" disabled={saving}>
@@ -208,6 +233,11 @@ export function CondominiumCard({
               <span className="font-mono text-sm text-ink-700">{condominium.caseCount}</span>{" "}
               caso(s)
             </span>
+            {condominium.requiresSyndicApproval && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700">
+                ⏳ Aprovação síndico
+              </span>
+            )}
           </div>
 
           <div className="flex items-center gap-3">

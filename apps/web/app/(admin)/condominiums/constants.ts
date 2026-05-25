@@ -12,6 +12,7 @@ export interface Condominium {
   city: string
   state: string
   active: boolean
+  requiresSyndicApproval: boolean
   createdAt: string
   unitCount: number
   caseCount: number

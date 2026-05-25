@@ -7,6 +7,7 @@ import { PrismaPolicyRepository } from "@/modules/rule-engine/infrastructure/Pri
 import type { ReformCaseRepository } from "../domain/repositories/ReformCaseRepository"
 import type { PolicyEvaluationResult } from "@/modules/rule-engine/domain/types"
 import { getCaseNotificationService } from "./CaseNotificationService"
+import { prisma } from "@/infrastructure/database/prisma"
 
 export interface ClassifyScopeRequest {
   caseId: string
@@ -36,8 +37,21 @@ export class ClassifyScopeUseCase {
     const policy = await this.policies.resolveForCondominium(existing.condominiumId, req.tenantId)
     const evaluation = this.evaluator.evaluate(scope, policy)
 
+    // Verifica se o condomínio exige aprovação do síndico
+    const condominium = await prisma.condominium.findUnique({
+      where: { id: existing.condominiumId },
+      select: { requiresSyndicApproval: true },
+    })
+
+    // Se exige aprovação do síndico e o destino seria AWAITING_DOCUMENTS, desvia para aprovação
+    const targetStatus =
+      condominium?.requiresSyndicApproval &&
+      evaluation.recommendedStatus === "AWAITING_DOCUMENTS"
+        ? ("AWAITING_SYNDIC_APPROVAL" as const)
+        : evaluation.recommendedStatus
+
     const sm = new CaseStateMachine(existing.status, evaluation.riskLevel)
-    const newStatus = sm.transition(evaluation.recommendedStatus, {
+    const newStatus = sm.transition(targetStatus, {
       triggeredBy: req.triggeredBy,
       previousStatus: existing.status,
       reason: `Classificação determinística. Score: ${evaluation.triageScore}`,

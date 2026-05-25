@@ -15,6 +15,8 @@ const UpdateCondominiumSchema = z.object({
   city: z.string().min(1).max(120).optional(),
   state: z.string().length(2).optional(),
   active: z.boolean().optional(),
+  /** Configura se síndico deve aprovar antes da análise técnica. */
+  requiresSyndicApproval: z.boolean().optional(),
   /** Apenas SUPER_ADMIN: reatribui o condomínio a outro tenant. */
   tenantId: z.string().min(1).optional(),
 })
@@ -62,6 +64,7 @@ export async function PATCH(req: NextRequest, ctx: { params: { condominiumId: st
         city: body.city?.trim(),
         state: body.state?.trim().toUpperCase(),
         active: body.active,
+        requiresSyndicApproval: body.requiresSyndicApproval,
         ...(user.role === "SUPER_ADMIN" && body.tenantId ? { tenantId: body.tenantId } : {}),
       },
       include: {
@@ -79,6 +82,7 @@ export async function PATCH(req: NextRequest, ctx: { params: { condominiumId: st
         city: updated.city,
         state: updated.state,
         active: updated.active,
+        requiresSyndicApproval: updated.requiresSyndicApproval,
         createdAt: updated.createdAt,
         unitCount: updated._count.units,
         caseCount: updated._count.cases,
