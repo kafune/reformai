@@ -5,10 +5,14 @@ import { prisma } from "@/infrastructure/database/prisma"
 import { buildEmailProvider } from "@/infrastructure/email/ResendEmailProvider"
 import { triageDoneTemplate } from "@/infrastructure/email/templates"
 import { PrismaReformCaseRepository } from "@/modules/case-intake/infrastructure/repositories/PrismaReformCaseRepository"
+import { PrismaDocumentRepository } from "@/modules/document-management/infrastructure/PrismaDocumentRepository"
 import { TriageAgent } from "@/modules/case-intake/application/TriageAgent"
 import { AnthropicProvider } from "@/modules/document-intelligence/infrastructure/llm/AnthropicProvider"
 import { ClassifyScopeUseCase } from "@/modules/case-intake/application/ClassifyScopeUseCase"
 import { NotifyUserUseCase } from "@/modules/notifications/application/NotifyUserUseCase"
+import { createOrchestrator } from "@/modules/case-intake/application/ChatOrchestrator"
+import type { PluginContext } from "@/modules/case-intake/domain/specialists/SpecialistPlugin"
+import type { ReformScope } from "@/shared/schemas/ReformScopeSchema"
 import { logger } from "@/shared/logger"
 
 export const dynamic = "force-dynamic"
@@ -29,6 +33,7 @@ function jsonError(error: string, status: number) {
 /**
  * Triagem via chat com streaming SSE.
  * EventSource só faz GET — o conteúdo da mensagem vai como query param `content`.
+ * O specialist pode ser passado como `specialistId` (opcional).
  */
 export async function GET(req: NextRequest, ctx: { params: { caseId: string } }) {
   let user
@@ -43,17 +48,24 @@ export async function GET(req: NextRequest, ctx: { params: { caseId: string } })
   if (!content) return jsonError("VALIDATION", 400)
   if (content.length > MAX_CONTENT) return jsonError("VALIDATION", 400)
 
+  // Optional: explicit specialist selection
+  const explicitSpecialistId = req.nextUrl.searchParams.get("specialistId")
+
   const tenantId = user.tenantId
   try {
     await assertCaseAccess(user, caseId)
   } catch (err) {
-    return jsonError((err as Error & { code?: string }).code === "FORBIDDEN" ? "FORBIDDEN" : "NOT_FOUND", (err as Error & { code?: string }).code === "FORBIDDEN" ? 403 : 404)
+    return jsonError(
+      (err as Error & { code?: string }).code === "FORBIDDEN" ? "FORBIDDEN" : "NOT_FOUND",
+      (err as Error & { code?: string }).code === "FORBIDDEN" ? 403 : 404,
+    )
   }
+
   const repo = new PrismaReformCaseRepository()
+  const docRepo = new PrismaDocumentRepository(prisma)
+
   const reformCase = await repo.findById(caseId, tenantId)
   if (!reformCase) return jsonError("NOT_FOUND", 404)
-
-  const agent = new TriageAgent(new AnthropicProvider())
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -64,6 +76,69 @@ export async function GET(req: NextRequest, ctx: { params: { caseId: string } })
         const history = await repo.listMessages(caseId, tenantId)
         const priorHistory = history.slice(0, -1).map((m) => ({ role: m.role, content: m.content }))
 
+        // Load documents for PluginContext
+        const docs = await docRepo.findByCaseId(caseId, tenantId)
+
+        const pluginCtx: PluginContext = {
+          caseId,
+          tenantId,
+          message: content,
+          history: priorHistory,
+          reformCase: {
+            status: reformCase.status,
+            reformScope: reformCase.reformScope as ReformScope | null,
+            evaluationResult: reformCase.evaluationResult as Record<string, unknown> | null,
+            riskLevel: reformCase.riskLevel,
+            condominiumId: reformCase.condominiumId,
+            unitId: reformCase.unitId,
+            clientId: reformCase.clientId,
+          },
+          documents: docs.map((d) => ({
+            id: d.id,
+            type: d.type,
+            fileName: d.fileName,
+            status: d.status,
+            extractedData: d.extractedData,
+            pendencies: d.pendencies,
+            inconsistencies: d.inconsistencies,
+          })),
+        }
+
+        const orchestrator = createOrchestrator()
+        const specialist = orchestrator.resolve(content, pluginCtx, explicitSpecialistId)
+
+        // ── Non-triage specialist path ────────────────────────────────────────
+        if (specialist.id !== "triage") {
+          const { textChunks, result } = specialist.processStream(pluginCtx)
+
+          let fullText = ""
+          for await (const chunk of textChunks) {
+            fullText += chunk
+            controller.enqueue(sse({ type: "chunk", content: chunk }))
+          }
+
+          const pluginResult = await result
+          const assistantMsg = await repo.appendMessage(
+            caseId,
+            tenantId,
+            "ASSISTANT",
+            pluginResult.text || fullText,
+            {
+              specialistId: pluginResult.metadata.specialistId,
+              reportId: pluginResult.metadata.reportId,
+              sources: pluginResult.metadata.sources,
+              processSteps: pluginResult.metadata.processSteps,
+            },
+          )
+
+          controller.enqueue(
+            sse({ type: "done", message: assistantMsg, specialistId: specialist.id }),
+          )
+          return
+        }
+
+        // ── Triage specialist path (original flow) ────────────────────────────
+        const agent = new TriageAgent(new AnthropicProvider())
         const { textChunks, scopePromise } = agent.processStream(priorHistory, content)
 
         let fullText = ""
@@ -75,14 +150,15 @@ export async function GET(req: NextRequest, ctx: { params: { caseId: string } })
         const scope = await scopePromise
 
         const assistantText =
-          fullText ||
-          (scope ? `Escopo registrado: ${scope.services.join(", ")}.` : "")
+          fullText || (scope ? `Escopo registrado: ${scope.services.join(", ")}.` : "")
         const assistantMsg = await repo.appendMessage(
           caseId,
           tenantId,
           "ASSISTANT",
           assistantText,
-          scope ? { extractedScope: scope } : undefined,
+          scope
+            ? { extractedScope: scope, specialistId: "triage" }
+            : { specialistId: "triage" },
         )
 
         let scopeClassified = false
@@ -142,7 +218,14 @@ export async function GET(req: NextRequest, ctx: { params: { caseId: string } })
           }
         }
 
-        controller.enqueue(sse({ type: "done", scopeClassified, message: assistantMsg }))
+        controller.enqueue(
+          sse({
+            type: "done",
+            scopeClassified,
+            message: assistantMsg,
+            specialistId: "triage",
+          }),
+        )
       } catch (err) {
         logger.error("case.triage.stream_error", {
           tenantId,
