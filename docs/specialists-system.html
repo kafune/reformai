@@ -1,0 +1,1168 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sistema de Specialists — ReformAI</title>
+  <style>
+    :root {
+      --green-900: #1a3a2a;
+      --green-700: #2d6a4f;
+      --green-500: #52b788;
+      --green-100: #d8f3dc;
+      --green-50:  #f0faf3;
+      --ochre-700: #a05c1a;
+      --ochre-100: #fef3e2;
+      --azulejo-700: #1e4d7b;
+      --azulejo-100: #dbeafe;
+      --violet-700: #5b2d8a;
+      --violet-100: #f3e8ff;
+      --iron-700:   #374151;
+      --iron-100:   #f3f4f6;
+      --ink-900: #111827;
+      --ink-700: #374151;
+      --ink-500: #6b7280;
+      --ink-400: #9ca3af;
+      --bone-200: #f0ede8;
+      --bone-100: #f8f6f2;
+      --surface: #ffffff;
+      --paper: #fafaf8;
+      --divider: #e5e0d8;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--paper);
+      color: var(--ink-900);
+      line-height: 1.6;
+    }
+
+    /* ── HEADER ── */
+    .hero {
+      background: linear-gradient(135deg, var(--green-900) 0%, #0f2d1e 100%);
+      color: #fff;
+      padding: 56px 48px 48px;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at 80% 20%, rgba(82,183,136,.18) 0%, transparent 60%);
+    }
+    .hero-eyebrow {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--green-500);
+      margin-bottom: 12px;
+    }
+    .hero h1 {
+      font-size: clamp(26px, 4vw, 42px);
+      font-weight: 800;
+      letter-spacing: -.02em;
+      line-height: 1.15;
+      max-width: 640px;
+      position: relative;
+    }
+    .hero h1 span { color: var(--green-500); }
+    .hero-sub {
+      margin-top: 16px;
+      font-size: 16px;
+      color: rgba(255,255,255,.72);
+      max-width: 560px;
+      position: relative;
+    }
+    .hero-meta {
+      margin-top: 28px;
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+      position: relative;
+    }
+    .hero-meta-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      color: rgba(255,255,255,.6);
+    }
+    .hero-meta-item strong { color: rgba(255,255,255,.9); }
+
+    /* ── LAYOUT ── */
+    .container { max-width: 960px; margin: 0 auto; padding: 0 24px; }
+    .section { padding: 48px 0; }
+    .section + .section { border-top: 1px solid var(--divider); }
+
+    h2 {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--ink-900);
+      margin-bottom: 8px;
+      letter-spacing: -.01em;
+    }
+    h3 {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--ink-700);
+      margin-bottom: 6px;
+    }
+    p { font-size: 14px; color: var(--ink-700); margin-bottom: 12px; }
+    p:last-child { margin-bottom: 0; }
+
+    .eyebrow {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--green-700);
+      background: var(--green-100);
+      padding: 3px 8px;
+      border-radius: 3px;
+      margin-bottom: 14px;
+    }
+
+    /* ── SPECIALIST CARDS ── */
+    .specialists-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+      margin-top: 24px;
+    }
+
+    .specialist-card {
+      background: var(--surface);
+      border: 1px solid var(--divider);
+      border-radius: 10px;
+      padding: 20px;
+      position: relative;
+      overflow: hidden;
+      transition: box-shadow .15s;
+    }
+    .specialist-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.08); }
+    .specialist-card::before {
+      content: "";
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      border-radius: 10px 10px 0 0;
+    }
+    .card-green::before   { background: var(--green-500); }
+    .card-azulejo::before { background: #3b82f6; }
+    .card-ochre::before   { background: #f59e0b; }
+    .card-violet::before  { background: #8b5cf6; }
+    .card-iron::before    { background: #6b7280; }
+
+    .card-icon {
+      width: 40px; height: 40px;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+      margin-bottom: 12px;
+    }
+    .card-green   .card-icon { background: var(--green-100); }
+    .card-azulejo .card-icon { background: var(--azulejo-100); }
+    .card-ochre   .card-icon { background: var(--ochre-100); }
+    .card-violet  .card-icon { background: var(--violet-100); }
+    .card-iron    .card-icon { background: var(--iron-100); }
+
+    .card-title { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+    .card-id {
+      font-family: "SF Mono", "Fira Code", monospace;
+      font-size: 10px;
+      color: var(--ink-400);
+      background: var(--bone-100);
+      padding: 1px 6px;
+      border-radius: 3px;
+      margin-bottom: 10px;
+      display: inline-block;
+    }
+    .card-desc { font-size: 13px; color: var(--ink-500); margin-bottom: 12px; }
+    .card-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+    .tag {
+      font-size: 10px;
+      font-weight: 500;
+      padding: 2px 7px;
+      border-radius: 20px;
+      border: 1px solid;
+    }
+    .tag-green   { color: var(--green-700);   background: var(--green-100);   border-color: #a7f3c4; }
+    .tag-azulejo { color: var(--azulejo-700); background: var(--azulejo-100); border-color: #bfdbfe; }
+    .tag-ochre   { color: var(--ochre-700);   background: var(--ochre-100);   border-color: #fde68a; }
+    .tag-violet  { color: var(--violet-700);  background: var(--violet-100);  border-color: #ddd6fe; }
+    .tag-iron    { color: var(--iron-700);    background: var(--iron-100);    border-color: #d1d5db; }
+
+    /* ── FLOW DIAGRAM ── */
+    .flow {
+      background: var(--surface);
+      border: 1px solid var(--divider);
+      border-radius: 10px;
+      padding: 28px;
+      margin-top: 20px;
+    }
+    .flow-title { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-400); margin-bottom: 20px; }
+
+    .flow-row { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 8px; }
+    .flow-step {
+      display: flex; align-items: center; gap: 10px;
+      background: var(--bone-100);
+      border: 1px solid var(--divider);
+      border-radius: 7px;
+      padding: 10px 14px;
+      flex: 1;
+      font-size: 13px;
+    }
+    .flow-step-num {
+      width: 22px; height: 22px;
+      background: var(--green-700);
+      color: #fff;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 700;
+      flex-shrink: 0;
+    }
+    .flow-arrow {
+      color: var(--ink-400);
+      font-size: 18px;
+      align-self: center;
+      flex-shrink: 0;
+    }
+    .flow-branch {
+      display: flex; gap: 8px; flex-wrap: wrap; margin-left: 34px; margin-top: 4px;
+    }
+    .flow-specialist {
+      display: flex; align-items: center; gap: 6px;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 12px; font-weight: 500;
+      border: 1px solid;
+    }
+    .fs-green   { background: var(--green-100);   color: var(--green-700);   border-color: #a7f3c4; }
+    .fs-azulejo { background: var(--azulejo-100); color: var(--azulejo-700); border-color: #bfdbfe; }
+    .fs-ochre   { background: var(--ochre-100);   color: var(--ochre-700);   border-color: #fde68a; }
+    .fs-violet  { background: var(--violet-100);  color: var(--violet-700);  border-color: #ddd6fe; }
+    .fs-iron    { background: var(--iron-100);    color: var(--iron-700);    border-color: #d1d5db; }
+    .fs-auto    { background: #fff; color: var(--ink-700); border-color: var(--divider); font-style: italic; }
+
+    /* ── ARCHITECTURE LAYERS ── */
+    .layers {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 2px;
+      margin-top: 20px;
+    }
+    .layer {
+      display: flex;
+      align-items: stretch;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .layer-label {
+      width: 120px;
+      flex-shrink: 0;
+      background: var(--green-900);
+      color: var(--green-500);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      display: flex; align-items: center; justify-content: center;
+      padding: 14px 8px;
+      text-align: center;
+    }
+    .layer-content {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--divider);
+      border-left: none;
+      padding: 12px 16px;
+      display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+    }
+    .layer-pill {
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 5px;
+      border: 1px solid var(--divider);
+      background: var(--bone-100);
+      color: var(--ink-700);
+      font-family: "SF Mono", "Fira Code", monospace;
+    }
+    .layer-pill.new {
+      background: var(--green-100);
+      border-color: #a7f3c4;
+      color: var(--green-700);
+      font-weight: 600;
+    }
+    .layer-pill.existing {
+      background: var(--bone-200);
+      color: var(--ink-500);
+    }
+
+    /* ── CODE BLOCK ── */
+    pre {
+      background: #0f1117;
+      color: #e2e8f0;
+      border-radius: 8px;
+      padding: 20px;
+      font-family: "SF Mono", "Fira Code", monospace;
+      font-size: 12.5px;
+      line-height: 1.6;
+      overflow-x: auto;
+      margin-top: 16px;
+    }
+    .kw  { color: #93c5fd; }
+    .str { color: #86efac; }
+    .cmt { color: #6b7280; font-style: italic; }
+    .fn  { color: #fde68a; }
+    .tp  { color: #f9a8d4; }
+    .op  { color: #94a3b8; }
+
+    /* ── UI MOCKUP ── */
+    .mockup {
+      background: var(--surface);
+      border: 1px solid var(--divider);
+      border-radius: 10px;
+      overflow: hidden;
+      margin-top: 20px;
+      box-shadow: 0 2px 12px rgba(0,0,0,.06);
+    }
+    .mockup-bar {
+      background: var(--bone-100);
+      border-bottom: 1px solid var(--divider);
+      padding: 10px 14px;
+      display: flex; gap: 6px; align-items: center;
+    }
+    .dot { width: 10px; height: 10px; border-radius: 50%; }
+    .dot-r { background: #ff5f57; }
+    .dot-y { background: #ffbd2e; }
+    .dot-g { background: #28c840; }
+    .mockup-body { display: flex; height: 420px; }
+    .mockup-chat { flex: 1; display: flex; flex-direction: column; }
+    .mockup-messages { flex: 1; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+    .msg-user {
+      align-self: flex-end;
+      background: var(--green-700);
+      color: #fff;
+      padding: 8px 14px;
+      border-radius: 14px 14px 3px 14px;
+      font-size: 13px;
+      max-width: 70%;
+    }
+    .msg-ai-wrap { align-self: flex-start; max-width: 75%; }
+    .msg-specialist-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: .04em;
+      margin-bottom: 4px;
+      display: flex; align-items: center; gap: 4px;
+    }
+    .dot-sm { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+    .msg-ai {
+      background: var(--bone-100);
+      border: 1px solid var(--divider);
+      padding: 10px 14px;
+      border-radius: 3px 14px 14px 14px;
+      font-size: 13px;
+      color: var(--ink-700);
+    }
+    .msg-ai ul { padding-left: 16px; margin-top: 4px; }
+    .msg-ai li { font-size: 12px; margin-bottom: 2px; }
+    .msg-sources {
+      margin-top: 6px;
+      display: flex; flex-wrap: wrap; gap: 4px;
+    }
+    .source-pill {
+      font-size: 10px;
+      padding: 2px 7px;
+      background: var(--violet-100);
+      color: var(--violet-700);
+      border: 1px solid #ddd6fe;
+      border-radius: 3px;
+      font-family: monospace;
+    }
+    .mockup-chips {
+      border-top: 1px solid var(--divider);
+      padding: 8px 12px 4px;
+      display: flex; gap: 6px; overflow-x: auto;
+    }
+    .chip {
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 500;
+      border: 1px solid;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+    .chip-auto    { background: #fff; color: var(--ink-600); border-color: var(--divider); }
+    .chip-green   { background: var(--green-100);   color: var(--green-700);   border-color: #a7f3c4; }
+    .chip-azulejo { background: var(--azulejo-100); color: var(--azulejo-700); border-color: #bfdbfe; }
+    .chip-ochre   { background: var(--ochre-100);   color: var(--ochre-700);   border-color: #fde68a; }
+    .chip-violet  { background: var(--violet-100);  color: var(--violet-700);  border-color: #ddd6fe; font-weight: 700; outline: 2px solid #c4b5fd; }
+    .chip-iron    { background: var(--iron-100);    color: var(--iron-700);    border-color: #d1d5db; }
+    .mockup-input {
+      border-top: 1px solid var(--divider);
+      padding: 10px 12px;
+      display: flex; gap: 8px;
+    }
+    .mockup-input input {
+      flex: 1;
+      border: 1px solid var(--divider);
+      border-radius: 6px;
+      padding: 7px 12px;
+      font-size: 13px;
+      color: var(--ink-700);
+      background: var(--bone-50, #fafaf8);
+      outline: none;
+    }
+    .mockup-send {
+      background: var(--green-700);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      width: 36px; height: 36px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .mockup-rail {
+      width: 220px;
+      border-left: 1px solid var(--divider);
+      background: var(--bone-100);
+      padding: 14px;
+      overflow-y: auto;
+      flex-shrink: 0;
+    }
+    .rail-section { margin-bottom: 16px; }
+    .rail-label { font-size: 9px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-400); margin-bottom: 6px; }
+    .rail-value { font-size: 12px; font-weight: 600; color: var(--ink-700); }
+    .rail-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 11px; font-weight: 500;
+      padding: 3px 8px;
+      border-radius: 20px;
+    }
+    .steps-list { list-style: none; }
+    .steps-list li {
+      font-size: 11px;
+      color: var(--ink-500);
+      padding: 4px 0;
+      border-bottom: 1px solid var(--divider);
+      display: flex; align-items: center; gap: 6px;
+    }
+    .steps-list li:last-child { border: none; }
+    .step-num { font-size: 10px; width: 16px; height: 16px; background: var(--ink-200, #e5e7eb); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+
+    /* ── TABLE ── */
+    .table-wrap { overflow-x: auto; margin-top: 16px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th {
+      background: var(--bone-200);
+      text-align: left;
+      padding: 10px 14px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      color: var(--ink-500);
+      border-bottom: 1px solid var(--divider);
+    }
+    td {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--divider);
+      vertical-align: top;
+      color: var(--ink-700);
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--bone-50, #fafaf8); }
+    td code {
+      font-family: "SF Mono", "Fira Code", monospace;
+      font-size: 11px;
+      background: var(--bone-100);
+      padding: 1px 5px;
+      border-radius: 3px;
+      color: var(--green-700);
+    }
+    .badge-new {
+      display: inline-block;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      background: var(--green-100);
+      color: var(--green-700);
+      padding: 1px 6px;
+      border-radius: 3px;
+    }
+
+    /* ── CALLOUT ── */
+    .callout {
+      border-radius: 8px;
+      padding: 14px 16px;
+      margin-top: 16px;
+      display: flex; gap: 10px;
+    }
+    .callout-info    { background: var(--azulejo-100); border: 1px solid #bfdbfe; }
+    .callout-warning { background: var(--ochre-100);   border: 1px solid #fde68a; }
+    .callout-success { background: var(--green-100);   border: 1px solid #a7f3c4; }
+    .callout-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+    .callout p { font-size: 13px; margin: 0; }
+    .callout-info    p { color: var(--azulejo-700); }
+    .callout-warning p { color: var(--ochre-700); }
+    .callout-success p { color: var(--green-700); }
+
+    /* ── FOOTER ── */
+    .footer {
+      background: var(--green-900);
+      color: rgba(255,255,255,.5);
+      text-align: center;
+      padding: 24px;
+      font-size: 12px;
+      margin-top: 48px;
+    }
+
+    @media (max-width: 640px) {
+      .hero { padding: 32px 20px; }
+      .specialists-grid { grid-template-columns: 1fr; }
+      .mockup-rail { display: none; }
+      .layer-label { width: 80px; font-size: 9px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════ HERO -->
+<div class="hero">
+  <div class="container">
+    <p class="hero-eyebrow">ReformAI · Documentação Técnica</p>
+    <h1>Sistema de <span>Specialists</span><br>no Chat</h1>
+    <p class="hero-sub">
+      O chat da triagem ganhou um orquestrador de agentes especializados.
+      Cada mensagem do morador é roteada automaticamente para o specialist certo —
+      ou o usuário escolhe manualmente via chips.
+    </p>
+    <div class="hero-meta">
+      <div class="hero-meta-item">📅 <strong>Sprint:</strong> Extra UX Morador</div>
+      <div class="hero-meta-item">🔀 <strong>Commits:</strong> 265cbf5 · 476d536</div>
+      <div class="hero-meta-item">🧩 <strong>Specialists:</strong> 5 implementados</div>
+      <div class="hero-meta-item">🔧 <strong>TS errors:</strong> 0</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ POR QUÊ -->
+<div class="container">
+  <div class="section">
+    <span class="eyebrow">Motivação</span>
+    <h2>Por que criar specialists?</h2>
+    <p>
+      O chat existente usava um único <code>TriageAgent</code> para tudo — triagem, dúvidas sobre documentos,
+      pedidos de relatório, perguntas sobre materiais. Um agente generalista responde mal a perguntas
+      especializadas, pois não tem contexto nem prompts otimizados para cada domínio.
+    </p>
+    <p>
+      Com o sistema de specialists, cada tipo de pergunta é atendido por um agente com:
+      <strong>system prompt otimizado</strong>, <strong>ferramentas específicas</strong> (tool-use, RAG)
+      e <strong>saída estruturada</strong> que a UI renderiza de forma rica.
+    </p>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-top:20px;">
+      <div class="callout callout-success" style="flex-direction:column;gap:4px;">
+        <div class="callout-icon">⚡</div>
+        <p><strong>Auto-detecção de intenção</strong><br>Sem configuração — o orquestrador detecta o specialist certo por keywords.</p>
+      </div>
+      <div class="callout callout-info" style="flex-direction:column;gap:4px;">
+        <div class="callout-icon">🔌</div>
+        <p><strong>Interface plugável</strong><br>Novo specialist = implementar <code>SpecialistPlugin</code>. Sem tocar no chat.</p>
+      </div>
+      <div class="callout callout-warning" style="flex-direction:column;gap:4px;">
+        <div class="callout-icon">🔒</div>
+        <p><strong>Sem soberania de IA</strong><br>Specialists só sugerem. State machine e rule engine continuam soberanos.</p>
+      </div>
+    </div>
+  </div>
+
+<!-- ═══════════════════════════════════════════════════════ SPECIALISTS -->
+  <div class="section">
+    <span class="eyebrow">Os 5 Specialists</span>
+    <h2>Cada especialista, seu domínio</h2>
+    <p>Todos implementam a mesma interface <code>SpecialistPlugin</code> e suportam streaming nativo.</p>
+
+    <div class="specialists-grid">
+
+      <div class="specialist-card card-green">
+        <div class="card-icon">💬</div>
+        <div class="card-title">TriageSpecialist</div>
+        <div class="card-id">id: "triage"</div>
+        <div class="card-desc">
+          Wrapper do <code>TriageAgent</code> existente. Conduz a triagem conversacional,
+          coleta o escopo técnico via <strong>tool-use</strong> (<code>submit_scope</code>) e
+          dispara a classificação determinística.
+          É o <strong>fallback</strong> — ativa quando nenhum outro specialist bate.
+        </div>
+        <div class="card-tags">
+          <span class="tag tag-green">Fallback padrão</span>
+          <span class="tag tag-green">Tool-use nativo</span>
+          <span class="tag tag-green">Streaming SSE</span>
+          <span class="tag tag-green">ClassifyScopeUseCase</span>
+        </div>
+      </div>
+
+      <div class="specialist-card card-azulejo">
+        <div class="card-icon">📄</div>
+        <div class="card-title">DocumentSpecialist</div>
+        <div class="card-id">id: "document"</div>
+        <div class="card-desc">
+          Orienta sobre documentos necessários, status de cada arquivo enviado,
+          como corrigir pendências e como obter ART/RRT.
+          Recebe no contexto todos os documentos do caso com seus <code>extractedData</code>
+          e <code>pendencies</code>.
+        </div>
+        <div class="card-tags">
+          <span class="tag tag-azulejo">20 keywords</span>
+          <span class="tag tag-azulejo">Contexto de docs</span>
+          <span class="tag tag-azulejo">Pendências</span>
+          <span class="tag tag-azulejo">Streaming</span>
+        </div>
+      </div>
+
+      <div class="specialist-card card-ochre">
+        <div class="card-icon">📊</div>
+        <div class="card-title">ReportSpecialist</div>
+        <div class="card-id">id: "report"</div>
+        <div class="card-desc">
+          Gera relatórios diretamente pelo chat: Memorial Descritivo, Cronograma,
+          Parecer Técnico, Proposta Comercial, Ordem de Serviço.
+          Invoca <code>GenerateReportUseCase</code> com <code>enrichWithAI: true</code>
+          e retorna <code>metadata.reportId</code> para a UI abrir o <code>DocumentViewer</code>.
+        </div>
+        <div class="card-tags">
+          <span class="tag tag-ochre">6 tipos de relatório</span>
+          <span class="tag tag-ochre">GenerateReportUseCase</span>
+          <span class="tag tag-ochre">metadata.reportId</span>
+          <span class="tag tag-ochre">DocumentViewer</span>
+        </div>
+      </div>
+
+      <div class="specialist-card card-violet">
+        <div class="card-icon">🔨</div>
+        <div class="card-title">MaterialsSpecialist</div>
+        <div class="card-id">id: "materials"</div>
+        <div class="card-desc">
+          Sugere materiais técnicos com especificações ABNT para os serviços da reforma.
+          Usa <strong>RAG via pgvector</strong>: busca trechos de normas NBR relevantes antes
+          de chamar o LLM. Retorna <code>metadata.sources</code> com as normas citadas.
+        </div>
+        <div class="card-tags">
+          <span class="tag tag-violet">RAG pgvector</span>
+          <span class="tag tag-violet">NormSearchService</span>
+          <span class="tag tag-violet">normas NBR</span>
+          <span class="tag tag-violet">metadata.sources</span>
+        </div>
+      </div>
+
+      <div class="specialist-card card-iron">
+        <div class="card-icon">⚙️</div>
+        <div class="card-title">ProcessSpecialist</div>
+        <div class="card-id">id: "process"</div>
+        <div class="card-desc">
+          Gera a sequência de etapas da obra com dependências, durações e observações críticas.
+          Usa <strong>tool-use</strong> (<code>submit_process_plan</code>) para output estruturado.
+          Injeta regras de domínio no prompt (impermeabilização antes de cerâmica, etc.).
+          Retorna <code>metadata.processSteps</code> que a UI renderiza como tabela.
+        </div>
+        <div class="card-tags">
+          <span class="tag tag-iron">Tool-use</span>
+          <span class="tag tag-iron">submit_process_plan</span>
+          <span class="tag tag-iron">Regras de domínio</span>
+          <span class="tag tag-iron">metadata.processSteps</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+<!-- ═══════════════════════════════════════════════════════ FLUXO -->
+  <div class="section">
+    <span class="eyebrow">Fluxo</span>
+    <h2>Como uma mensagem é roteada</h2>
+
+    <div class="flow">
+      <p class="flow-title">Ciclo de vida de uma mensagem no chat</p>
+
+      <div class="flow-row">
+        <div class="flow-step">
+          <div class="flow-step-num">1</div>
+          <div>
+            <strong>Morador envia mensagem</strong><br>
+            <span style="font-size:12px;color:var(--ink-400)">EventSource: <code>/stream?content=...&amp;specialistId=materials</code></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-row">
+        <div class="flow-arrow">↓</div>
+      </div>
+
+      <div class="flow-row">
+        <div class="flow-step">
+          <div class="flow-step-num">2</div>
+          <div>
+            <strong>ChatOrchestrator.resolve()</strong><br>
+            <span style="font-size:12px;color:var(--ink-400)">explicit ID → auto-detect por keyword → fallback TriageSpecialist</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-row">
+        <div class="flow-arrow">↓</div>
+      </div>
+
+      <div class="flow-row">
+        <div class="flow-step">
+          <div class="flow-step-num">3</div>
+          <div>
+            <strong>Specialist selecionado</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-branch">
+        <div class="flow-specialist fs-green">💬 TriageSpecialist</div>
+        <div class="flow-specialist fs-azulejo">📄 DocumentSpecialist</div>
+        <div class="flow-specialist fs-ochre">📊 ReportSpecialist</div>
+        <div class="flow-specialist fs-violet">🔨 MaterialsSpecialist</div>
+        <div class="flow-specialist fs-iron">⚙️ ProcessSpecialist</div>
+      </div>
+
+      <div class="flow-row" style="margin-top:12px">
+        <div class="flow-arrow">↓</div>
+      </div>
+
+      <div class="flow-row">
+        <div class="flow-step">
+          <div class="flow-step-num">4</div>
+          <div>
+            <strong>processStream() → chunks SSE → resultado final</strong><br>
+            <span style="font-size:12px;color:var(--ink-400)">textChunks (stream) + result Promise (metadata)</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-row">
+        <div class="flow-arrow">↓</div>
+      </div>
+
+      <div class="flow-row">
+        <div class="flow-step">
+          <div class="flow-step-num">5</div>
+          <div>
+            <strong>Mensagem persistida com metadata</strong><br>
+            <span style="font-size:12px;color:var(--ink-400)"><code>{ specialistId, reportId?, sources?, processSteps? }</code></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-row">
+        <div class="flow-arrow">↓</div>
+      </div>
+
+      <div class="flow-row">
+        <div class="flow-step">
+          <div class="flow-step-num">6</div>
+          <div>
+            <strong>UI renderiza resposta enriquecida</strong><br>
+            <span style="font-size:12px;color:var(--ink-400)">Badge do specialist + tabela de etapas / fontes NBR / botão de relatório</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<!-- ═══════════════════════════════════════════════════════ MOCKUP -->
+  <div class="section">
+    <span class="eyebrow">Interface</span>
+    <h2>Chat com MaterialsSpecialist ativo</h2>
+    <p>Exemplo do chat mostrando chips de seleção, badge do specialist e fontes NBR na resposta.</p>
+
+    <div class="mockup">
+      <div class="mockup-bar">
+        <div class="dot dot-r"></div>
+        <div class="dot dot-y"></div>
+        <div class="dot dot-g"></div>
+        <span style="font-size:12px;color:var(--ink-400);margin-left:8px">RF-2026-042 · Apto 203 · Chat</span>
+      </div>
+      <div class="mockup-body">
+        <div class="mockup-chat">
+          <div class="mockup-messages">
+
+            <div class="msg-ai-wrap">
+              <div class="msg-specialist-label" style="color:var(--green-700)">
+                <span class="dot-sm" style="background:var(--green-500)"></span>
+                Triagem
+              </div>
+              <div class="msg-ai">
+                Olá! Para prosseguir com a reforma do banheiro, vou precisar de mais alguns detalhes. A demolição inclui paredes ou apenas o revestimento?
+              </div>
+            </div>
+
+            <div class="msg-user">Vai demolir a parede entre o banheiro e o lavabo, e quero impermeabilizar tudo.</div>
+
+            <div class="msg-ai-wrap">
+              <div class="msg-specialist-label" style="color:var(--violet-700)">
+                <span class="dot-sm" style="background:#8b5cf6"></span>
+                Materiais
+              </div>
+              <div class="msg-ai">
+                Para a sua reforma (demolição + impermeabilização), recomendo:
+                <ul>
+                  <li><strong>Manta asfáltica 3mm</strong> — para áreas molhadas (NBR 9952)</li>
+                  <li><strong>Argamassa colante ACIII</strong> — para cerâmica em áreas úmidas</li>
+                  <li><strong>Primer asfáltico</strong> — base antes da manta (Vedacit ou similar)</li>
+                  <li><strong>Fio 2,5mm²</strong> flexível — para pontos elétricos (NBR 5410)</li>
+                </ul>
+              </div>
+              <div class="msg-sources">
+                <span class="source-pill">NBR 9952 §3.2</span>
+                <span class="source-pill">NBR 5410 §6.1</span>
+                <span class="source-pill">NBR 7200 §4.3</span>
+              </div>
+            </div>
+
+            <div class="msg-user">Me gera o cronograma de etapas</div>
+
+            <div class="msg-ai-wrap">
+              <div class="msg-specialist-label" style="color:var(--iron-700)">
+                <span class="dot-sm" style="background:#6b7280"></span>
+                Processo
+              </div>
+              <div class="msg-ai">
+                Sequência recomendada para a sua reforma (est. 18 dias):
+                <ul>
+                  <li>1. Demolição de alvenaria — 2 dias</li>
+                  <li>2. Impermeabilização — 3 dias ⚠️ obrigatória antes de acabamento</li>
+                  <li>3. Instalação elétrica — 2 dias</li>
+                  <li>4. Hidráulica — 2 dias</li>
+                  <li>5. Reboco e nivelamento — 3 dias</li>
+                  <li>6. Assentamento de cerâmica — 4 dias</li>
+                  <li>7. Acabamentos e pintura — 2 dias</li>
+                </ul>
+              </div>
+            </div>
+
+          </div>
+
+          <div class="mockup-chips">
+            <div class="chip chip-auto">🤖 Auto</div>
+            <div class="chip chip-green">💬 Triagem</div>
+            <div class="chip chip-azulejo">📄 Docs</div>
+            <div class="chip chip-ochre">📊 Relatórios</div>
+            <div class="chip chip-violet">🔨 Materiais</div>
+            <div class="chip chip-iron">⚙️ Processo</div>
+          </div>
+
+          <div class="mockup-input">
+            <input type="text" placeholder="Digite uma mensagem..." disabled />
+            <button class="mockup-send">→</button>
+          </div>
+        </div>
+
+        <div class="mockup-rail">
+          <div class="rail-section">
+            <div class="rail-label">Protocolo</div>
+            <div class="rail-value">RF-2026-042</div>
+          </div>
+          <div class="rail-section">
+            <div class="rail-label">Status</div>
+            <span class="rail-badge" style="background:var(--ochre-100);color:var(--ochre-700);border:1px solid #fde68a;">⏳ Aguardando docs</span>
+          </div>
+          <div class="rail-section">
+            <div class="rail-label">Risco</div>
+            <span class="rail-badge" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;">🔴 HIGH</span>
+          </div>
+          <div class="rail-section">
+            <div class="rail-label">ART/RRT</div>
+            <span class="rail-badge" style="background:var(--iron-100);color:var(--iron-700);border:1px solid #d1d5db;">Exigida</span>
+          </div>
+          <div class="rail-section">
+            <div class="rail-label">Próximas etapas</div>
+            <ul class="steps-list">
+              <li><span class="step-num" style="background:var(--green-500);color:#fff;">✓</span> Triagem</li>
+              <li><span class="step-num" style="background:var(--green-900);color:#fff;font-size:9px;font-weight:700;">→</span> Documentos</li>
+              <li><span class="step-num">3</span> Análise</li>
+              <li><span class="step-num">4</span> Liberação</li>
+              <li><span class="step-num">5</span> Execução</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<!-- ═══════════════════════════════════════════════════════ ARQUITETURA -->
+  <div class="section">
+    <span class="eyebrow">Arquitetura</span>
+    <h2>Camadas e arquivos</h2>
+
+    <div class="layers">
+      <div class="layer">
+        <div class="layer-label">Domain</div>
+        <div class="layer-content">
+          <span class="layer-pill new">SpecialistPlugin.ts</span>
+          <span class="layer-pill existing">LLMProvider.ts</span>
+          <span class="layer-pill existing">CaseStateMachine.ts</span>
+          <span class="layer-pill existing">ReformScopeSchema.ts</span>
+        </div>
+      </div>
+      <div class="layer">
+        <div class="layer-label">Application</div>
+        <div class="layer-content">
+          <span class="layer-pill new">ChatOrchestrator.ts</span>
+          <span class="layer-pill new">TriageSpecialist.ts</span>
+          <span class="layer-pill new">DocumentSpecialist.ts</span>
+          <span class="layer-pill new">ReportSpecialist.ts</span>
+          <span class="layer-pill new">MaterialsSpecialist.ts</span>
+          <span class="layer-pill new">ProcessSpecialist.ts</span>
+          <span class="layer-pill existing">TriageAgent.ts</span>
+          <span class="layer-pill existing">GenerateReportUseCase.ts</span>
+          <span class="layer-pill existing">ClassifyScopeUseCase.ts</span>
+        </div>
+      </div>
+      <div class="layer">
+        <div class="layer-label">Infrastructure</div>
+        <div class="layer-content">
+          <span class="layer-pill existing">AnthropicProvider.ts</span>
+          <span class="layer-pill existing">NormSearchService.ts</span>
+          <span class="layer-pill existing">PrismaReformCaseRepository.ts</span>
+          <span class="layer-pill existing">PrismaDocumentRepository.ts</span>
+        </div>
+      </div>
+      <div class="layer">
+        <div class="layer-label">HTTP</div>
+        <div class="layer-content">
+          <span class="layer-pill new">GET /api/v1/specialists</span>
+          <span class="layer-pill new">stream?specialistId=</span>
+          <span class="layer-pill new">POST messages + specialistId</span>
+        </div>
+      </div>
+      <div class="layer">
+        <div class="layer-label">UI</div>
+        <div class="layer-content">
+          <span class="layer-pill new">SpecialistChips.tsx</span>
+          <span class="layer-pill new">SpecialistBadge.tsx</span>
+          <span class="layer-pill new">cases/[caseId]/page.tsx ↑</span>
+          <span class="layer-pill existing">DocumentViewer.tsx</span>
+          <span class="layer-pill existing">AIMessage.tsx</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout callout-success" style="margin-top:20px;">
+      <div class="callout-icon">✅</div>
+      <p>
+        <strong>Legenda:</strong> <span style="background:var(--green-100);padding:1px 6px;border-radius:3px;font-size:12px;color:var(--green-700);font-weight:600;">verde</span> = novo neste sprint &nbsp;·&nbsp;
+        <span style="background:var(--bone-200);padding:1px 6px;border-radius:3px;font-size:12px;color:var(--ink-500);">cinza</span> = reutilizado sem modificação
+      </p>
+    </div>
+  </div>
+
+<!-- ═══════════════════════════════════════════════════════ INTERFACE -->
+  <div class="section">
+    <span class="eyebrow">Código</span>
+    <h2>Interface <code>SpecialistPlugin</code></h2>
+    <p>Implementar esta interface é suficiente para adicionar um novo specialist ao sistema.</p>
+
+<pre><span class="cmt">// domain/specialists/SpecialistPlugin.ts</span>
+
+<span class="kw">export interface</span> <span class="tp">SpecialistPlugin</span> {
+  <span class="kw">readonly</span> id: <span class="tp">string</span>          <span class="cmt">// "materials", "process", etc.</span>
+  <span class="kw">readonly</span> name: <span class="tp">string</span>        <span class="cmt">// exibido na UI</span>
+  <span class="kw">readonly</span> description: <span class="tp">string</span>
+  <span class="kw">readonly</span> icon: <span class="tp">string</span>        <span class="cmt">// nome do ícone no design system</span>
+  <span class="kw">readonly</span> color: <span class="tp">string</span>       <span class="cmt">// token de cor do design system</span>
+
+  <span class="cmt">/** Retorna true se este specialist deve ser ativado automaticamente.
+   *  Deve ser SÍNCRONO e leve — sem chamadas a LLM ou banco. */</span>
+  <span class="fn">matchesIntent</span>(message: <span class="tp">string</span>, ctx: <span class="tp">PluginContext</span>): <span class="tp">boolean</span>
+
+  <span class="cmt">/** Processamento completo não-streaming */</span>
+  <span class="fn">process</span>(ctx: <span class="tp">PluginContext</span>): <span class="tp">Promise</span>&lt;<span class="tp">PluginResult</span>&gt;
+
+  <span class="cmt">/** Streaming: textChunks emite pedaços; result resolve ao final com metadata */</span>
+  <span class="fn">processStream</span>(ctx: <span class="tp">PluginContext</span>): {
+    textChunks: <span class="tp">AsyncIterable</span>&lt;<span class="tp">string</span>&gt;
+    result: <span class="tp">Promise</span>&lt;<span class="tp">PluginResult</span>&gt;
+  }
+}
+
+<span class="kw">export interface</span> <span class="tp">PluginResult</span> {
+  text: <span class="tp">string</span>
+  metadata: {
+    specialistId: <span class="tp">string</span>
+    reportId?: <span class="tp">string</span>         <span class="cmt">// ReportSpecialist</span>
+    sources?: <span class="tp">NormSource</span>[]    <span class="cmt">// MaterialsSpecialist</span>
+    processSteps?: <span class="tp">Step</span>[]     <span class="cmt">// ProcessSpecialist</span>
+  }
+}</pre>
+
+    <div class="callout callout-info">
+      <div class="callout-icon">💡</div>
+      <p>
+        Para adicionar um novo specialist, basta criar um arquivo em
+        <code>application/specialists/</code>, implementar a interface,
+        e registrá-lo em <code>ChatOrchestrator.ts</code> na função <code>createOrchestrator()</code>.
+        Nenhum outro arquivo precisa ser alterado.
+      </p>
+    </div>
+  </div>
+
+<!-- ═══════════════════════════════════════════════════════ TABELA DE ARQUIVOS -->
+  <div class="section">
+    <span class="eyebrow">Referência</span>
+    <h2>Todos os arquivos criados/modificados</h2>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Arquivo</th>
+            <th>Status</th>
+            <th>O que faz</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>domain/specialists/SpecialistPlugin.ts</code></td>
+            <td><span class="badge-new">Novo</span></td>
+            <td>Interface central: <code>PluginContext</code>, <code>PluginResult</code>, <code>SpecialistPlugin</code></td>
+          </tr>
+          <tr>
+            <td><code>application/ChatOrchestrator.ts</code></td>
+            <td><span class="badge-new">Novo</span></td>
+            <td>Resolve specialist: explicit → keyword → fallback. Factory <code>createOrchestrator()</code></td>
+          </tr>
+          <tr>
+            <td><code>specialists/TriageSpecialist.ts</code></td>
+            <td><span class="badge-new">Novo</span></td>
+            <td>Wrapper do <code>TriageAgent</code>. Fallback padrão. Nunca auto-detecta</td>
+          </tr>
+          <tr>
+            <td><code>specialists/DocumentSpecialist.ts</code></td>
+            <td><span class="badge-new">Novo</span></td>
+            <td>Keywords de documento (20). Contexto: docs + escopo + pendências</td>
+          </tr>
+          <tr>
+            <td><code>specialists/ReportSpecialist.ts</code></td>
+            <td><span class="badge-new">Novo</span></td>
+            <td>Keywords de relatório. Chama <code>GenerateReportUseCase</code>. Retorna <code>reportId</code></td>
+          </tr>
+          <tr>
+            <td><code>specialists/MaterialsSpecialist.ts</code></td>
+            <td><span class="badge-new">Novo</span></td>
+            <td>Keywords de material. RAG via <code>NormSearchService</code>. Retorna <code>sources</code></td>
+          </tr>
+          <tr>
+            <td><code>specialists/ProcessSpecialist.ts</code></td>
+            <td><span class="badge-new">Novo</span></td>
+            <td>Keywords de processo. Tool-use <code>submit_process_plan</code>. Retorna <code>processSteps</code></td>
+          </tr>
+          <tr>
+            <td><code>specialists/index.ts</code></td>
+            <td><span class="badge-new">Novo</span></td>
+            <td>Barrel export de todos os specialists</td>
+          </tr>
+          <tr>
+            <td><code>app/api/v1/specialists/route.ts</code></td>
+            <td><span class="badge-new">Novo</span></td>
+            <td><code>GET /api/v1/specialists</code> — lista specialists para a UI</td>
+          </tr>
+          <tr>
+            <td><code>messages/stream/route.ts</code></td>
+            <td style="color:var(--ochre-700);font-weight:600">Modificado</td>
+            <td>Aceita <code>?specialistId=</code>. Constrói <code>PluginContext</code>. Usa orchestrator</td>
+          </tr>
+          <tr>
+            <td><code>messages/route.ts</code></td>
+            <td style="color:var(--ochre-700);font-weight:600">Modificado</td>
+            <td>Aceita <code>specialistId</code> no body. Mesma lógica de orquestração</td>
+          </tr>
+          <tr>
+            <td><code>ui/SpecialistChips.tsx</code></td>
+            <td><span class="badge-new">Novo</span></td>
+            <td>Chips horizontais com scroll. Toggle: clique no ativo → Auto</td>
+          </tr>
+          <tr>
+            <td><code>ui/SpecialistBadge.tsx</code></td>
+            <td><span class="badge-new">Novo</span></td>
+            <td>Badge colorido acima de mensagens da IA: "• Materiais"</td>
+          </tr>
+          <tr>
+            <td><code>app/cases/[caseId]/page.tsx</code></td>
+            <td style="color:var(--ochre-700);font-weight:600">Modificado</td>
+            <td>Chips, badge, tabela de etapas, fontes NBR, botão "Ver documento"</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+<!-- ═══════════════════════════════════════════════════════ PRÓXIMOS PASSOS -->
+  <div class="section">
+    <span class="eyebrow">Roadmap</span>
+    <h2>Extensões futuras possíveis</h2>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-top:16px;">
+
+      <div style="background:var(--surface);border:1px solid var(--divider);border-radius:8px;padding:16px;">
+        <div style="font-size:20px;margin-bottom:8px;">🏛️</div>
+        <h3>NormsSpecialist</h3>
+        <p style="font-size:12px;">Consulta focada a normas ABNT, código de obras municipal, leis de condomínio. RAG mais especializado com citações precisas.</p>
+      </div>
+
+      <div style="background:var(--surface);border:1px solid var(--divider);border-radius:8px;padding:16px;">
+        <div style="font-size:20px;margin-bottom:8px;">💰</div>
+        <h3>BudgetSpecialist</h3>
+        <p style="font-size:12px;">Estimativa de custo da reforma com base no escopo, cidade e índice CUB. Cálculo de BDI e margem para o parceiro.</p>
+      </div>
+
+      <div style="background:var(--surface);border:1px solid var(--divider);border-radius:8px;padding:16px;">
+        <div style="font-size:20px;margin-bottom:8px;">🏗️</div>
+        <h3>StructuralSpecialist</h3>
+        <p style="font-size:12px;">Para casos com impacto estrutural/prumadas (CRITICAL). Orienta sobre laudo estrutural, AVCB, licenças municipais.</p>
+      </div>
+
+      <div style="background:var(--surface);border:1px solid var(--divider);border-radius:8px;padding:16px;">
+        <div style="font-size:20px;margin-bottom:8px;">🤝</div>
+        <h3>PartnerSpecialist</h3>
+        <p style="font-size:12px;">Explica o processo de atribuição de parceiro, SLA, vistorias agendadas e como se comunicar com o responsável técnico.</p>
+      </div>
+
+      <div style="background:var(--surface);border:1px solid var(--divider);border-radius:8px;padding:16px;">
+        <div style="font-size:20px;margin-bottom:8px;">🔄</div>
+        <h3>Intent via LLM</h3>
+        <p style="font-size:12px;">Substituir keyword-matching por chamada leve ao LLM (claude-haiku) para detecção de intenção mais robusta e multilíngue.</p>
+      </div>
+
+      <div style="background:var(--surface);border:1px solid var(--divider);border-radius:8px;padding:16px;">
+        <div style="font-size:20px;margin-bottom:8px;">🔌</div>
+        <h3>Specialists por Tenant</h3>
+        <p style="font-size:12px;">Configurar quais specialists estão disponíveis por tenant. Administradoras podem habilitar/desabilitar pelo painel de superadmin.</p>
+      </div>
+
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<div class="footer">
+  <p>ReformAI · Sistema de Specialists · Gerado em 25/05/2026</p>
+  <p style="margin-top:4px;">Commits: <code style="color:rgba(255,255,255,.7)">265cbf5</code> (backend) · <code style="color:rgba(255,255,255,.7)">476d536</code> (ui)</p>
+</div>
+
+</body>
+</html>
