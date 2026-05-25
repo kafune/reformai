@@ -15,10 +15,9 @@ import {
   Icon,
   Eyebrow,
   StarRating,
-  SpecialistChips,
   SpecialistBadge,
 } from "@/interfaces/components/ui"
-import type { RiskLevel, IconName, Specialist } from "@/interfaces/components/ui"
+import type { RiskLevel, IconName } from "@/interfaces/components/ui"
 
 interface MessageMetadata {
   specialistId?: string
@@ -99,6 +98,15 @@ const TIMELINE_STEPS: Array<{ title: string; family: Family }> = [
   { title: "Concluído",         family: "done"     },
 ]
 
+// ─── Static specialist metadata (display only — routing is 100% automatic) ──
+const SPECIALIST_META: Record<string, { name: string; color: string }> = {
+  triage:   { name: "Triagem",    color: "green"   },
+  document: { name: "Documentos", color: "azulejo" },
+  report:   { name: "Relatórios", color: "ochre"   },
+  materials:{ name: "Materiais",  color: "iron"    },
+  process:  { name: "Processo",   color: "violet"  },
+}
+
 // ─── Componente principal ────────────────────────────────────────────────────
 export default function CaseDetailPage() {
   const { caseId } = useParams<{ caseId: string }>()
@@ -110,10 +118,6 @@ export default function CaseDetailPage() {
   const [sending, setSending] = useState(false)
   const [streamingContent, setStreamingContent] = useState("")
   const endRef = useRef<HTMLDivElement>(null)
-
-  // Specialist selection
-  const [specialistId, setSpecialistId] = useState<string | null>(null)
-  const [specialists, setSpecialists] = useState<Specialist[]>([])
 
   // Mobile tab
   const [activeTab, setActiveTab] = useState<"chat" | "details">("chat")
@@ -135,14 +139,6 @@ export default function CaseDetailPage() {
   const [existingReview, setExistingReview] = useState<{ score: number; comment?: string | null } | null | undefined>(undefined)
 
   useEffect(() => { if (status === "unauthenticated") router.push("/login") }, [status, router])
-
-  // Fetch specialist list once
-  useEffect(() => {
-    fetch("/api/v1/specialists")
-      .then((r) => r.json())
-      .then((d: { specialists?: Specialist[] }) => setSpecialists(d.specialists ?? []))
-      .catch(() => {})
-  }, [])
 
   async function reload() {
     const [c, m] = await Promise.all([
@@ -230,12 +226,8 @@ export default function CaseDetailPage() {
       { id: tempId, role: "USER", content, createdAt: new Date().toISOString() },
     ])
 
-    const searchParams = new URLSearchParams()
-    searchParams.set("content", content)
-    if (specialistId) searchParams.set("specialistId", specialistId)
-
     const es = new EventSource(
-      `/api/v1/cases/${caseId}/messages/stream?${searchParams.toString()}`,
+      `/api/v1/cases/${caseId}/messages/stream?content=${encodeURIComponent(content)}`,
     )
 
     es.onmessage = (event) => {
@@ -457,31 +449,25 @@ export default function CaseDetailPage() {
 
           const meta = m.metadata
           const msgSpecialistId = meta?.specialistId
-          const specialist = msgSpecialistId
-            ? specialists.find((s) => s.id === msgSpecialistId)
-            : undefined
+          const specialistMeta = msgSpecialistId ? SPECIALIST_META[msgSpecialistId] : undefined
 
           // Render simple Markdown for report messages
           const isReport = msgSpecialistId === "report" && !!meta?.reportId
-          function renderContent() {
-            if (!isReport) return cleanContent || "(coletando dados…)"
-            return cleanContent || "(coletando dados…)"
-          }
 
           return (
             <div key={m.id} data-testid="chat-message-assistant">
-              {/* Specialist badge — shown for all specialists except triage */}
-              {msgSpecialistId && msgSpecialistId !== "triage" && specialist && (
+              {/* Specialist badge — informative only, not interactive; hidden for triage */}
+              {msgSpecialistId && msgSpecialistId !== "triage" && specialistMeta && (
                 <SpecialistBadge
                   specialistId={msgSpecialistId}
-                  specialistName={specialist.name}
-                  color={specialist.color}
+                  specialistName={specialistMeta.name}
+                  color={specialistMeta.color}
                 />
               )}
               <AIMessage
                 disclaimer="Esta análise é assistiva. O Rule Engine valida deterministicamente e casos HIGH/CRITICAL passam por revisão humana."
               >
-                {renderContent()}
+                {cleanContent || "(coletando dados…)"}
               </AIMessage>
 
               {/* Report: "Ver documento gerado" button */}
@@ -568,20 +554,6 @@ export default function CaseDetailPage() {
         )}
         <div ref={endRef} />
       </div>
-
-      {/* Specialist chips */}
-      {specialists.length > 0 && (
-        <div
-          className="border-t border-divider px-4 pt-3 pb-1 md:px-10"
-          style={{ background: "var(--rai-bone-100)" }}
-        >
-          <SpecialistChips
-            specialists={specialists}
-            activeId={specialistId}
-            onChange={setSpecialistId}
-          />
-        </div>
-      )}
 
       {/* Composer */}
       <div
