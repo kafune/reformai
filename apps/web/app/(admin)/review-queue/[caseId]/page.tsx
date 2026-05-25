@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation"
 import { getSessionUser } from "@/infrastructure/auth/getSessionUser"
 import { prisma } from "@/infrastructure/database/prisma"
 import { ReviewDecisionForm } from "./ReviewDecisionForm"
+import { ReviewDocumentList } from "./ReviewDocumentList"
 import {
   TopBar,
   Eyebrow,
@@ -49,6 +50,10 @@ export default async function ReviewCasePage({ params }: { params: { caseId: str
       condominium: { select: { name: true } },
       unit: { select: { identifier: true } },
       messages: { orderBy: { createdAt: "asc" }, take: 100 },
+      documents: {
+        select: { id: true, fileName: true, mimeType: true, status: true, type: true },
+        orderBy: { uploadedAt: "desc" },
+      },
     },
   })
 
@@ -301,6 +306,20 @@ export default async function ReviewCasePage({ params }: { params: { caseId: str
               </div>
             </Card>
           )}
+
+          {/* Documents for review */}
+          <Card padded>
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-sm font-semibold tracking-snug text-ink-900">
+                Documentos do caso
+              </h2>
+              <Eyebrow>{reformCase.documents.length} arquivo(s)</Eyebrow>
+            </div>
+            <ReviewDocumentList
+              caseId={reformCase.id}
+              documents={reformCase.documents}
+            />
+          </Card>
 
           {/* Decision form */}
           <Card padded>

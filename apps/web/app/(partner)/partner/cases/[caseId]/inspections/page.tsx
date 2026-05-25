@@ -4,6 +4,7 @@ import { getSessionUser } from "@/infrastructure/auth/getSessionUser"
 import { prisma } from "@/infrastructure/database/prisma"
 import { ScheduleInspectionForm } from "./ScheduleInspectionForm"
 import { RescheduleButton } from "./RescheduleButton"
+import { InspectionPhotoGallery } from "./InspectionPhotoGallery"
 import {
   TopBar,
   Card,
@@ -94,6 +95,7 @@ export default async function PartnerInspectionsPage({
       completedAt: true,
       status: true,
       notes: true,
+      photoKeys: true,
     },
   })
 
@@ -246,6 +248,16 @@ export default async function PartnerInspectionsPage({
                       </div>
                       {insp.notes && (
                         <p className="mt-1 text-xs text-ink-500 line-clamp-2">{insp.notes}</p>
+                      )}
+                      {/* Photo gallery — only rendered when there are photos */}
+                      {insp.photoKeys.length > 0 && (
+                        <div className="mt-3">
+                          <InspectionPhotoGallery
+                            caseId={params.caseId}
+                            inspectionId={insp.id}
+                            label={INSPECTION_TYPE_LABELS[insp.type] ?? insp.type}
+                          />
+                        </div>
                       )}
                     </div>
                   </div>

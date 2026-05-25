@@ -34,6 +34,7 @@ export default async function CaseDocumentsPage({ params }: { params: { caseId: 
     status: d.status,
     uploadedAt: d.uploadedAt.toISOString(),
     version: d.version,
+    mimeType: d.mimeType,
   }))
 
   const processingCount = initialDocuments.filter(

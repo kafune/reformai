@@ -7,6 +7,8 @@ import { createStorageAdapter } from "@/infrastructure/storage/StorageFactory"
 import { buildStorageKey } from "@/infrastructure/storage/StorageAdapter"
 import { NotFoundError } from "@/shared/errors/DomainError"
 
+const SIGNED_URL_EXPIRES_SECONDS = 3600 // 1h (CLAUDE.md §11)
+
 const ALLOWED_MIME = ["image/jpeg", "image/png", "image/webp"] as const
 const MAX_FILE_SIZE_BYTES = 15 * 1024 * 1024 // 15 MB por foto
 const UPLOAD_ROLES = new Set(["PARTNER", "ADMIN", "SUPER_ADMIN"])
@@ -109,6 +111,47 @@ export async function POST(
     })
 
     return NextResponse.json({ uploaded: newKeys.length, photoKeys: newKeys }, { status: 201 })
+  } catch (err) {
+    if ((err as Error).message === "UNAUTHORIZED") return unauthorized()
+    return handleError(err)
+  }
+}
+
+/**
+ * GET /api/v1/cases/:caseId/inspections/:inspectionId/photos
+ *
+ * Retorna URLs assinadas (1h) para todas as fotos da vistoria.
+ * storageKey nunca é exposta — apenas signed URLs.
+ */
+export async function GET(
+  _: Request,
+  ctx: { params: { caseId: string; inspectionId: string } },
+) {
+  try {
+    const user = await requireSessionUser()
+    const { caseId, inspectionId } = ctx.params
+
+    await assertCaseAccess(user, caseId)
+
+    const inspection = await prisma.inspection.findFirst({
+      where: { id: inspectionId, caseId, tenantId: user.tenantId },
+      select: { id: true, photoKeys: true },
+    })
+    if (!inspection) throw new NotFoundError("Inspection", inspectionId)
+
+    if (inspection.photoKeys.length === 0) {
+      return NextResponse.json({ photos: [] })
+    }
+
+    const storage = createStorageAdapter()
+    const photos = await Promise.all(
+      inspection.photoKeys.map(async (key, idx) => {
+        const url = await storage.getSignedUrl(key, SIGNED_URL_EXPIRES_SECONDS)
+        return { index: idx, url }
+      }),
+    )
+
+    return NextResponse.json({ photos })
   } catch (err) {
     if ((err as Error).message === "UNAUTHORIZED") return unauthorized()
     return handleError(err)
