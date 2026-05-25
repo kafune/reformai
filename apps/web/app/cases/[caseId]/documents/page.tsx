@@ -4,16 +4,17 @@ import { getSessionUser } from "@/infrastructure/auth/getSessionUser"
 import { prisma } from "@/infrastructure/database/prisma"
 import { PrismaReformCaseRepository } from "@/modules/case-intake/infrastructure/repositories/PrismaReformCaseRepository"
 import { PrismaDocumentRepository } from "@/modules/document-management/infrastructure/PrismaDocumentRepository"
-import { DocumentUploadZone } from "./components/DocumentUploadZone"
-import { DocumentList, type DocumentItem } from "./components/DocumentList"
+import { DocumentUploadZoneWrapper } from "./components/DocumentUploadZoneWrapper"
+import type { DocumentItem } from "./components/DocumentList"
 import {
   TopBar,
   Badge,
   Button,
   Icon,
-  Eyebrow,
   StatusChip,
 } from "@/interfaces/components/ui"
+import { DocumentChecklist } from "./components/DocumentChecklist"
+import type { DocStatus, DocumentType } from "@reformai/database"
 
 export const dynamic = "force-dynamic"
 
@@ -27,25 +28,44 @@ export default async function CaseDocumentsPage({ params }: { params: { caseId: 
 
   const repo = new PrismaDocumentRepository(prisma)
   const docs = await repo.findByCaseId(params.caseId, user.tenantId)
+
   const initialDocuments: DocumentItem[] = docs.map((d) => ({
-    id: d.id,
-    fileName: d.fileName,
-    type: d.type,
-    status: d.status,
-    uploadedAt: d.uploadedAt.toISOString(),
-    version: d.version,
-    mimeType: d.mimeType,
+    id:              d.id,
+    fileName:        d.fileName,
+    type:            d.type,
+    status:          d.status,
+    uploadedAt:      d.uploadedAt.toISOString(),
+    version:         d.version,
+    mimeType:        d.mimeType,
+    pendencies:      d.pendencies      as Record<string, unknown> | null | undefined,
+    extractedData:   d.extractedData   as Record<string, unknown> | null | undefined,
+    inconsistencies: d.inconsistencies as Record<string, unknown> | null | undefined,
   }))
 
   const processingCount = initialDocuments.filter(
     (d) => d.status === "PENDING" || d.status === "PROCESSING",
   ).length
 
+  // Build uploaded-by-type map for the checklist (latest non-INVALID status wins)
+  const uploadedByType: Partial<Record<DocumentType, DocStatus>> = {}
+  for (const doc of initialDocuments) {
+    const existing = uploadedByType[doc.type]
+    if (!existing || existing === "INVALID") {
+      uploadedByType[doc.type] = doc.status
+    }
+  }
+
+  // Extract requiresART from evaluationResult JSON
+  const evaluationResult = reformCase.evaluationResult as Record<string, unknown> | null
+  const requiresART = evaluationResult?.requiresART === true
+
+  const isPendingCorrections = reformCase.status === "PENDING_CORRECTIONS"
+
   return (
     <>
       <TopBar
         breadcrumb={["Minhas reformas", reformCase.protocol, "Documentos"]}
-        title={`Documentos · análise da IA`}
+        title="Documentos · análise da IA"
         subtitle="Envie um arquivo. A IA extrai, valida e marca o que precisa de correção."
         actions={
           <>
@@ -55,34 +75,32 @@ export default async function CaseDocumentsPage({ params }: { params: { caseId: 
               </Badge>
             )}
             <StatusChip status={reformCase.status} />
+            <Link href={`/cases/${params.caseId}`}>
+              <Button variant="ghost" icon="arrowL" size="sm">
+                Voltar ao caso
+              </Button>
+            </Link>
           </>
         }
       />
 
       <div className="flex-1 overflow-auto bg-paper px-4 py-6 md:px-8">
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.4fr_1fr]">
-          {/* Left column */}
-          <div className="flex flex-col gap-6">
-            {/* Drop zone + upload */}
-            <DocumentUploadZone caseId={params.caseId} />
+          {/* Left column — upload form + document list (client component, shares ref) */}
+          <DocumentUploadZoneWrapper
+            caseId={params.caseId}
+            initialDocuments={initialDocuments}
+          />
 
-            {/* Document list */}
-            <div>
-              <div className="mb-2 flex items-center gap-2">
-                <Eyebrow>Documentos enviados</Eyebrow>
-                <span className="font-mono text-[10px] uppercase tracking-caps text-ink-400">
-                  {initialDocuments.length} arquivo{initialDocuments.length !== 1 ? "s" : ""}
-                </span>
-              </div>
-              <DocumentList
-                caseId={params.caseId}
-                initialDocuments={initialDocuments}
-              />
-            </div>
-          </div>
+          {/* Right rail — checklist + AI analysis + disclaimer */}
+          <aside className="self-start flex flex-col gap-3.5">
+            {/* Dynamic checklist */}
+            <DocumentChecklist
+              requiresART={requiresART}
+              uploadedByType={uploadedByType}
+              pendingCorrections={isPendingCorrections}
+            />
 
-          {/* Right rail — AI analysis panel */}
-          <aside className="self-start">
             {/* AI analysis card */}
             <div className="rounded-md bg-surface p-5 shadow-hair">
               <div className="mb-4 flex items-center gap-2.5">
@@ -110,22 +128,13 @@ export default async function CaseDocumentsPage({ params }: { params: { caseId: 
             </div>
 
             {/* ART/RRT disclaimer */}
-            <div className="mt-3.5 flex items-start gap-2.5 rounded-md bg-violet-100 px-4 py-3.5">
+            <div className="flex items-start gap-2.5 rounded-md bg-violet-100 px-4 py-3.5">
               <Icon name="shield" size={16} className="mt-0.5 shrink-0 text-violet-600" />
               <p className="text-xs leading-relaxed text-violet-600">
                 <strong>A plataforma não emite ART/RRT.</strong> A análise
                 documental é assistida por IA e revisada por profissional habilitado
                 parceiro.
               </p>
-            </div>
-
-            {/* Back link */}
-            <div className="mt-4">
-              <Link href={`/cases/${params.caseId}`}>
-                <Button variant="ghost" icon="arrowL" size="sm">
-                  Voltar para o caso
-                </Button>
-              </Link>
             </div>
           </aside>
         </div>
