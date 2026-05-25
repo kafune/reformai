@@ -1,24 +1,29 @@
 import type { SpecialistPlugin, PluginContext } from "../domain/specialists/SpecialistPlugin"
+import { HaikuIntentDetector } from "./HaikuIntentDetector"
 
 export class ChatOrchestrator {
+  private readonly detector = new HaikuIntentDetector()
+
   constructor(
     private readonly specialists: SpecialistPlugin[],
     private readonly fallback: SpecialistPlugin,
   ) {}
 
-  resolve(message: string, ctx: PluginContext, explicitId?: string | null): SpecialistPlugin {
-    // 1. Specialist explicitamente escolhido pelo usuário
+  async resolve(
+    message: string,
+    ctx: PluginContext,
+    explicitId?: string | null,
+  ): Promise<SpecialistPlugin> {
+    // 1. Specialist explicitamente escolhido (ex: chamada interna futura)
     if (explicitId) {
       const found = this.specialists.find((s) => s.id === explicitId)
       if (found) return found
     }
 
-    // 2. Auto-detect via matchesIntent (sem LLM)
-    for (const s of this.specialists) {
-      if (s.id !== this.fallback.id && s.matchesIntent(message, ctx)) {
-        return s
-      }
-    }
+    // 2. Detecção via Haiku
+    const detectedId = await this.detector.detect(message)
+    const detected = this.specialists.find((s) => s.id === detectedId)
+    if (detected) return detected
 
     // 3. Fallback
     return this.fallback

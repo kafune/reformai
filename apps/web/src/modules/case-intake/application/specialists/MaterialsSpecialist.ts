@@ -56,9 +56,8 @@ export class MaterialsSpecialist implements SpecialistPlugin {
   readonly icon = "package"
   readonly color = "iron"
 
-  matchesIntent(message: string, _ctx: PluginContext): boolean {
-    const lower = message.toLowerCase()
-    return KEYWORDS.some((k) => lower.includes(k))
+  matchesIntent(_message: string, _ctx: PluginContext): boolean {
+    return false // roteamento feito pelo HaikuIntentDetector
   }
 
   private buildSearchQuery(ctx: PluginContext): string {

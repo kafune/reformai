@@ -60,9 +60,8 @@ export class ReportSpecialist implements SpecialistPlugin {
   readonly icon = "file"
   readonly color = "ochre"
 
-  matchesIntent(message: string, _ctx: PluginContext): boolean {
-    const lower = message.toLowerCase()
-    return KEYWORDS.some((k) => lower.includes(k))
+  matchesIntent(_message: string, _ctx: PluginContext): boolean {
+    return false // roteamento feito pelo HaikuIntentDetector
   }
 
   async process(ctx: PluginContext): Promise<PluginResult> {

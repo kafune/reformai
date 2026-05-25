@@ -112,9 +112,8 @@ export class ProcessSpecialist implements SpecialistPlugin {
   readonly icon = "list"
   readonly color = "violet"
 
-  matchesIntent(message: string, _ctx: PluginContext): boolean {
-    const lower = message.toLowerCase()
-    return KEYWORDS.some((k) => lower.includes(k))
+  matchesIntent(_message: string, _ctx: PluginContext): boolean {
+    return false // roteamento feito pelo HaikuIntentDetector
   }
 
   private buildMessages(ctx: PluginContext): LLMMessage[] {

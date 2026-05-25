@@ -105,7 +105,7 @@ export async function GET(req: NextRequest, ctx: { params: { caseId: string } })
         }
 
         const orchestrator = createOrchestrator()
-        const specialist = orchestrator.resolve(content, pluginCtx, explicitSpecialistId)
+        const specialist = await orchestrator.resolve(content, pluginCtx, explicitSpecialistId)
 
         // ── Non-triage specialist path ────────────────────────────────────────
         if (specialist.id !== "triage") {

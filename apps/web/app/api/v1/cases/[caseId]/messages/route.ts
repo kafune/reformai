@@ -77,7 +77,7 @@ export async function POST(req: NextRequest, ctx: { params: { caseId: string } }
     }
 
     const orchestrator = createOrchestrator()
-    const specialist = orchestrator.resolve(content, pluginCtx, specialistId)
+    const specialist = await orchestrator.resolve(content, pluginCtx, specialistId)
 
     // ── Non-triage specialist path ──────────────────────────────────────────
     if (specialist.id !== "triage") {
