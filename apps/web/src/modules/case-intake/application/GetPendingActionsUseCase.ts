@@ -23,30 +23,35 @@ export interface PendingAction {
   description: string
   urgency: ActionUrgency
   href: string
+  createdAt: string  // ISO string do updatedAt do caso
 }
 
 const CLIENT_STATUS_MAP: Partial<
-  Record<CaseStatus, { type: ActionType; description: string; urgency: ActionUrgency }>
+  Record<CaseStatus, { type: ActionType; description: string; urgency: ActionUrgency; href: (caseId: string) => string }>
 > = {
   AWAITING_DOCUMENTS: {
     type: "upload_documents",
     description: "Enviar documentos obrigatórios",
     urgency: "high",
+    href: (caseId) => `/cases/${caseId}/documents`,
   },
   PENDING_CORRECTIONS: {
     type: "correct_documents",
     description: "Corrigir documentos pendentes",
     urgency: "critical",
+    href: (caseId) => `/cases/${caseId}/documents`,
   },
   COMMERCIAL_OFFER_SENT: {
     type: "accept_offer",
     description: "Aceitar proposta comercial",
     urgency: "high",
+    href: (caseId) => `/cases/${caseId}`,
   },
   AWAITING_PAYMENT: {
     type: "confirm_payment",
     description: "Confirmar pagamento para prosseguir",
     urgency: "critical",
+    href: (caseId) => `/cases/${caseId}`,
   },
 }
 
@@ -130,7 +135,8 @@ export class GetPendingActionsUseCase {
         condominiumName: c.condominium.name,
         description: mapping.description,
         urgency: mapping.urgency,
-        href: `/cases/${c.id}`,
+        href: mapping.href(c.id),
+        createdAt: c.updatedAt.toISOString(),
       }
     })
   }
@@ -156,6 +162,7 @@ export class GetPendingActionsUseCase {
         description: mapping.description,
         urgency: mapping.urgency,
         href: `/sindico/cases/${c.id}`,
+        createdAt: c.updatedAt.toISOString(),
       }
     })
   }
@@ -187,6 +194,7 @@ export class GetPendingActionsUseCase {
         description: mapping.description,
         urgency: mapping.urgency,
         href: `/partner/cases/${c.id}`,
+        createdAt: c.updatedAt.toISOString(),
       }
     })
   }
@@ -210,6 +218,7 @@ export class GetPendingActionsUseCase {
         description: mapping.description,
         urgency: mapping.urgency,
         href: `/review-queue`,
+        createdAt: c.updatedAt.toISOString(),
       }
     })
   }

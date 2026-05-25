@@ -33,6 +33,17 @@ const URGENCY_LABELS: Record<ActionUrgency, string> = {
   normal: "Normal",
 }
 
+function relativeTime(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime()
+  const mins = Math.floor(diff / 60_000)
+  if (mins < 1) return "agora mesmo"
+  if (mins < 60) return `há ${mins} min`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `há ${hours}h`
+  const days = Math.floor(hours / 24)
+  return `há ${days} dia${days > 1 ? "s" : ""}`
+}
+
 export function PendingActionsWidget() {
   const [actions, setActions] = useState<PendingAction[]>([])
   const [loading, setLoading] = useState(true)
@@ -54,7 +65,7 @@ export function PendingActionsWidget() {
 
   useEffect(() => {
     fetchActions()
-    const interval = setInterval(fetchActions, 60_000)
+    const interval = setInterval(fetchActions, 15_000)
     return () => clearInterval(interval)
   }, [fetchActions])
 
@@ -94,13 +105,23 @@ export function PendingActionsWidget() {
       <div className="mb-6 rounded-md bg-surface shadow-hair">
         <div className="flex items-center justify-between border-b border-divider px-5 py-4">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-ink-900">Pendencias</span>
+            <span className="text-sm font-semibold text-ink-900">Pendências</span>
           </div>
         </div>
         <div className="flex flex-col items-center justify-center px-5 py-8 text-center">
-          <span className="mb-2 text-2xl" role="img" aria-label="Tudo em dia">
-            ✅
-          </span>
+          <svg
+            className="mb-2 h-8 w-8 text-green-600"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+            <polyline points="22 4 12 14.01 9 11.01" />
+          </svg>
           <p className="text-sm font-medium text-ink-700">Tudo em dia!</p>
           <p className="mt-1 text-xs text-ink-400">
             Nenhuma ação pendente no momento.
@@ -115,7 +136,7 @@ export function PendingActionsWidget() {
       {/* Header */}
       <div className="flex items-center justify-between border-b border-divider px-5 py-4">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold text-ink-900">Pendencias</span>
+          <span className="text-sm font-semibold text-ink-900">Pendências</span>
           <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-iron-600 px-1.5 font-mono text-[11px] font-semibold text-bone-50">
             {actions.length}
           </span>
@@ -148,13 +169,18 @@ export function PendingActionsWidget() {
                 {/* Description */}
                 <p className="mt-1 text-sm text-ink-900">{action.description}</p>
 
-                {/* Urgency badge */}
-                <span
-                  className={`mt-1.5 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${styles.badge}`}
-                >
-                  <span className={`h-1.5 w-1.5 rounded-full ${styles.dot}`} />
-                  {URGENCY_LABELS[action.urgency]}
-                </span>
+                {/* Urgency badge + relative time */}
+                <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                  <span
+                    className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${styles.badge}`}
+                  >
+                    <span className={`h-1.5 w-1.5 rounded-full ${styles.dot}`} />
+                    {URGENCY_LABELS[action.urgency]}
+                  </span>
+                  <span className="text-[11px] text-ink-400">
+                    {relativeTime(action.createdAt)}
+                  </span>
+                </div>
               </div>
 
               {/* CTA */}
@@ -162,7 +188,9 @@ export function PendingActionsWidget() {
                 href={action.href}
                 className="mt-0.5 shrink-0 inline-flex items-center gap-1 rounded-sm border border-line-strong px-3 py-1.5 text-xs font-medium text-ink-900 transition-colors hover:bg-bone-100"
               >
-                Ir para o caso
+                {action.type === "upload_documents" || action.type === "correct_documents"
+                  ? "Ver documentos"
+                  : "Ir para o caso"}
                 <span aria-hidden>→</span>
               </Link>
             </li>
