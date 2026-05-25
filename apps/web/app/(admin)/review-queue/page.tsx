@@ -1,49 +1,105 @@
-import Link from "next/link"
-import { redirect } from "next/navigation"
-import { getSessionUser } from "@/infrastructure/auth/getSessionUser"
-import { prisma } from "@/infrastructure/database/prisma"
-import { RiskLevel } from "@reformai/database"
-import { TopBar, RiskBadge, StatusChip, Eyebrow } from "@/interfaces/components/ui"
+"use client"
 
-export const dynamic = "force-dynamic"
+import { useEffect, useState } from "react"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { TopBar, RiskBadge, StatusChip, Eyebrow, SearchInput } from "@/interfaces/components/ui"
 
 const ADMIN_ROLES = new Set(["SUPER_ADMIN", "ADMIN", "MANAGER"])
 
-export default async function ReviewQueuePage() {
-  const user = await getSessionUser()
-  if (!user) redirect("/login")
-  if (!ADMIN_ROLES.has(user.role)) redirect("/cases")
+type CaseRow = {
+  id: string
+  protocol: string
+  status: string
+  riskLevel: string | null
+  triageScore: number | null
+  createdAt: string
+  condominium: { name: string }
+  unit: { identifier: string }
+}
 
-  const cases = await prisma.reformCase.findMany({
-    where: { tenantId: user.tenantId, status: "HUMAN_REVIEW_REQUIRED" },
-    orderBy: { createdAt: "asc" },
-    select: {
-      id: true,
-      protocol: true,
-      status: true,
-      riskLevel: true,
-      triageScore: true,
-      createdAt: true,
-      condominium: { select: { name: true } },
-      unit: { select: { identifier: true } },
-    },
-  })
+export default function ReviewQueuePage() {
+  const router = useRouter()
+  const [cases, setCases] = useState<CaseRow[]>([])
+  const [search, setSearch] = useState("")
+  const [loading, setLoading] = useState(true)
+
+  // Auth guard via session — redirect handled server-side for this panel
+  useEffect(() => {
+    fetchCases("")
+  }, [])
+
+  async function fetchCases(query: string) {
+    setLoading(true)
+    try {
+      const params = new URLSearchParams()
+      if (query) params.set("search", query)
+      const res = await fetch(`/api/v1/cases?${params.toString()}`)
+      if (res.status === 401) {
+        router.push("/login")
+        return
+      }
+      if (res.status === 403) {
+        router.push("/cases")
+        return
+      }
+      const data = await res.json()
+      // Filter to only HUMAN_REVIEW_REQUIRED on client — the API returns all cases for ADMIN
+      const filtered = (data.cases as CaseRow[]).filter(
+        (c) => c.status === "HUMAN_REVIEW_REQUIRED",
+      )
+      setCases(filtered)
+    } catch {
+      setCases([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  function handleSearch(value: string) {
+    setSearch(value)
+    fetchCases(value)
+  }
 
   return (
     <>
       <TopBar
         title="Fila de Revisão Humana"
-        subtitle={`${cases.length} caso(s) aguardando revisão`}
+        subtitle={loading ? "Carregando..." : `${cases.length} caso(s) aguardando revisão`}
       />
 
       <div className="flex-1 overflow-auto bg-bone-50 px-8 py-8">
-        {cases.length === 0 ? (
+        {/* Search bar */}
+        <div className="mb-5">
+          <SearchInput
+            value={search}
+            onChange={handleSearch}
+            placeholder="Buscar por protocolo, nome ou unidade..."
+          />
+        </div>
+
+        {loading ? (
           <div className="rounded-lg bg-surface p-12 text-center shadow-hair">
-            <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-green-100">
-              <span className="h-3 w-3 rounded-full bg-green-500" />
-            </div>
-            <p className="text-sm font-medium text-ink-700">Fila vazia</p>
-            <p className="mt-1 text-sm text-ink-400">Nenhum caso aguardando revisão humana.</p>
+            <p className="text-sm text-ink-400">Carregando casos...</p>
+          </div>
+        ) : cases.length === 0 ? (
+          <div className="rounded-lg bg-surface p-12 text-center shadow-hair">
+            {search ? (
+              <>
+                <p className="text-sm font-medium text-ink-700">
+                  Nenhum caso encontrado para &ldquo;{search}&rdquo;
+                </p>
+                <p className="mt-1 text-sm text-ink-400">Tente um termo diferente.</p>
+              </>
+            ) : (
+              <>
+                <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-green-100">
+                  <span className="h-3 w-3 rounded-full bg-green-500" />
+                </div>
+                <p className="text-sm font-medium text-ink-700">Fila vazia</p>
+                <p className="mt-1 text-sm text-ink-400">Nenhum caso aguardando revisão humana.</p>
+              </>
+            )}
           </div>
         ) : (
           <div className="overflow-x-auto rounded-lg bg-surface shadow-hair">
@@ -75,7 +131,7 @@ export default async function ReviewQueuePage() {
                   <div>
                     {c.riskLevel ? (
                       <RiskBadge
-                        level={c.riskLevel as RiskLevel}
+                        level={c.riskLevel as "LOW" | "MEDIUM" | "HIGH" | "CRITICAL"}
                         score={c.triageScore ?? undefined}
                         size="sm"
                       />

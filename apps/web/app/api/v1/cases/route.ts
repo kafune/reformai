@@ -30,19 +30,27 @@ export async function POST(req: NextRequest) {
   }
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     const user = await requireSessionUser()
     const repo = new PrismaReformCaseRepository()
 
-    let filters: { clientId?: string; condominiumId?: string; partnerId?: string } | undefined
+    const { searchParams } = req.nextUrl
+    const search = searchParams.get("search") ?? undefined
+
+    let filters: {
+      clientId?: string
+      condominiumId?: string
+      partnerId?: string
+      search?: string
+    } | undefined
 
     if (user.role === "CLIENT") {
       // Morador vê só os próprios casos
-      filters = { clientId: user.id }
+      filters = { clientId: user.id, search }
     } else if (user.role === "CONDOMINIUM") {
       // Síndico vê só os casos do seu condomínio
-      filters = { condominiumId: user.condominiumId ?? undefined }
+      filters = { condominiumId: user.condominiumId ?? undefined, search }
     } else if (user.role === "PARTNER") {
       // Parceiro vê só os casos atribuídos a ele
       const partner = await prisma.partner.findUnique({
@@ -50,9 +58,11 @@ export async function GET() {
         select: { id: true },
       })
       if (!partner) return NextResponse.json({ cases: [] })
-      filters = { partnerId: partner.id }
+      filters = { partnerId: partner.id, search }
+    } else {
+      // ADMIN, MANAGER, SUPER_ADMIN: todos os casos do tenant
+      filters = search ? { search } : undefined
     }
-    // ADMIN, MANAGER, SUPER_ADMIN: todos os casos do tenant (sem filtro)
 
     const cases = await repo.listByTenant(user.tenantId, filters)
     return NextResponse.json({ cases })

@@ -1,64 +1,135 @@
-import { redirect } from "next/navigation"
-import { getSessionUser } from "@/infrastructure/auth/getSessionUser"
-import { prisma } from "@/infrastructure/database/prisma"
-import { TopBar, RiskBadge, StatusChip, Eyebrow } from "@/interfaces/components/ui"
+"use client"
 
-export const dynamic = "force-dynamic"
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
+import { TopBar, RiskBadge, StatusChip, Eyebrow, SearchInput } from "@/interfaces/components/ui"
 
-export default async function SindicoCasesPage() {
-  const user = await getSessionUser()
-  if (!user) redirect("/login")
-  if (user.role !== "CONDOMINIUM") redirect("/cases")
+type UnitRow = {
+  id: string
+  identifier: string
+}
 
-  if (!user.condominiumId) {
+type CaseRow = {
+  id: string
+  protocol: string
+  status: string
+  riskLevel: string | null
+  triageScore: number | null
+  reformScope: unknown
+  createdAt: string
+  unit: UnitRow
+}
+
+function scopeDescription(scope: unknown): string {
+  if (
+    scope &&
+    typeof scope === "object" &&
+    !Array.isArray(scope) &&
+    "description" in scope
+  ) {
+    return String((scope as { description?: string }).description ?? "")
+  }
+  return ""
+}
+
+export default function SindicoCasesPage() {
+  const router = useRouter()
+  const [cases, setCases] = useState<CaseRow[]>([])
+  const [search, setSearch] = useState("")
+  const [loading, setLoading] = useState(true)
+  const [noCondominium, setNoCondominium] = useState(false)
+
+  useEffect(() => {
+    fetchCases("")
+  }, [])
+
+  async function fetchCases(query: string) {
+    setLoading(true)
+    try {
+      const params = new URLSearchParams()
+      if (query) params.set("search", query)
+      const res = await fetch(`/api/v1/cases?${params.toString()}`)
+      if (res.status === 401) {
+        router.push("/login")
+        return
+      }
+      if (res.status === 403) {
+        router.push("/cases")
+        return
+      }
+      const data = await res.json()
+      setCases(data.cases as CaseRow[])
+    } catch {
+      setCases([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  function handleSearch(value: string) {
+    setSearch(value)
+    fetchCases(value)
+  }
+
+  if (noCondominium) {
     return (
       <div className="flex flex-1 flex-col">
         <TopBar title="Casos do condomínio" />
         <div className="flex flex-1 items-center justify-center p-8">
           <div className="text-center">
             <p className="text-ink-700 font-medium">Nenhum condomínio vinculado à sua conta.</p>
-            <p className="text-ink-400 text-sm mt-1">Entre em contato com o administrador da plataforma.</p>
+            <p className="text-ink-400 text-sm mt-1">
+              Entre em contato com o administrador da plataforma.
+            </p>
           </div>
         </div>
       </div>
     )
   }
 
-  const { tenantId, condominiumId } = user
-
-  const cases = await prisma.reformCase.findMany({
-    where: { tenantId, condominiumId },
-    include: { unit: true },
-    orderBy: { createdAt: "desc" },
-  })
-
-  const scopeDescription = (scope: unknown): string => {
-    if (
-      scope &&
-      typeof scope === "object" &&
-      !Array.isArray(scope) &&
-      "description" in scope
-    ) {
-      return String((scope as { description?: string }).description ?? "")
-    }
-    return ""
-  }
-
   return (
     <div className="flex flex-1 flex-col">
       <TopBar
         title="Casos do condomínio"
-        subtitle={`${cases.length} caso${cases.length !== 1 ? "s" : ""} registrado${cases.length !== 1 ? "s" : ""}`}
+        subtitle={
+          loading
+            ? "Carregando..."
+            : `${cases.length} caso${cases.length !== 1 ? "s" : ""} registrado${cases.length !== 1 ? "s" : ""}`
+        }
       />
 
       <div className="flex-1 overflow-auto bg-bone-50 px-8 py-6 pb-12">
-        {cases.length === 0 ? (
+        {/* Search bar */}
+        <div className="mb-5">
+          <SearchInput
+            value={search}
+            onChange={handleSearch}
+            placeholder="Buscar por protocolo, nome ou unidade..."
+          />
+        </div>
+
+        {loading ? (
+          <div className="flex items-center justify-center py-24">
+            <p className="text-sm text-ink-400">Carregando casos...</p>
+          </div>
+        ) : cases.length === 0 ? (
           <div className="flex items-center justify-center py-24">
             <div className="text-center">
-              <p className="text-ink-700 font-medium">Nenhum caso registrado.</p>
-              <p className="text-ink-400 text-sm mt-1">
-                Os casos de reforma do seu condomínio aparecerão aqui.
-              </p>
+              {search ? (
+                <>
+                  <p className="text-ink-700 font-medium">
+                    Nenhum caso encontrado para &ldquo;{search}&rdquo;
+                  </p>
+                  <p className="text-ink-400 text-sm mt-1">Tente um termo diferente.</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-ink-700 font-medium">Nenhum caso registrado.</p>
+                  <p className="text-ink-400 text-sm mt-1">
+                    Os casos de reforma do seu condomínio aparecerão aqui.
+                  </p>
+                </>
+              )}
             </div>
           </div>
         ) : (
@@ -80,7 +151,7 @@ export default async function SindicoCasesPage() {
             <div className="flex flex-col divide-y divide-divider">
               {cases.map((c) => {
                 const desc = scopeDescription(c.reformScope)
-                const createdAt = c.createdAt.toLocaleDateString("pt-BR", {
+                const createdAt = new Date(c.createdAt).toLocaleDateString("pt-BR", {
                   day: "2-digit",
                   month: "2-digit",
                   year: "2-digit",
@@ -120,7 +191,7 @@ export default async function SindicoCasesPage() {
                     )}
 
                     {/* Status */}
-                    <StatusChip status={c.status} />
+                    <StatusChip status={c.status as Parameters<typeof StatusChip>[0]["status"]} />
 
                     {/* Data */}
                     <span className="text-right font-mono text-[11px] text-ink-400">

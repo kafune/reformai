@@ -33,7 +33,7 @@ export interface ReformCaseRepository {
   findById(id: string, tenantId: string): Promise<ReformCase | null>
   listByTenant(
     tenantId: string,
-    filters?: { clientId?: string; condominiumId?: string; partnerId?: string },
+    filters?: { clientId?: string; condominiumId?: string; partnerId?: string; search?: string },
   ): Promise<ReformCase[]>
   applyScopeClassification(caseId: string, tenantId: string, input: UpdateScopeInput): Promise<ReformCase>
   appendMessage(caseId: string, tenantId: string, role: "USER" | "ASSISTANT" | "SYSTEM", content: string, metadata?: unknown): Promise<ChatMessageDTO>
