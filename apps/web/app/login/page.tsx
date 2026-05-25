@@ -62,6 +62,17 @@ function LoginForm() {
             Sua reforma começa aqui. A IA conduz, mas você decide.
           </p>
 
+          {params.get("info") === "cadastro-por-convite" && (
+            <div className="mb-4 flex items-start gap-2.5 rounded-sm border border-ochre-300 bg-ochre-100 px-3 py-2.5">
+              <Icon name="alert" size={16} className="mt-0.5 shrink-0 text-ochre-600" />
+              <p className="text-sm leading-normal text-ochre-700">
+                <strong className="font-medium">Cadastro por convite.</strong>{" "}
+                O cadastro de moradores é feito por convite do síndico. Entre em contato com a
+                administração do seu condomínio.
+              </p>
+            </div>
+          )}
+
           {params.get("registered") === "1" && (
             <p className="mb-4 rounded-sm bg-green-100 px-3 py-2 text-sm text-green-700">
               Conta criada com sucesso. Faça login para continuar.
