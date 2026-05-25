@@ -4,6 +4,7 @@ import { getSessionUser } from "@/infrastructure/auth/getSessionUser"
 import { prisma } from "@/infrastructure/database/prisma"
 import { CaseStatus, RiskLevel } from "@reformai/database"
 import { TopBar, Eyebrow, Badge, StatusChip, RiskBadge } from "@/interfaces/components/ui"
+import { PendingActionsWidget } from "@/interfaces/components/ui/PendingActionsWidget"
 import { getDashboardAnalytics } from "@/modules/analytics/application/getDashboardAnalytics"
 
 export const dynamic = "force-dynamic"
@@ -103,6 +104,9 @@ export default async function DashboardPage() {
       />
 
       <div className="flex-1 overflow-auto bg-bone-50 px-8 py-8">
+        {/* Pending actions inbox */}
+        <PendingActionsWidget />
+
         {/* Metric cards */}
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           {/* Total cases */}
