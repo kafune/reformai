@@ -9,6 +9,7 @@ import {
   Badge,
   Icon,
 } from "@/interfaces/components/ui"
+import { PendingActionsWidget } from "@/interfaces/components/ui/PendingActionsWidget"
 
 interface CaseRow {
   id: string
@@ -69,6 +70,9 @@ export default function CasesPage() {
       />
 
       <div className="flex-1 overflow-auto bg-paper px-4 py-6 md:px-8">
+        {/* Pending actions inbox */}
+        <PendingActionsWidget />
+
         {/* New case card */}
         <div className="mb-6 rounded-md bg-surface p-5 shadow-hair">
           <div className="mb-3 flex items-center gap-2">

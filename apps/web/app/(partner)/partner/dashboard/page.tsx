@@ -3,6 +3,7 @@ import { getSessionUser } from "@/infrastructure/auth/getSessionUser"
 import { prisma } from "@/infrastructure/database/prisma"
 import { CaseStatus } from "@reformai/database"
 import { TopBar, Card, Eyebrow, Icon, type IconName } from "@/interfaces/components/ui"
+import { PendingActionsWidget } from "@/interfaces/components/ui/PendingActionsWidget"
 
 export const dynamic = "force-dynamic"
 
@@ -115,6 +116,9 @@ export default async function PartnerDashboardPage() {
       />
 
       <div className="flex-1 bg-bone-50 p-8">
+        {/* Pending actions inbox */}
+        <PendingActionsWidget />
+
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           {stats.map((s) => (
             <Card key={s.label} padded={false} className="p-4">

@@ -11,6 +11,7 @@ import {
   Badge,
   Icon,
 } from "@/interfaces/components/ui"
+import { PendingActionsWidget } from "@/interfaces/components/ui/PendingActionsWidget"
 
 export const dynamic = "force-dynamic"
 
@@ -197,6 +198,9 @@ export default async function SindicoDashboardPage() {
       />
 
       <div className="flex-1 overflow-auto bg-bone-50 px-8 py-6 pb-12">
+        {/* ── Pending actions inbox ── */}
+        <PendingActionsWidget />
+
         {/* ── Stat cards ── */}
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           {[
