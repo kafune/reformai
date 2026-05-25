@@ -35,7 +35,7 @@ interface PartnerWithUser {
   active: boolean
   createdAt: Date
   user: { name: string; email: string }
-  _count: { cases: number; inspections: number }
+  _count: { cases: number; inspections: number; reviews: number }
 }
 
 function serializePartner(p: PartnerWithUser) {
@@ -50,6 +50,7 @@ function serializePartner(p: PartnerWithUser) {
     states: p.states,
     basePrice: Number(p.basePrice),
     rating: p.rating == null ? null : Number(p.rating),
+    reviewCount: p._count.reviews,
     slaHours: p.slaHours,
     active: p.active,
     createdAt: p.createdAt,
@@ -60,7 +61,7 @@ function serializePartner(p: PartnerWithUser) {
 
 const PARTNER_INCLUDE = {
   user: { select: { name: true, email: true } },
-  _count: { select: { cases: true, inspections: true } },
+  _count: { select: { cases: true, inspections: true, reviews: true } },
 } as const
 
 /** Lista os parceiros do tenant do usuário. */

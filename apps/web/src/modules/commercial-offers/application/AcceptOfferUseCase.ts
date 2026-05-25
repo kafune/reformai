@@ -6,6 +6,7 @@ import {
   NotFoundError,
   BusinessRuleViolationError,
 } from "@/shared/errors/DomainError"
+import { getCaseNotificationService } from "@/modules/case-intake/application/CaseNotificationService"
 
 // ---------------------------------------------------------------------------
 // I/O types
@@ -79,6 +80,18 @@ export class AcceptOfferUseCase {
 
       return updated
     })
+
+    // Notificação por e-mail — fire-and-forget
+    getCaseNotificationService()
+      .onTransition({
+        caseId,
+        protocol: reformCase.protocol,
+        toStatus: newStatus,
+        clientId: reformCase.clientId,
+        tenantId,
+        condominiumId: reformCase.condominiumId,
+      })
+      .catch(() => {})
 
     return updatedCase
   }

@@ -2,7 +2,7 @@ import { redirect } from "next/navigation"
 import { getSessionUser } from "@/infrastructure/auth/getSessionUser"
 import { prisma } from "@/infrastructure/database/prisma"
 import { CaseStatus } from "@reformai/database"
-import { TopBar, Card, Eyebrow, Icon, type IconName } from "@/interfaces/components/ui"
+import { TopBar, Card, Eyebrow, Icon, RatingDisplay, type IconName } from "@/interfaces/components/ui"
 
 export const dynamic = "force-dynamic"
 
@@ -22,7 +22,12 @@ export default async function PartnerDashboardPage() {
 
   const partner = await prisma.partner.findUnique({
     where: { userId: user.id },
-    select: { id: true, tenantId: true },
+    select: {
+      id: true,
+      tenantId: true,
+      rating: true,
+      _count: { select: { reviews: true } },
+    },
   })
 
   if (!partner) {
@@ -107,6 +112,9 @@ export default async function PartnerDashboardPage() {
     },
   ]
 
+  const ratingValue = partner.rating == null ? null : Number(partner.rating)
+  const reviewCount = partner._count.reviews
+
   return (
     <div className="flex flex-col">
       <TopBar
@@ -142,6 +150,61 @@ export default async function PartnerDashboardPage() {
               </div>
             </Card>
           ))}
+        </div>
+
+        {/* Rating card */}
+        <div className="mt-6">
+          <Card padded={false} className="p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <Eyebrow>Minha avaliação</Eyebrow>
+                <div className="mt-2">
+                  {ratingValue == null ? (
+                    <p className="text-sm text-ink-500">
+                      Ainda sem avaliações. Suas avaliações aparecerão aqui após cada obra concluída.
+                    </p>
+                  ) : (
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center gap-3">
+                        <span className="font-mono text-3xl font-semibold tabular-nums tracking-tight text-ink-900">
+                          {ratingValue.toFixed(1)}
+                        </span>
+                        <div className="flex flex-col gap-0.5">
+                          <div className="flex gap-0.5">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <svg
+                                key={star}
+                                width={14}
+                                height={14}
+                                viewBox="0 0 16 16"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth={1.5}
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                aria-hidden="true"
+                                className={
+                                  star <= Math.round(ratingValue)
+                                    ? "fill-ochre-400 stroke-ochre-500"
+                                    : "fill-transparent stroke-ink-300"
+                                }
+                              >
+                                <path d="M8 2l1.9 4 4.4.6-3.2 3 .8 4.4L8 12l-3.9 2 .8-4.4-3.2-3 4.4-.6L8 2z" />
+                              </svg>
+                            ))}
+                          </div>
+                          <span className="text-xs text-ink-400">
+                            {reviewCount} avaliação{reviewCount !== 1 ? "ões" : ""}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <Icon name="star" size={24} className="text-ochre-400" />
+            </div>
+          </Card>
         </div>
       </div>
     </div>

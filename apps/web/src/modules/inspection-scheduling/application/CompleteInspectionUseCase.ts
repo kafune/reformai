@@ -6,6 +6,7 @@ import { BusinessRuleViolationError, NotFoundError } from "@/shared/errors/Domai
 import { ReformScopeSchema } from "@/shared/schemas/ReformScopeSchema"
 import { InspectionRules } from "../domain/InspectionRules"
 import type { InspectionRepository } from "../domain/repositories/InspectionRepository"
+import { getCaseNotificationService } from "@/modules/case-intake/application/CaseNotificationService"
 
 interface CompleteInspectionInput {
   inspectionId: string
@@ -128,6 +129,30 @@ export class CompleteInspectionUseCase {
 
       return updated
     })
+
+    // Notificação por e-mail se caso foi concluído — fire-and-forget
+    if (
+      completed &&
+      reformCase.status !== "CONCLUDED"
+    ) {
+      // Recheck: precisamos saber se shouldConclude foi true — buscamos o status atual
+      const updatedCase = await prisma.reformCase.findFirst({
+        where: { id: caseId, tenantId },
+        select: { status: true, protocol: true, clientId: true, condominiumId: true },
+      })
+      if (updatedCase?.status === "CONCLUDED") {
+        getCaseNotificationService()
+          .onTransition({
+            caseId,
+            protocol: updatedCase.protocol,
+            toStatus: "CONCLUDED",
+            clientId: updatedCase.clientId,
+            tenantId,
+            condominiumId: updatedCase.condominiumId,
+          })
+          .catch(() => {})
+      }
+    }
 
     return completed
   }

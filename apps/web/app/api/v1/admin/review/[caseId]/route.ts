@@ -6,6 +6,7 @@ import { handleError, unauthorized } from "@/interfaces/http/respond"
 import { prisma } from "@/infrastructure/database/prisma"
 import { CaseStateMachine } from "@/modules/case-intake/domain/entities/CaseStateMachine"
 import { NotFoundError, BusinessRuleViolationError } from "@/shared/errors/DomainError"
+import { getCaseNotificationService } from "@/modules/case-intake/application/CaseNotificationService"
 
 const ADMIN_ROLES = new Set(["SUPER_ADMIN", "ADMIN", "MANAGER"])
 
@@ -92,6 +93,18 @@ export async function POST(req: NextRequest, ctx: { params: { caseId: string } }
 
       return updated
     })
+
+    // Notificação por e-mail sobre a decisão de revisão — fire-and-forget
+    getCaseNotificationService()
+      .onTransition({
+        caseId,
+        protocol: reformCase.protocol,
+        toStatus,
+        clientId: reformCase.clientId,
+        tenantId: user.tenantId,
+        condominiumId: reformCase.condominiumId,
+      })
+      .catch(() => {})
 
     return NextResponse.json(updatedCase)
   } catch (err) {

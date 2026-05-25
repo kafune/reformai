@@ -6,6 +6,7 @@ import { BusinessRuleViolationError, NotFoundError } from "@/shared/errors/Domai
 import { ReformScopeSchema } from "@/shared/schemas/ReformScopeSchema"
 import { InspectionRules } from "../domain/InspectionRules"
 import type { InspectionRepository } from "../domain/repositories/InspectionRepository"
+import { getCaseNotificationService } from "@/modules/case-intake/application/CaseNotificationService"
 
 interface ScheduleInspectionInput {
   caseId: string
@@ -144,6 +145,20 @@ export class ScheduleInspectionUseCase {
 
       return created
     })
+
+    // Notificação por e-mail se houve transição de status — fire-and-forget
+    if (newStatus) {
+      getCaseNotificationService()
+        .onTransition({
+          caseId,
+          protocol: reformCase.protocol,
+          toStatus: newStatus,
+          clientId: reformCase.clientId,
+          tenantId,
+          condominiumId: reformCase.condominiumId,
+        })
+        .catch(() => {})
+    }
 
     return inspection
   }

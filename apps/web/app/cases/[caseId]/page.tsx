@@ -14,18 +14,20 @@ import {
   Button,
   Icon,
   Eyebrow,
+  StarRating,
 } from "@/interfaces/components/ui"
 import type { RiskLevel } from "@/interfaces/components/ui"
 
 interface Message { id: string; role: string; content: string; createdAt: string }
 interface CaseData {
   id: string; protocol: string; status: string; riskLevel: string | null;
-  triageScore: number | null; requiresART: boolean | null; evaluationResult: any
+  triageScore: number | null; requiresART: boolean | null; evaluationResult: any;
+  partner?: { user?: { name?: string } } | null
 }
 
 export default function CaseDetailPage() {
   const { caseId } = useParams<{ caseId: string }>()
-  const { status } = useSession()
+  const { status, data: session } = useSession()
   const router = useRouter()
   const [data, setData] = useState<CaseData | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
@@ -33,6 +35,14 @@ export default function CaseDetailPage() {
   const [sending, setSending] = useState(false)
   const [streamingContent, setStreamingContent] = useState("")
   const endRef = useRef<HTMLDivElement>(null)
+
+  // Review state
+  const [reviewScore, setReviewScore] = useState(0)
+  const [reviewComment, setReviewComment] = useState("")
+  const [reviewSubmitting, setReviewSubmitting] = useState(false)
+  const [reviewDismissed, setReviewDismissed] = useState(false)
+  const [reviewDone, setReviewDone] = useState(false)
+  const [existingReview, setExistingReview] = useState<{ score: number; comment?: string | null } | null | undefined>(undefined)
 
   useEffect(() => { if (status === "unauthenticated") router.push("/login") }, [status, router])
 
@@ -43,6 +53,38 @@ export default function CaseDetailPage() {
     ])
     setData(c)
     setMessages(m.messages ?? [])
+  }
+
+  // Fetch existing review when case is CONCLUDED and user is CLIENT
+  useEffect(() => {
+    if (
+      data?.status === "CONCLUDED" &&
+      session?.user?.role === "CLIENT" &&
+      existingReview === undefined
+    ) {
+      fetch(`/api/v1/cases/${caseId}/review`)
+        .then((r) => r.json())
+        .then((body) => setExistingReview(body.review))
+        .catch(() => setExistingReview(null))
+    }
+  }, [data?.status, session?.user?.role, caseId, existingReview])
+
+  async function submitReview(e: React.FormEvent) {
+    e.preventDefault()
+    if (reviewScore === 0 || reviewSubmitting) return
+    setReviewSubmitting(true)
+    try {
+      const res = await fetch(`/api/v1/cases/${caseId}/review`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ score: reviewScore, comment: reviewComment || undefined }),
+      })
+      if (res.ok) {
+        setReviewDone(true)
+      }
+    } finally {
+      setReviewSubmitting(false)
+    }
   }
 
   useEffect(() => { if (status === "authenticated") reload() }, [status, caseId])
@@ -104,8 +146,109 @@ export default function CaseDetailPage() {
 
   const triggered = data.evaluationResult?.triggeredRules ?? []
 
+  // Show review prompt for CLIENT when case is CONCLUDED and no existing review
+  const showReviewPrompt =
+    session?.user?.role === "CLIENT" &&
+    data.status === "CONCLUDED" &&
+    existingReview !== undefined && // loaded
+    existingReview === null && // no existing review
+    !reviewDismissed &&
+    !reviewDone
+
+  const partnerName = data.partner?.user?.name ?? "o parceiro"
+
   return (
     <>
+      {/* Review modal overlay */}
+      {showReviewPrompt && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-ink-900/40 px-4 backdrop-blur-sm"
+          aria-modal="true"
+          role="dialog"
+          aria-labelledby="review-dialog-title"
+        >
+          <div className="w-full max-w-md rounded-xl bg-surface p-6 shadow-2xl">
+            {reviewDone ? (
+              <div className="flex flex-col items-center gap-3 py-4 text-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
+                  <Icon name="check" size={20} className="text-green-700" />
+                </div>
+                <h2 className="text-base font-semibold text-ink-900">Obrigado pela avaliação!</h2>
+                <p className="text-sm text-ink-500">Sua opinião ajuda outros moradores a escolher o melhor profissional.</p>
+                <Button variant="primary" size="sm" onClick={() => setReviewDismissed(true)}>
+                  Fechar
+                </Button>
+              </div>
+            ) : (
+              <form onSubmit={submitReview} className="flex flex-col gap-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-ochre-100">
+                    <Icon name="star" size={18} className="text-ochre-600" />
+                  </div>
+                  <div>
+                    <h2
+                      id="review-dialog-title"
+                      className="text-sm font-semibold text-ink-900"
+                    >
+                      Sua obra foi concluída!
+                    </h2>
+                    <p className="mt-0.5 text-xs text-ink-500">
+                      Como foi sua experiência com {partnerName}?
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex justify-center">
+                  <StarRating value={reviewScore} onChange={setReviewScore} size={36} />
+                </div>
+
+                {reviewScore > 0 && (
+                  <div className="flex flex-col gap-1">
+                    <label
+                      htmlFor="review-comment"
+                      className="text-xs font-medium text-ink-700"
+                    >
+                      Comentário (opcional)
+                    </label>
+                    <textarea
+                      id="review-comment"
+                      value={reviewComment}
+                      onChange={(e) => setReviewComment(e.target.value)}
+                      maxLength={500}
+                      rows={3}
+                      placeholder="Conte como foi a experiência…"
+                      className="rounded-md border border-divider bg-bone-50 px-3 py-2 text-sm text-ink-900 outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 placeholder:text-ink-300 resize-none"
+                    />
+                    <span className="text-right text-xs text-ink-400">
+                      {reviewComment.length}/500
+                    </span>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setReviewDismissed(true)}
+                  >
+                    Depois
+                  </Button>
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    size="sm"
+                    disabled={reviewScore === 0 || reviewSubmitting}
+                  >
+                    {reviewSubmitting ? "Enviando…" : "Avaliar"}
+                  </Button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
       <TopBar
         breadcrumb={["Minhas reformas", data.protocol]}
         title={data.protocol}

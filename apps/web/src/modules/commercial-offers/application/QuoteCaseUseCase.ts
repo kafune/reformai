@@ -10,6 +10,7 @@ import { logger } from "@/shared/logger"
 import { calculatePrice, type PriceCalculatorOutput } from "../domain/PriceCalculator"
 import type { CommercialAgent, CommercialOfferOutput } from "./CommercialAgent"
 import type { PrismaCommercialRepository } from "../infrastructure/PrismaCommercialRepository"
+import { getCaseNotificationService } from "@/modules/case-intake/application/CaseNotificationService"
 
 // ---------------------------------------------------------------------------
 // I/O types
@@ -139,7 +140,19 @@ export class QuoteCaseUseCase {
       return updated
     })
 
-    // (f) Retorna resultado completo
+    // (f) Notificação por e-mail — fire-and-forget
+    getCaseNotificationService()
+      .onTransition({
+        caseId,
+        protocol: reformCase.protocol,
+        toStatus: newStatus,
+        clientId: reformCase.clientId,
+        tenantId,
+        condominiumId: reformCase.condominiumId,
+      })
+      .catch(() => {})
+
+    // (g) Retorna resultado completo
     return {
       case: updatedCase,
       plan,

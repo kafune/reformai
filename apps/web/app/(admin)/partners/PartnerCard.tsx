@@ -1,6 +1,6 @@
 "use client"
 import { useState } from "react"
-import { Button, Input, Select, Badge } from "@/interfaces/components/ui"
+import { Button, Input, Select, Badge, RatingDisplay } from "@/interfaces/components/ui"
 import { PARTNER_TYPE_LABELS, toCsv, fromCsv, type Partner } from "./types"
 
 const toForm = (p: Partner) => ({
@@ -184,11 +184,12 @@ export function PartnerCard({
           <div className="mt-0.5 text-xs text-ink-500">
             {partner.email} · {partner.creaNumber}
           </div>
-          <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-xs text-ink-500">
+          <div className="mt-2 flex flex-wrap items-center gap-x-6 gap-y-1 text-xs text-ink-500">
             <span>Preço base: <span className="text-ink-700">{money}</span></span>
             {partner.slaHours != null && <span>SLA: {partner.slaHours}h</span>}
             <span>{partner.caseCount} caso(s)</span>
             <span>{partner.inspectionCount} vistoria(s)</span>
+            <RatingDisplay rating={partner.rating} count={partner.reviewCount} />
           </div>
           {partner.specialties.length > 0 && (
             <div className="mt-2 text-xs text-ink-500">

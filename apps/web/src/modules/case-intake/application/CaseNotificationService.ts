@@ -1,0 +1,191 @@
+/**
+ * CaseNotificationService
+ *
+ * Envia e-mails automáticos quando o status de um caso muda.
+ * Segue o princípio fire-and-forget: qualquer falha no envio é silenciada
+ * para não interromper o fluxo principal de negócio.
+ *
+ * Destinatários por tipo:
+ *   CLIENT      → usuário cujo id é clientId do caso
+ *   CONDOMINIUM → usuário com role CONDOMINIUM ligado ao condominiumId
+ *   ADMIN       → usuários com role ADMIN, MANAGER ou SUPER_ADMIN do tenant
+ */
+
+import type { CaseStatus } from "@reformai/database"
+import type { EmailProvider } from "@/infrastructure/email/EmailProvider"
+import { buildEmailProvider } from "@/infrastructure/email/EmailFactory"
+import { prisma } from "@/infrastructure/database/prisma"
+import { CASE_STATUS_TEMPLATES } from "@/infrastructure/email/caseTemplates"
+import { logger } from "@/shared/logger"
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+export interface CaseTransitionParams {
+  caseId: string
+  protocol: string
+  toStatus: CaseStatus
+  clientId: string
+  tenantId: string
+  condominiumId: string
+}
+
+interface Recipient {
+  email: string
+  name: string
+  caseUrl: string
+}
+
+// ---------------------------------------------------------------------------
+// Service
+// ---------------------------------------------------------------------------
+
+export class CaseNotificationService {
+  private readonly emailProvider: EmailProvider | null
+
+  constructor(emailProvider?: EmailProvider | null) {
+    // Permite injeção em testes; em produção usa EmailFactory
+    this.emailProvider = emailProvider !== undefined ? emailProvider : buildEmailProvider()
+  }
+
+  /**
+   * Dispara os e-mails para a transição de status informada.
+   * NUNCA propaga erros — e-mail é non-fatal.
+   */
+  async onTransition(params: CaseTransitionParams): Promise<void> {
+    const { protocol, toStatus, clientId, tenantId, condominiumId, caseId } = params
+
+    // Sem provedor configurado, nada a fazer
+    if (!this.emailProvider) return
+
+    // Sem template para este status, silêncio
+    const template = CASE_STATUS_TEMPLATES[toStatus]
+    if (!template) return
+
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"
+    const emailProvider = this.emailProvider
+
+    try {
+      const recipients = await this.resolveRecipients(
+        template.targets,
+        clientId,
+        tenantId,
+        condominiumId,
+        toStatus,
+        appUrl,
+      )
+
+      for (const { email, name, caseUrl } of recipients) {
+        const subject = template.subject(protocol)
+        const html = template.html({ protocol, caseUrl, recipientName: name })
+
+        emailProvider
+          .send({ to: email, subject, html })
+          .catch((err) => {
+            logger.warn("case.notification.email_failed", {
+              caseId,
+              tenantId,
+              toStatus,
+              recipientEmail: email,
+              error: (err as Error).message,
+            })
+          })
+      }
+    } catch (err) {
+      // Falha ao resolver destinatários também é silenciada
+      logger.warn("case.notification.resolve_recipients_failed", {
+        caseId,
+        tenantId,
+        toStatus,
+        error: (err as Error).message,
+      })
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Private helpers
+  // ---------------------------------------------------------------------------
+
+  private async resolveRecipients(
+    targets: string[],
+    clientId: string,
+    tenantId: string,
+    condominiumId: string,
+    toStatus: CaseStatus,
+    appUrl: string,
+  ): Promise<Recipient[]> {
+    const results: Recipient[] = []
+
+    for (const target of targets) {
+      if (target === "CLIENT") {
+        const user = await prisma.user.findUnique({
+          where: { id: clientId },
+          select: { email: true, name: true },
+        })
+        if (user) {
+          // CLIENT acessa via /cases (lista de casos do morador)
+          results.push({
+            email: user.email,
+            name: user.name,
+            caseUrl: `${appUrl}/cases`,
+          })
+        }
+      }
+
+      if (target === "CONDOMINIUM") {
+        const syndic = await prisma.user.findFirst({
+          where: { condominiumId, tenantId, role: "CONDOMINIUM", active: true },
+          select: { email: true, name: true },
+        })
+        if (syndic) {
+          results.push({
+            email: syndic.email,
+            name: syndic.name,
+            caseUrl: `${appUrl}/sindico/cases`,
+          })
+        }
+      }
+
+      if (target === "ADMIN") {
+        const admins = await prisma.user.findMany({
+          where: {
+            tenantId,
+            role: { in: ["ADMIN", "MANAGER", "SUPER_ADMIN"] },
+            active: true,
+          },
+          select: { email: true, name: true },
+        })
+        for (const admin of admins) {
+          results.push({
+            email: admin.email,
+            name: admin.name,
+            // Admins vão para a fila de revisão quando for HUMAN_REVIEW_REQUIRED
+            caseUrl:
+              toStatus === "HUMAN_REVIEW_REQUIRED"
+                ? `${appUrl}/review-queue`
+                : `${appUrl}/dashboard`,
+          })
+        }
+      }
+    }
+
+    return results
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Singleton factory para uso nos route handlers / use cases
+// ---------------------------------------------------------------------------
+
+let _instance: CaseNotificationService | null = null
+
+/**
+ * Retorna instância singleton do CaseNotificationService.
+ */
+export function getCaseNotificationService(): CaseNotificationService {
+  if (!_instance) {
+    _instance = new CaseNotificationService()
+  }
+  return _instance
+}

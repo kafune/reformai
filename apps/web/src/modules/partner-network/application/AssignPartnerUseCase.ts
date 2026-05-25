@@ -7,6 +7,7 @@ import {
 } from "@/shared/errors/DomainError"
 import { matchPartners } from "../domain/PartnerMatcher"
 import type { PartnerRepository } from "../domain/repositories/PartnerRepository"
+import { getCaseNotificationService } from "@/modules/case-intake/application/CaseNotificationService"
 
 const VALID_STATUSES = ["AWAITING_PAYMENT", "RELEASED_WITH_CONDITIONS", "ELIGIBLE_FOR_RELEASE"] as const
 
@@ -114,6 +115,18 @@ export class AssignPartnerUseCase {
 
       return updated
     })
+
+    // Notificação por e-mail — fire-and-forget
+    getCaseNotificationService()
+      .onTransition({
+        caseId,
+        protocol: reformCase.protocol,
+        toStatus: "ASSIGNED_TO_PARTNER",
+        clientId: reformCase.clientId,
+        tenantId,
+        condominiumId: reformCase.condominiumId,
+      })
+      .catch(() => {})
 
     return { case: updatedCase as ReformCase, partner: selected }
   }

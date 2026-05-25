@@ -9,6 +9,7 @@ export interface Partner {
   states: string[]
   basePrice: number
   rating: number | null
+  reviewCount: number
   slaHours: number | null
   active: boolean
   createdAt: string

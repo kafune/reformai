@@ -6,6 +6,7 @@ import { DeterministicEvaluator } from "@/modules/rule-engine/domain/Determinist
 import { PrismaPolicyRepository } from "@/modules/rule-engine/infrastructure/PrismaPolicyRepository"
 import type { ReformCaseRepository } from "../domain/repositories/ReformCaseRepository"
 import type { PolicyEvaluationResult } from "@/modules/rule-engine/domain/types"
+import { getCaseNotificationService } from "./CaseNotificationService"
 
 export interface ClassifyScopeRequest {
   caseId: string
@@ -60,6 +61,18 @@ export class ClassifyScopeUseCase {
       riskLevel: evaluation.riskLevel,
       triageScore: evaluation.triageScore,
     })
+
+    // Notificação por e-mail — fire-and-forget, nunca bloqueia
+    getCaseNotificationService()
+      .onTransition({
+        caseId: req.caseId,
+        protocol: existing.protocol,
+        toStatus: newStatus,
+        clientId: existing.clientId,
+        tenantId: req.tenantId,
+        condominiumId: existing.condominiumId,
+      })
+      .catch(() => {})
 
     return { scope, evaluation }
   }

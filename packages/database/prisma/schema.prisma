@@ -90,6 +90,7 @@ model User {
   notifications       Notification[]
   passwordResetTokens PasswordResetToken[]
   pushSubscriptions   PushSubscription[]
+  partnerReviews      PartnerReview[]
 }
 
 model PushSubscription {
@@ -167,12 +168,13 @@ model ReformCase {
   client      User        @relation("ClientCases", fields: [clientId], references: [id])
   partner     Partner?    @relation(fields: [partnerId], references: [id])
 
-  messages    ChatMessage[]
-  documents   Document[]
-  reports     Report[]
-  inspections Inspection[]
-  transitions CaseTransitionLog[]
-  auditLogs   AuditLog[]
+  messages      ChatMessage[]
+  documents     Document[]
+  reports       Report[]
+  inspections   Inspection[]
+  transitions   CaseTransitionLog[]
+  auditLogs     AuditLog[]
+  partnerReview PartnerReview?
 }
 
 enum CaseStatus {
@@ -379,10 +381,11 @@ model Partner {
   active      Boolean     @default(true)
   createdAt   DateTime    @default(now())
 
-  tenant      Tenant       @relation(fields: [tenantId], references: [id])
-  user        User         @relation(fields: [userId], references: [id])
+  tenant      Tenant          @relation(fields: [tenantId], references: [id])
+  user        User            @relation(fields: [userId], references: [id])
   cases       ReformCase[]
   inspections Inspection[]
+  reviews     PartnerReview[]
 }
 
 enum PartnerType {
@@ -472,4 +475,23 @@ model Notification {
   user User @relation(fields: [userId], references: [id])
 
   @@index([userId, read])
+}
+
+// ─── PARTNER REVIEWS ──────────────────────────────────────────
+
+model PartnerReview {
+  id        String   @id @default(cuid())
+  partnerId String
+  caseId    String   @unique // uma avaliação por caso
+  clientId  String
+  tenantId  String
+  score     Int      // 1 a 5
+  comment   String?
+  createdAt DateTime @default(now())
+
+  partner Partner    @relation(fields: [partnerId], references: [id])
+  case    ReformCase @relation(fields: [caseId], references: [id])
+  client  User       @relation(fields: [clientId], references: [id])
+
+  @@index([partnerId])
 }
