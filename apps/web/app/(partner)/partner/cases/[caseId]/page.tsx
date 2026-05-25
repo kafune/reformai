@@ -21,6 +21,7 @@ const STATUS_LABELS: Record<CaseStatus, string> = {
   DRAFT: "Rascunho",
   AWAITING_SCOPE_DETAILS: "Aguardando detalhes",
   SCOPE_CLASSIFIED: "Escopo classificado",
+  AWAITING_SYNDIC_APPROVAL: "Aguardando síndico",
   AWAITING_DOCUMENTS: "Aguardando documentos",
   DOCUMENTS_UNDER_REVIEW: "Documentos em revisão",
   PENDING_CORRECTIONS: "Correções pendentes",
