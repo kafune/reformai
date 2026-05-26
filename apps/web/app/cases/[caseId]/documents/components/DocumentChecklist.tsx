@@ -1,6 +1,6 @@
 import type { DocStatus, DocumentType } from "@reformai/database"
 import { Icon } from "@/interfaces/components/ui"
-import { DOCUMENT_TYPE_LABELS } from "./DocumentTypeSelect"
+import { DOCUMENT_TYPE_LABELS } from "./document-type-constants"
 import { cn } from "@/shared/cn"
 
 interface ChecklistItem {

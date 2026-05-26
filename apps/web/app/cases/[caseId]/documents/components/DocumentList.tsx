@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import type { DocStatus, DocumentType } from "@reformai/database"
 import { DocumentStatusBadge } from "./DocumentStatusBadge"
-import { DOCUMENT_TYPE_LABELS } from "./DocumentTypeSelect"
+import { DOCUMENT_TYPE_LABELS } from "./document-type-constants"
 import { Icon, DocumentViewer } from "@/interfaces/components/ui"
 import type { DocumentUploadZoneHandle } from "./DocumentUploadZone"
 
