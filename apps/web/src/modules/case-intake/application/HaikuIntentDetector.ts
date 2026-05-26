@@ -14,17 +14,23 @@ Categories:
 - process: questions about construction steps, sequence, order of services, timeline, how long it takes, what comes first`
 
 export class HaikuIntentDetector {
-  private readonly client: Anthropic
+  // Lazy initialization: client is only created on first detect() call.
+  // This allows the class to be instantiated at build time (e.g., for
+  // /api/v1/specialists metadata listing) without requiring the API key.
+  private _client: Anthropic | null = null
 
-  constructor() {
-    const apiKey = process.env.ANTHROPIC_API_KEY
-    if (!apiKey) throw new Error("ANTHROPIC_API_KEY não configurada")
-    this.client = new Anthropic({ apiKey })
+  private getClient(): Anthropic {
+    if (!this._client) {
+      const apiKey = process.env.ANTHROPIC_API_KEY
+      if (!apiKey) throw new Error("ANTHROPIC_API_KEY não configurada")
+      this._client = new Anthropic({ apiKey })
+    }
+    return this._client
   }
 
   async detect(message: string): Promise<SpecialistId> {
     try {
-      const response = await this.client.messages.create({
+      const response = await this.getClient().messages.create({
         model: "claude-haiku-4-5-20251001",
         max_tokens: 16, // só precisa de 1 palavra
         system: SYSTEM_PROMPT,
