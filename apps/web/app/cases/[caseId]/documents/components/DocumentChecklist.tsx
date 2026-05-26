@@ -94,7 +94,6 @@ export function DocumentChecklist({ requiresART, uploadedByType, pendingCorrecti
           const docStatus = uploadedByType[item.type]
           const iconKey = resolveIconKey(docStatus, item.required)
           // resolveIconKey always returns a key that exists in CHECKLIST_ICON
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
           const cfg = CHECKLIST_ICON[iconKey]!
           const isInvalidCorrection = pendingCorrections && docStatus === "INVALID"
 
