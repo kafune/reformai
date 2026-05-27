@@ -5,11 +5,13 @@ import { ClientBackButton } from '@/interfaces/components/ui/ClientBackButton'
 
 export const metadata = { title: 'Página não encontrada — ReformAI' }
 
+// Rotas genéricas que funcionam para qualquer papel.
+// /cases → CLIENT vê suas reformas; outros papéis são redirecionados pelo layout para sua área.
+// /       → redireciona para a área correta conforme a sessão.
 const SUGGESTIONS = [
-  { icon: 'home' as const, label: 'Minhas reformas', href: '/cases' },
-  { icon: 'doc' as const, label: 'Documentos', href: '/cases' },
-  { icon: 'user' as const, label: 'Meu perfil', href: '/account' },
-  { icon: 'info' as const, label: 'Central de ajuda', href: '/help' },
+  { icon: 'home' as const, label: 'Início', href: '/' },
+  { icon: 'list' as const, label: 'Minhas reformas', href: '/cases' },
+  { icon: 'send' as const, label: 'Suporte', href: 'mailto:suporte@reformai.app' },
 ]
 
 export default function NotFound() {
@@ -43,9 +45,9 @@ export default function NotFound() {
             <p className="mb-3 font-mono text-xs uppercase tracking-caps text-ink-400">
               Talvez você queira
             </p>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
               {SUGGESTIONS.map(({ icon, label, href }) => (
-                <Link
+                <a
                   key={label}
                   href={href}
                   className="flex items-center gap-3 rounded-sm border border-line bg-surface p-3 text-ink-700 no-underline transition-colors hover:bg-bone-100"
@@ -53,7 +55,7 @@ export default function NotFound() {
                   <Icon name={icon} size={14} className="shrink-0 text-green-600" />
                   <span className="flex-1 truncate text-sm font-medium">{label}</span>
                   <Icon name="arrow" size={13} className="shrink-0 text-ink-300" />
-                </Link>
+                </a>
               ))}
             </div>
           </div>

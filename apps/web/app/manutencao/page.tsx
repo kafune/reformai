@@ -4,33 +4,72 @@ import { useEffect, useState } from 'react'
 
 import { Logo } from '@/interfaces/components/ui'
 
-/** Ajuste este valor para o horário real de retorno. */
-const MAINTENANCE_END = new Date('2026-05-26T03:00:00Z')
+/**
+ * Data/hora de término da manutenção.
+ *
+ * Configurável via variável de ambiente NEXT_PUBLIC_MAINTENANCE_END
+ * (formato ISO 8601, ex.: "2026-06-01T03:00:00Z").
+ * Se não definida, exibe o estado "voltando agora" imediatamente.
+ */
+function getMaintenanceEnd(): Date | null {
+  const raw = process.env.NEXT_PUBLIC_MAINTENANCE_END
+  if (!raw) return null
+  const d = new Date(raw)
+  return isNaN(d.getTime()) ? null : d
+}
 
-function useCountdown(target: Date) {
-  const [diff, setDiff] = useState(() => Math.max(0, target.getTime() - Date.now()))
+// ── Hook ──────────────────────────────────────────────────────
+
+interface Countdown {
+  d: number
+  h: number
+  m: number
+  s: number
+  done: boolean
+}
+
+function useCountdown(target: Date | null): Countdown {
+  const [diff, setDiff] = useState<number>(() =>
+    target ? Math.max(0, target.getTime() - Date.now()) : 0,
+  )
 
   useEffect(() => {
-    const id = setInterval(
-      () => setDiff(Math.max(0, target.getTime() - Date.now())),
-      1000,
-    )
+    if (!target) return
+    const id = setInterval(() => {
+      setDiff(Math.max(0, target.getTime() - Date.now()))
+    }, 1000)
     return () => clearInterval(id)
   }, [target])
 
   const total = Math.floor(diff / 1000)
+  const done = total <= 0
   return {
     d: Math.floor(total / 86400),
     h: Math.floor(total / 3600) % 24,
     m: Math.floor(total / 60) % 60,
     s: total % 60,
+    done,
   }
+}
+
+// ── Auto-reload quando a manutenção encerrar ──────────────────
+
+function useAutoReload(done: boolean, delaySec = 30) {
+  useEffect(() => {
+    if (!done) return
+    const id = setTimeout(() => window.location.reload(), delaySec * 1000)
+    return () => clearTimeout(id)
+  }, [done, delaySec])
 }
 
 const pad = (n: number) => String(n).padStart(2, '0')
 
+// ── Página ────────────────────────────────────────────────────
+
 export default function ManutencaoPage() {
-  const { d, h, m, s } = useCountdown(MAINTENANCE_END)
+  const target = getMaintenanceEnd()
+  const { d, h, m, s, done } = useCountdown(target)
+  useAutoReload(done, 30)
 
   return (
     <div
@@ -61,9 +100,12 @@ export default function ManutencaoPage() {
         />
         <span
           className="rounded-xs px-3 py-1.5 font-mono text-xs uppercase tracking-caps"
-          style={{ background: 'var(--rai-ochre-700)', color: 'var(--rai-bone-50)' }}
+          style={{
+            background: done ? 'var(--rai-green-700)' : 'var(--rai-ochre-700)',
+            color: 'var(--rai-bone-50)',
+          }}
         >
-          Em manutenção
+          {done ? 'Encerrando manutenção' : 'Em manutenção'}
         </span>
       </div>
 
@@ -71,9 +113,9 @@ export default function ManutencaoPage() {
       <div className="relative" style={{ maxWidth: 820 }}>
         <p
           className="font-mono text-xs uppercase tracking-caps"
-          style={{ color: 'var(--rai-ochre-300)' }}
+          style={{ color: done ? 'var(--rai-green-300)' : 'var(--rai-ochre-300)' }}
         >
-          Manutenção programada
+          {done ? 'Manutenção concluída' : 'Manutenção programada'}
         </p>
 
         <h1
@@ -84,56 +126,78 @@ export default function ManutencaoPage() {
             color: 'var(--rai-bone-50)',
           }}
         >
-          Em obras —<br />
-          <span style={{ color: 'var(--rai-green-300)' }}>voltamos em breve.</span>
+          {done ? (
+            <>
+              Quase lá —<br />
+              <span style={{ color: 'var(--rai-green-300)' }}>recarregando a plataforma.</span>
+            </>
+          ) : (
+            <>
+              Em obras —<br />
+              <span style={{ color: 'var(--rai-green-300)' }}>voltamos em breve.</span>
+            </>
+          )}
         </h1>
 
         <p
           className="max-w-[620px] text-base leading-relaxed"
           style={{ color: 'var(--rai-ink-200)' }}
         >
-          Estamos atualizando a plataforma para melhorar o desempenho e a segurança.
-          Novos casos estão pausados durante esta janela. Casos em andamento não são afetados.
+          {done
+            ? 'A janela de manutenção encerrou. Esta página será atualizada automaticamente em instantes.'
+            : 'Estamos atualizando a plataforma para melhorar o desempenho e a segurança. Novos casos estão pausados durante esta janela. Casos em andamento não são afetados.'}
         </p>
 
-        {/* Contagem regressiva */}
-        <div className="mt-10 flex items-end gap-5">
-          {[
-            { value: pad(d), label: 'dias' },
-            { value: pad(h), label: 'horas' },
-            { value: pad(m), label: 'min' },
-            { value: pad(s), label: 'seg' },
-          ].map(({ value, label }, i) => (
-            <div key={label} className="flex items-end gap-5">
-              <div className="text-center">
-                <p
-                  className="font-mono font-medium leading-none tabular-nums"
-                  style={{
-                    fontSize: 'clamp(2.5rem, 5vw, 4rem)',
-                    color: 'var(--rai-bone-50)',
-                    letterSpacing: '-0.04em',
-                  }}
-                >
-                  {value}
-                </p>
-                <p
-                  className="mt-2 font-mono text-xs uppercase tracking-caps"
-                  style={{ color: 'var(--rai-ink-400)' }}
-                >
-                  {label}
-                </p>
+        {/* Contagem regressiva — só exibe se ainda há tempo e temos um target */}
+        {!done && target && (
+          <div className="mt-10 flex items-end gap-5">
+            {[
+              { value: pad(d), label: 'dias' },
+              { value: pad(h), label: 'horas' },
+              { value: pad(m), label: 'min' },
+              { value: pad(s), label: 'seg' },
+            ].map(({ value, label }, i) => (
+              <div key={label} className="flex items-end gap-5">
+                <div className="text-center">
+                  <p
+                    className="font-mono font-medium leading-none tabular-nums"
+                    style={{
+                      fontSize: 'clamp(2.5rem, 5vw, 4rem)',
+                      color: 'var(--rai-bone-50)',
+                      letterSpacing: '-0.04em',
+                    }}
+                  >
+                    {value}
+                  </p>
+                  <p
+                    className="mt-2 font-mono text-xs uppercase tracking-caps"
+                    style={{ color: 'var(--rai-ink-400)' }}
+                  >
+                    {label}
+                  </p>
+                </div>
+                {i < 3 && (
+                  <p
+                    className="pb-6 font-mono text-3xl leading-none"
+                    style={{ color: 'var(--rai-ink-600)' }}
+                  >
+                    :
+                  </p>
+                )}
               </div>
-              {i < 3 && (
-                <p
-                  className="pb-6 font-mono text-3xl leading-none"
-                  style={{ color: 'var(--rai-ink-600)' }}
-                >
-                  :
-                </p>
-              )}
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
+
+        {/* Sem data configurada: aviso de prazo desconhecido */}
+        {!done && !target && (
+          <p
+            className="mt-6 font-mono text-sm"
+            style={{ color: 'var(--rai-ink-400)' }}
+          >
+            Prazo estimado não disponível — acompanhe em status.reformai.app
+          </p>
+        )}
       </div>
 
       {/* Grade de status */}
