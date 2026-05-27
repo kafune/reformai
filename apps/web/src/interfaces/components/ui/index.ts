@@ -25,3 +25,11 @@ export type { ImageCarouselProps, CarouselImage } from "./ImageCarousel"
 export { PendingActionsWidget } from "./PendingActionsWidget"
 export { SpecialistChips, type SpecialistChipsProps, type Specialist } from "./SpecialistChips"
 export { SpecialistBadge } from "./SpecialistBadge"
+
+// ── Componentes de estado de erro ─────────────────────────────
+export { ClientBackButton } from "./ClientBackButton"
+export { SessionExpiredModal } from "./SessionExpiredModal"
+export { ForbiddenBlock } from "./ForbiddenBlock"
+export { UploadErrorModal, type UploadFile } from "./UploadErrorModal"
+export { LLMUnavailableBanner } from "./LLMUnavailableBanner"
+export { LinkExpiredOverlay } from "./LinkExpiredOverlay"
