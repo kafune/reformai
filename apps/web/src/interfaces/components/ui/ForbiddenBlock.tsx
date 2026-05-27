@@ -34,7 +34,7 @@ export function ForbiddenBlock({ section = 'esta área', backHref = '/' }: Forbi
             Ir para o início
           </Button>
         </Link>
-        <a href="mailto:suporte@reformai.app">
+        <a href="mailto:suporte@kafune.xyz">
           <Button variant="ghost" icon="send">
             Pedir acesso
           </Button>

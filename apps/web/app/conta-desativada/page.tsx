@@ -73,10 +73,10 @@ export default function ContaDesativadaPage() {
             Para reativar seu acesso, entre em contato com o administrador ou envie um
             e-mail para{' '}
             <a
-              href="mailto:suporte@reformai.app"
+              href="mailto:suporte@kafune.xyz"
               className="text-ink-700 underline transition-colors hover:text-green-700"
             >
-              suporte@reformai.app
+              suporte@kafune.xyz
             </a>
             .
           </p>

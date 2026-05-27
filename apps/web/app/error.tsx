@@ -51,10 +51,10 @@ export default function ErrorPage({
           <p className="mt-10 text-sm leading-relaxed text-ink-400">
             Persistindo o problema, entre em contato:{' '}
             <a
-              href="mailto:suporte@reformai.app"
+              href="mailto:suporte@kafune.xyz"
               className="text-ink-700 underline transition-colors hover:text-green-700"
             >
-              suporte@reformai.app
+              suporte@kafune.xyz
             </a>
           </p>
         </div>

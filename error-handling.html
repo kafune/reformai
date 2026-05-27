@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<title>ReformAI · Error Handling</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="tokens.css" />
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; background: #f0eee9; }
+  #root { width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="ds-foundations.jsx"></script>
+<script type="text/babel" src="ds-components.jsx"></script>
+<script type="text/babel" src="ds-mocks-1.jsx"></script>
+<script type="text/babel" src="ds-errors-1.jsx"></script>
+<script type="text/babel" src="ds-errors-2.jsx"></script>
+
+<script type="text/babel">
+function App() {
+  return (
+    <DesignCanvas>
+      {/* ── Capa ──────────────────────────────────────────── */}
+      <DCSection id="cover" title="ReformAI · Tratamento de erros" subtitle="15 estados de falha cobrindo o que o codebase realmente lança — do 404 ao Zod, da máquina de estados ao worker travado.">
+        <DCArtboard id="err-cover" label="Capa" width={1280} height={720}>
+          <div className="rai" style={{ width:'100%', height:'100%', background:'var(--rai-ink-900)', color:'var(--rai-bone-50)', padding:'72px 80px', position:'relative', overflow:'hidden', display:'flex', flexDirection:'column', justifyContent:'space-between' }}>
+            <svg style={{ position:'absolute', right:-160, top:-160, opacity:.10 }} width="900" height="900" viewBox="0 0 900 900">
+              <circle cx="450" cy="450" r="440" stroke="var(--rai-iron-300)" strokeWidth="1" fill="none"/>
+              <circle cx="450" cy="450" r="340" stroke="var(--rai-iron-300)" strokeWidth="1" fill="none"/>
+              <circle cx="450" cy="450" r="240" stroke="var(--rai-iron-300)" strokeWidth="1" fill="none"/>
+              <circle cx="450" cy="450" r="140" stroke="var(--rai-clay-400)"  strokeWidth="1" fill="none"/>
+              <line x1="0" y1="450" x2="900" y2="450" stroke="var(--rai-iron-300)" strokeWidth="1"/>
+              <line x1="450" y1="0" x2="450" y2="900" stroke="var(--rai-iron-300)" strokeWidth="1"/>
+            </svg>
+            <div style={{ position:'relative' }}>
+              <RAILogo size={56} variant="lockup" color="var(--rai-bone-50)" accent="var(--rai-green-300)" />
+              <div className="rai-eyebrow" style={{ marginTop:48, color:'var(--rai-clay-300)' }}>Error Handling · v1.0 · 05/2026</div>
+              <h1 style={{ fontSize:'var(--rai-fs-6xl)', fontWeight:600, letterSpacing:'-0.045em', lineHeight:1, margin:'18px 0 0', maxWidth:1000 }}>
+                Quando algo<br/>
+                <span style={{ color:'var(--rai-clay-300)' }}>quebra, com método.</span>
+              </h1>
+              <p style={{ marginTop:28, fontSize:'var(--rai-fs-lg)', color:'var(--rai-ink-200)', maxWidth:680, lineHeight:1.55 }}>
+                Cada erro do <span className="rai-mono">DomainError</span>, do <span className="rai-mono">respond.ts</span> e
+                do pipeline tem uma tela que explica o porquê, mostra o que ficou intacto e
+                oferece um próximo passo.
+              </p>
+            </div>
+            <div style={{ position:'relative', display:'flex', justifyContent:'space-between', alignItems:'flex-end' }}>
+              <div style={{ display:'flex', gap:48 }}>
+                {[
+                  ['04','seções'],
+                  ['15','telas'],
+                  ['7','status HTTP'],
+                  ['6','DomainErrors'],
+                ].map(([n,l])=>(
+                  <div key={l}>
+                    <div style={{ fontSize:'var(--rai-fs-3xl)', fontWeight:600, letterSpacing:'-0.02em' }}>{n}</div>
+                    <div className="rai-mono" style={{ fontSize:11, color:'var(--rai-ink-300)', letterSpacing:'.08em', textTransform:'uppercase' }}>{l}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="rai-mono" style={{ fontSize:11, color:'var(--rai-ink-300)', letterSpacing:'.14em', textTransform:'uppercase', textAlign:'right' }}>
+                Arraste para panorâmica · pinça/scroll para zoom<br/>
+                Clique no rótulo de qualquer prancha para foco
+              </div>
+            </div>
+          </div>
+        </DCArtboard>
+
+        {/* Index card */}
+        <DCArtboard id="err-index" label="Índice · mapa de erros → telas" width={760} height={720}>
+          <ErrorIndex />
+        </DCArtboard>
+      </DCSection>
+
+      {/* ── 01 · Páginas inteiras ────────────────────────── */}
+      <DCSection id="full" title="01 · Páginas inteiras" subtitle="Erros que tomam a tela toda: rota inexistente, falha interna, sessão, manutenção, offline e conta desativada.">
+        <DCArtboard id="err-404" label="404 · Página não encontrada" width={1280} height={820}>
+          <Err404Page />
+        </DCArtboard>
+        <DCArtboard id="err-500" label="500 · Erro inesperado (error boundary)" width={1280} height={820}>
+          <Err500Page />
+        </DCArtboard>
+        <DCArtboard id="err-401" label="401 · Sessão expirada (modal sobre app)" width={1280} height={820}>
+          <Err401Session />
+        </DCArtboard>
+        <DCArtboard id="err-offline" label="Offline · PWA campo (mobile)" width={520} height={840}>
+          <ErrOfflinePWA />
+        </DCArtboard>
+        <DCArtboard id="err-maint" label="503 · Manutenção programada" width={1280} height={820}>
+          <ErrMaintenance />
+        </DCArtboard>
+        <DCArtboard id="err-account" label="Conta desativada (User.active = false)" width={1280} height={820}>
+          <ErrAccountInactive />
+        </DCArtboard>
+      </DCSection>
+
+      {/* ── 02 · Domínio · state machine + rule engine ──── */}
+      <DCSection id="domain" title="02 · Domínio · state machine + rule engine" subtitle="O que o DomainError lança quando uma regra de negócio bloqueia uma transição.">
+        <DCArtboard id="err-404-case" label="404 · Caso não encontrado (tenant-safe)" width={1280} height={820}>
+          <Err404Case />
+        </DCArtboard>
+        <DCArtboard id="err-transition" label="422 · INVALID_TRANSITION (state machine)" width={1280} height={820}>
+          <ErrInvalidTransition />
+        </DCArtboard>
+        <DCArtboard id="err-rule" label="422 · BUSINESS_RULE_VIOLATION · HIGH/CRITICAL → revisão humana" width={1280} height={820}>
+          <ErrBusinessRule />
+        </DCArtboard>
+        <DCArtboard id="err-zod" label="400 · VALIDATION · Zod no formulário" width={1280} height={820}>
+          <ErrValidationZod />
+        </DCArtboard>
+      </DCSection>
+
+      {/* ── 03 · Acesso & papéis ─────────────────────────── */}
+      <DCSection id="access" title="03 · Acesso & papéis" subtitle="ForbiddenError + RBAC. Onde o papel do usuário não bate com a rota.">
+        <DCArtboard id="err-403" label="403 · FORBIDDEN por papel (CLIENT em rota ADMIN)" width={1280} height={820}>
+          <Err403Role />
+        </DCArtboard>
+      </DCSection>
+
+      {/* ── 04 · Operacionais · IA, upload, worker ──────── */}
+      <DCSection id="ops" title="04 · Operacionais · IA, upload, worker e storage" subtitle="O que o usuário vê quando o pipeline real falha — não a abstração HTTP.">
+        <DCArtboard id="err-llm" label="529 · IA temporariamente indisponível (LLM upstream)" width={1280} height={820}>
+          <ErrLLMUnavailable />
+        </DCArtboard>
+        <DCArtboard id="err-upload" label="413 · Upload rejeitado (mime / tamanho)" width={1280} height={820}>
+          <ErrUploadFailed />
+        </DCArtboard>
+        <DCArtboard id="err-worker" label="Pipeline · análise documental falhou (BullMQ worker)" width={1280} height={820}>
+          <ErrDocAnalysisFailed />
+        </DCArtboard>
+        <DCArtboard id="err-signed" label="Storage · signed URL expirada (1h)" width={1280} height={820}>
+          <ErrSignedURLExpired />
+        </DCArtboard>
+      </DCSection>
+    </DesignCanvas>
+  );
+}
+
+// ── Índice visual · matriz erro → tela ────────────────────
+function ErrorIndex() {
+  const rows = [
+    { code: '404',  err: 'NOT_FOUND',           src: 'respond.ts',   tone: 'ink',     desc: 'Rota inexistente',           screen: 'err-404' },
+    { code: '500',  err: 'INTERNAL',            src: 'respond.ts',   tone: 'iron',    desc: 'Erro inesperado',            screen: 'err-500' },
+    { code: '401',  err: 'UNAUTHORIZED',        src: 'respond.ts',   tone: 'ochre',   desc: 'Sessão expirada',            screen: 'err-401' },
+    { code: 'PWA',  err: 'OFFLINE',             src: 'sw',           tone: 'clay',    desc: 'Sem conexão · campo',         screen: 'err-offline' },
+    { code: '503',  err: 'SERVICE_UNAVAILABLE', src: 'plataforma',   tone: 'ochre',   desc: 'Manutenção programada',       screen: 'err-maint' },
+    { code: '403',  err: 'ACCOUNT_INACTIVE',    src: 'User.active',  tone: 'clay',    desc: 'Conta desativada',            screen: 'err-account' },
+    { code: '404',  err: 'NOT_FOUND',           src: 'guards.ts',    tone: 'ink',     desc: 'Caso fora do tenant',         screen: 'err-404-case' },
+    { code: '422',  err: 'INVALID_TRANSITION',  src: 'DomainError',  tone: 'iron',    desc: 'State machine',                screen: 'err-transition' },
+    { code: '422',  err: 'BUSINESS_RULE',       src: 'DomainError',  tone: 'violet',  desc: 'HIGH/CRITICAL → revisão',     screen: 'err-rule' },
+    { code: '400',  err: 'VALIDATION',          src: 'Zod',          tone: 'iron',    desc: 'Formulário inválido',         screen: 'err-zod' },
+    { code: '403',  err: 'FORBIDDEN',           src: 'requireRole',  tone: 'iron',    desc: 'Papel sem acesso',            screen: 'err-403' },
+    { code: '529',  err: 'LLM_UPSTREAM',        src: 'AnthropicProvider', tone: 'ochre', desc: 'IA fora do ar',            screen: 'err-llm' },
+    { code: '413',  err: 'UPLOAD_REJECTED',     src: 'StorageAdapter', tone: 'iron',  desc: 'Mime/tamanho inválido',       screen: 'err-upload' },
+    { code: 'WRK',  err: 'WORKER_FAILED',       src: 'DocumentWorker', tone: 'iron',  desc: 'Pipeline falhou',             screen: 'err-worker' },
+    { code: 'URL',  err: 'SIGNED_URL_EXPIRED',  src: 'StorageAdapter', tone: 'ochre', desc: 'Link >1h',                    screen: 'err-signed' },
+  ];
+  return (
+    <div className="rai" style={{ width:'100%', height:'100%', background:'var(--rai-bone-50)', padding: '40px 36px', display:'flex', flexDirection:'column', overflow:'hidden' }}>
+      <div className="rai-eyebrow">Mapa · erro → tela</div>
+      <h2 style={{ margin:'10px 0 4px', fontSize:'var(--rai-fs-xl)', fontWeight: 600, letterSpacing:'var(--rai-tracking-snug)' }}>15 estados cobertos</h2>
+      <p style={{ margin:'0 0 18px', fontSize: 13, color:'var(--rai-ink-500)' }}>Cada linha é um tipo de erro do codebase com sua tela correspondente.</p>
+      <div style={{ flex:1, overflow:'auto', background:'#fff', borderRadius:'var(--rai-r-md)', boxShadow:'0 0 0 1px var(--rai-border)' }}>
+        <div style={{ display:'grid', gridTemplateColumns:'70px 1fr 1.4fr 1.4fr', padding:'10px 14px', borderBottom:'1px solid var(--rai-border)', background:'var(--rai-bone-100)' }}>
+          {['CÓD', 'NOME', 'ORIGEM', 'O QUE O USUÁRIO VÊ'].map(h => (
+            <div key={h} className="rai-mono" style={{ fontSize: 10, color:'var(--rai-ink-500)', letterSpacing:'.14em' }}>{h}</div>
+          ))}
+        </div>
+        {rows.map((r,i) => (
+          <div key={i} style={{ display:'grid', gridTemplateColumns:'70px 1fr 1.4fr 1.4fr', padding:'10px 14px', borderBottom: i < rows.length - 1 ? '1px solid var(--rai-divider)' : 'none', alignItems:'center' }}>
+            <span className="rai-mono" style={{ fontSize: 11, padding:'2px 6px', borderRadius: 2, background:`var(--rai-${r.tone}-100)`, color:`var(--rai-${r.tone === 'ink' ? 'ink-700' : r.tone+'-700'})`, letterSpacing:'.06em', justifySelf:'start' }}>{r.code}</span>
+            <span className="rai-mono" style={{ fontSize: 12, color:'var(--rai-ink-900)' }}>{r.err}</span>
+            <span style={{ fontSize: 12, color:'var(--rai-ink-500)' }}><span className="rai-mono">{r.src}</span></span>
+            <span style={{ fontSize: 12.5, color:'var(--rai-ink-700)' }}>{r.desc}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

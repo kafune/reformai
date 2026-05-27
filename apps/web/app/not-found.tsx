@@ -11,7 +11,7 @@ export const metadata = { title: 'Página não encontrada — ReformAI' }
 const SUGGESTIONS = [
   { icon: 'home' as const, label: 'Início', href: '/' },
   { icon: 'list' as const, label: 'Minhas reformas', href: '/cases' },
-  { icon: 'send' as const, label: 'Suporte', href: 'mailto:suporte@reformai.app' },
+  { icon: 'send' as const, label: 'Suporte', href: 'mailto:suporte@kafune.xyz' },
 ]
 
 export default function NotFound() {

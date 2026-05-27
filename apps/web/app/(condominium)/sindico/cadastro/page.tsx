@@ -35,7 +35,7 @@ export default async function SindicoCadastroPage() {
 
   // URL derivada do domínio real da requisição — correta em produção e em dev.
   const h = headers()
-  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "reformai.kafune.xyz"
+  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "reformai.com.br"
   const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https")
   const link = `${proto}://${host}/register/${user.condominiumId}`
 
