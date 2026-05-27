@@ -19,6 +19,8 @@ const SUPER_ADMIN_NAV: NavItem[] = [
   { href: "/tenants", icon: "layers", label: "Tenants" },
   { href: "/users", icon: "user", label: "Usuários" },
   { href: "/skills", icon: "sparkle", label: "Skills de Relatório" },
+  // TODO: remover antes do deploy em produção
+  { href: "/error-preview", icon: "eye", label: "Prévia de erros" },
 ]
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
