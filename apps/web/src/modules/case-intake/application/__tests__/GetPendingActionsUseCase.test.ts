@@ -50,7 +50,7 @@ describe("GetPendingActionsUseCase", () => {
     expect(actions[0]?.urgency).toBe("high")
     expect(actions[1]?.type).toBe("correct_documents")
     expect(actions[1]?.urgency).toBe("critical")
-    expect(actions[0]?.href).toBe("/cases/case-1")
+    expect(actions[0]?.href).toBe("/cases/case-1/documents")
   })
 
   it("CONDOMINIUM com caso AWAITING_SYNDIC_APPROVAL retorna 1 pendência", async () => {

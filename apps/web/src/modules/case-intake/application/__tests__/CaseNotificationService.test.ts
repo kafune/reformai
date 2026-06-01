@@ -6,10 +6,13 @@ import type { EmailProvider, SendEmailInput } from "@/infrastructure/email/Email
 // Mocks
 // ---------------------------------------------------------------------------
 
-// Mock do módulo de banco — prisma singleton
-const mockFindUnique = vi.fn()
-const mockFindFirst = vi.fn()
-const mockFindMany = vi.fn()
+// Mock do módulo de banco — prisma singleton.
+// vi.hoisted garante que os mocks existam antes do vi.mock (que é içado ao topo).
+const { mockFindUnique, mockFindFirst, mockFindMany } = vi.hoisted(() => ({
+  mockFindUnique: vi.fn(),
+  mockFindFirst: vi.fn(),
+  mockFindMany: vi.fn(),
+}))
 
 vi.mock("@/infrastructure/database/prisma", () => ({
   prisma: {
