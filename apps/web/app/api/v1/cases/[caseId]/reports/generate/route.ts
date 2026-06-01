@@ -4,6 +4,7 @@ import { ReportType } from "@reformai/database"
 import { requireSessionUser } from "@/infrastructure/auth/getSessionUser"
 import { handleError, unauthorized } from "@/interfaces/http/respond"
 import { assertCaseAccess } from "@/interfaces/http/guards"
+import { enforceUserRateLimit, BUCKETS } from "@/infrastructure/rate-limiter/guards"
 import { prisma } from "@/infrastructure/database/prisma"
 import { createStorageAdapter } from "@/infrastructure/storage/StorageFactory"
 import { PrismaReformCaseRepository } from "@/modules/case-intake/infrastructure/repositories/PrismaReformCaseRepository"
@@ -23,6 +24,10 @@ export async function POST(req: NextRequest, ctx: { params: { caseId: string } }
   try {
     const user = await requireSessionUser()
     const caseId = ctx.params.caseId
+
+    // Rate-limit por usuário: geração de relatório é custosa (IA + PDF).
+    const limited = await enforceUserRateLimit(user.id, BUCKETS.aiReport)
+    if (limited) return limited
 
     const body = BodySchema.parse(await req.json())
 

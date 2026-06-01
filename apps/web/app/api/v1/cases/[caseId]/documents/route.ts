@@ -4,6 +4,7 @@ import { DocumentType } from "@reformai/database"
 import { requireSessionUser } from "@/infrastructure/auth/getSessionUser"
 import { handleError, unauthorized } from "@/interfaces/http/respond"
 import { assertCaseAccess } from "@/interfaces/http/guards"
+import { enforceUserRateLimit, BUCKETS } from "@/infrastructure/rate-limiter/guards"
 import { prisma } from "@/infrastructure/database/prisma"
 import { createStorageAdapter } from "@/infrastructure/storage/StorageFactory"
 import { originForRole } from "@/modules/document-management/domain/documentOrigin"
@@ -39,6 +40,10 @@ export async function POST(req: NextRequest, ctx: { params: { caseId: string } }
   try {
     const user = await requireSessionUser()
     const caseId = ctx.params.caseId
+
+    // Rate-limit por usuário: protege storage e fila contra upload abusivo.
+    const limited = await enforceUserRateLimit(user.id, BUCKETS.upload)
+    if (limited) return limited
 
     const form = await req.formData()
     const fileEntry = form.get("file")

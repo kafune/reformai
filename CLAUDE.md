@@ -188,6 +188,7 @@ enum CaseStatus {
   DRAFT                    = 'draft',
   AWAITING_SCOPE_DETAILS   = 'awaiting_scope_details',
   SCOPE_CLASSIFIED         = 'scope_classified',
+  AWAITING_SYNDIC_APPROVAL = 'awaiting_syndic_approval',
   AWAITING_DOCUMENTS       = 'awaiting_documents',
   DOCUMENTS_UNDER_REVIEW   = 'documents_under_review',
   PENDING_CORRECTIONS      = 'pending_corrections',
@@ -216,10 +217,15 @@ AWAITING_SCOPE_DETAILS
   → HUMAN_REVIEW_REQUIRED
 
 SCOPE_CLASSIFIED
+  → AWAITING_SYNDIC_APPROVAL
   → AWAITING_DOCUMENTS
   → COMMERCIAL_OFFER_SENT
   → ELIGIBLE_FOR_RELEASE
   → HUMAN_REVIEW_REQUIRED
+
+AWAITING_SYNDIC_APPROVAL
+  → AWAITING_DOCUMENTS            # síndico aprova
+  → ARCHIVED                     # síndico recusa
 
 AWAITING_DOCUMENTS
   → DOCUMENTS_UNDER_REVIEW
@@ -964,6 +970,21 @@ PATCH     /api/v1/superadmin/users/:id             # toggle active
 
 GET       /api/v1/superadmin/report-skills         # lista configs de Agent Skills
 PUT       /api/v1/superadmin/report-skills/:type   # upsert skill por ReportType
+POST      /api/v1/superadmin/users/:id/anonymize   # LGPD: anonimiza usuário a pedido
+
+# ── SÍNDICO / REVISÃO DE CASO ─────────────────────────────────────────────────
+POST      /api/v1/cases/:caseId/syndic-review/approve   # CONDOMINIUM — aprova reforma
+POST      /api/v1/cases/:caseId/syndic-review/reject    # CONDOMINIUM — recusa (reason)
+GET       /api/v1/specialists                            # público — metadados dos specialists do chat
+
+# ── LGPD / "EU" (usuário autenticado) ─────────────────────────────────────────
+GET       /api/v1/me/pending-actions               # ações pendentes por papel
+GET       /api/v1/me/data-export                   # LGPD: exporta dados do próprio titular (JSON)
+POST      /api/v1/me/account/delete                # LGPD: anonimiza a própria conta ({ confirm: true })
+
+# ── OBSERVABILIDADE ───────────────────────────────────────────────────────────
+GET       /api/v1/admin/system-status              # ADMIN | SUPER_ADMIN — status de config + liveness
+POST      /api/v1/monitoring/client-error          # público (rate-limit IP) — beacon de erro do cliente
 
 # ── UTILITÁRIOS ───────────────────────────────────────────────────────────────
 GET       /api/v1/units                            # lista units do tenant; CLIENT filtrado por ownerEmail
@@ -986,6 +1007,8 @@ PATCH     /api/v1/notifications/:id               # marcar lida (valida posse)
 9. **Toda query ao banco tem `tenantId` como filtro obrigatório.**
 10. **Todo relatório gerado por IA inclui disclaimer** de responsabilidade técnica.
 11. **IA sugere → Rule Engine valida → StateMachine executa.** Essa ordem não é negociável.
+12. **LGPD — eliminação é por anonimização, não hard delete.** Casos, documentos legais, ART/RRT e `AuditLog` são preservados, mas desvinculados de PII (`AnonymizeUserUseCase`). Exportação de dados do titular via `GET /api/v1/me/data-export`.
+13. **Rotas custosas têm rate-limit por usuário** (chat/relatórios/análise/proposta/upload) via `enforceUserRateLimit` (Redis, fail-open). Auth/registro têm rate-limit por IP.
 
 ---
 
@@ -1015,6 +1038,12 @@ MINIO_BUCKET=reformai
 # AWS_S3_BUCKET=
 
 NEXT_PUBLIC_APP_URL=http://localhost:3000
+
+# Monitoramento de erros (Sentry-compatível via DSN — Sentry SaaS ou GlitchTip
+# self-hosted). Em branco = desativado (captureException vira no-op).
+SENTRY_DSN=
+# SENTRY_TRACES_SAMPLE_RATE=0
+# APP_RELEASE=
 
 # Seed demo (13 casos + usuários de teste). NÃO usar em produção.
 SEED_DEMO=false

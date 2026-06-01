@@ -3,6 +3,7 @@ import { z } from "zod"
 import { requireSessionUser } from "@/infrastructure/auth/getSessionUser"
 import { handleError, unauthorized } from "@/interfaces/http/respond"
 import { assertCaseAccess } from "@/interfaces/http/guards"
+import { enforceUserRateLimit, BUCKETS } from "@/infrastructure/rate-limiter/guards"
 import { prisma } from "@/infrastructure/database/prisma"
 import { PrismaReformCaseRepository } from "@/modules/case-intake/infrastructure/repositories/PrismaReformCaseRepository"
 import { PrismaDocumentRepository } from "@/modules/document-management/infrastructure/PrismaDocumentRepository"
@@ -35,6 +36,9 @@ export async function GET(_: Request, ctx: { params: { caseId: string } }) {
 export async function POST(req: NextRequest, ctx: { params: { caseId: string } }) {
   try {
     const user = await requireSessionUser()
+    // Rate-limit por usuário: protege custo de tokens da IA contra abuso.
+    const limited = await enforceUserRateLimit(user.id, BUCKETS.aiChat)
+    if (limited) return limited
     const { content, specialistId } = MessageSchema.parse(await req.json())
     const repo = new PrismaReformCaseRepository()
     const docRepo = new PrismaDocumentRepository(prisma)

@@ -1,7 +1,8 @@
 # APP-STATE.md — Estado Atual da Aplicação
 # Plataforma SaaS ART/RRT — "ReformAI"
 
-> Snapshot do estado real do código em **2026-05-25** (branch `main`, commit `c310193`).
+> Snapshot do estado real do código em **2026-05-25** (branch `main`, commit `c310193`),
+> com adendo de **2026-06-01** sobre prontidão para produção (ver §21).
 > Documento descritivo do que **está implementado** — não é especificação.
 > A especificação/fonte-de-verdade é o `CLAUDE.md`. Onde os dois divergem, este
 > arquivo registra a divergência explicitamente (ver §20).
@@ -612,3 +613,45 @@ o código atual. Divergências conhecidas:
 4. Limpar métodos de repositório mortos em `Inspection`/`Partner` (#19.12).
 5. Decidir se `PriceCalculator` deve usar `riskLevel` para precificação diferenciada (#19.6).
 6. Configurar VAPID keys no `docker-compose.yml` para push funcionar em dev (#19.16).
+
+---
+
+## 21. PRONTIDÃO PARA PRODUÇÃO (adendo 2026-06-01)
+
+Hardening de produção implementado no branch `claude/app-production-readiness-dJdCn`.
+Build, typecheck, lint e testes (176, 26 arquivos) verdes.
+
+### Higiene
+- Removida a página de homologação `/error-preview` (+ item de nav do SUPER_ADMIN)
+  e arquivos soltos da raiz (`errors-1.jsx`, `errors-2.jsx`, `error-handling.html`,
+  `package-lock.json` — projeto é Bun).
+- Suíte de testes corrigida (`vi.hoisted` no `CaseNotificationService`; assert do
+  `GetPendingActionsUseCase`).
+
+### LGPD (`identity/application`)
+- `ExportUserDataUseCase` → `GET /api/v1/me/data-export` (acesso/portabilidade; JSON).
+- `AnonymizeUserUseCase` (anonimização, **não** hard delete — preserva casos/auditoria
+  sem PII) → `POST /api/v1/me/account/delete` (auto-serviço, `{ confirm: true }`) e
+  `POST /api/v1/superadmin/users/:id/anonymize` (a pedido, via operador). Teste:
+  `AnonymizeUserUseCase.test.ts`.
+
+### Rate-limit por usuário (`infrastructure/rate-limiter/guards.ts`)
+- `enforceUserRateLimit` + `BUCKETS` aplicados a rotas custosas: chat (POST e SSE),
+  geração de relatório, análise de documentos, proposta comercial e upload.
+  Redis sliding-window, fail-open. Complementa o rate-limit por IP de auth/registro.
+
+### Monitoramento de erros (`infrastructure/monitoring/sentry.ts`)
+- `@sentry/node` (compatível com Sentry SaaS ou GlitchTip self-hosted), ativado por
+  `SENTRY_DSN`; **no-op** sem DSN. Marcado como external no `next.config.mjs`.
+- Capturado em: `respond.ts` (500s de API), worker (`document-worker` fatal +
+  `DocumentWorker.handlePermanentFailure`) e cliente via beacon
+  `POST /api/v1/monitoring/client-error` (ligado a `error.tsx`/`global-error.tsx`).
+
+### Visibilidade de configuração (`infrastructure/config/configStatus.ts`)
+- `instrumentation.ts` (hook habilitado) loga o status dos subsistemas no boot e
+  alerta (WARN/ERROR) sobre ausências críticas/degradadas (e-mail/push/redis/monitor).
+- `GET /api/v1/admin/system-status` (ADMIN/SUPER_ADMIN) — config + liveness do banco.
+
+### Pendências remanescentes (não bloqueantes)
+- Cobertura E2E dos fluxos novos (síndico, specialists), `PriceCalculator` x `riskLevel`,
+  backup do Postgres no Dokploy, e UI para os endpoints LGPD (hoje só API).

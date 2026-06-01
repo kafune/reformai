@@ -2,6 +2,8 @@
 
 import { useEffect } from 'react'
 
+import { reportClientError } from '@/shared/reportClientError'
+
 /**
  * global-error.tsx substitui o layout raiz inteiro — Tailwind não está disponível.
  * Usa inline styles para garantir funcionamento mesmo sem CSS.
@@ -15,6 +17,7 @@ export default function GlobalError({
 }) {
   useEffect(() => {
     console.error('[Global Error]', error)
+    reportClientError(error)
   }, [error])
 
   return (

@@ -13,10 +13,18 @@ const nextConfig = {
   transpilePackages: ["@reformai/database", "@reformai/templates"],
   experimental: {
     serverActions: { allowedOrigins },
+    // Habilita instrumentation.ts (init de monitoramento + status de config no boot).
+    instrumentationHook: true,
     // Pacotes que carregam binários nativos / arquivos por caminho relativo ao
-    // módulo (fontes .afm do pdfkit, onnxruntime do transformers.js). Mantê-los
-    // externos evita que o webpack quebre esses resolves no servidor.
-    serverComponentsExternalPackages: ["pdfkit", "@huggingface/transformers", "onnxruntime-node"],
+    // módulo (fontes .afm do pdfkit, onnxruntime do transformers.js) ou que trazem
+    // instrumentação OpenTelemetry (@sentry/node). Mantê-los externos evita que o
+    // webpack quebre esses resolves no servidor.
+    serverComponentsExternalPackages: [
+      "pdfkit",
+      "@huggingface/transformers",
+      "onnxruntime-node",
+      "@sentry/node",
+    ],
   },
 }
 
