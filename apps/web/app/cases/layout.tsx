@@ -5,6 +5,7 @@ import { SignOutButton } from "@/interfaces/components/SignOutButton"
 
 const NAV: NavItem[] = [
   { href: "/cases", icon: "list", label: "Minhas reformas" },
+  { href: "/cases/privacidade", icon: "shield", label: "Privacidade & dados" },
 ]
 
 export default async function CasesLayout({
