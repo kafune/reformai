@@ -16,6 +16,7 @@ import type {
 import type { DocumentAgent } from "@/modules/document-intelligence/domain/DocumentAgent"
 import type { StorageAdapter } from "@/infrastructure/storage/StorageAdapter"
 import type { CaseDomainEvent } from "@/shared/events/CaseEvents"
+import { captureException } from "@/infrastructure/monitoring/sentry"
 import { QueueManager } from "./QueueManager"
 import {
   DOCUMENT_QUEUE,
@@ -384,6 +385,13 @@ export class DocumentWorker {
     data: DocumentJobData,
     err: Error,
   ): Promise<void> {
+    captureException(err, {
+      route: "worker.document.permanent_failure",
+      tenantId: data.tenantId,
+      caseId: data.caseId,
+      documentId: data.documentId,
+      step: data.step,
+    })
     await this.repo.updateStatus(data.documentId, "INVALID", data.tenantId)
     await this.prisma.auditLog.create({
       data: {

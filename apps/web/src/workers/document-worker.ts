@@ -8,8 +8,12 @@ import { ClaudeDocumentAgent } from "@/modules/document-intelligence/application
 import { ClaudeAnalysisAgent } from "@/modules/document-intelligence/application/ClaudeAnalysisAgent"
 import { AnthropicProvider } from "@/modules/document-intelligence/infrastructure/llm/AnthropicProvider"
 import { logger } from "@/shared/logger"
+import { initMonitoring, captureException } from "@/infrastructure/monitoring/sentry"
+import { logConfigStatus } from "@/infrastructure/config/configStatus"
 
 async function main() {
+  initMonitoring()
+  logConfigStatus()
   const llm = new AnthropicProvider()
   const worker = new DocumentWorker({
     storage: createStorageAdapter(),
@@ -36,5 +40,6 @@ async function main() {
 
 main().catch((err) => {
   logger.error("worker.fatal", { message: (err as Error).message, stack: (err as Error).stack })
+  captureException(err, { route: "worker.fatal" })
   process.exit(1)
 })

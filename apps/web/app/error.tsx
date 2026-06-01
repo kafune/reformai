@@ -3,6 +3,7 @@
 import { useEffect } from 'react'
 
 import { cn } from '@/shared/cn'
+import { reportClientError } from '@/shared/reportClientError'
 import { Button, Icon, Logo } from '@/interfaces/components/ui'
 
 export default function ErrorPage({
@@ -14,6 +15,7 @@ export default function ErrorPage({
 }) {
   useEffect(() => {
     console.error('[Error Boundary]', error)
+    reportClientError(error)
   }, [error])
 
   return (

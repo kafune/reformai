@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { requireSessionUser } from "@/infrastructure/auth/getSessionUser"
 import { handleError, unauthorized } from "@/interfaces/http/respond"
 import { assertCaseAccess } from "@/interfaces/http/guards"
+import { enforceUserRateLimit, BUCKETS } from "@/infrastructure/rate-limiter/guards"
 import { prisma } from "@/infrastructure/database/prisma"
 import { PrismaDocumentRepository } from "@/modules/document-management/infrastructure/PrismaDocumentRepository"
 import { QueueDocumentJob } from "@/modules/document-management/infrastructure/QueueDocumentJob"
@@ -16,6 +17,10 @@ export async function POST(_: Request, ctx: { params: { caseId: string } }) {
     if (!ALLOWED_ROLES.has(user.role)) {
       return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 })
     }
+
+    // Rate-limit por usuário: dispara OCR + extração/análise por IA na fila.
+    const limited = await enforceUserRateLimit(user.id, BUCKETS.aiAnalyze)
+    if (limited) return limited
 
     const caseId = ctx.params.caseId
 

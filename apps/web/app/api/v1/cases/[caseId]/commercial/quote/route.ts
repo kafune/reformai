@@ -3,6 +3,7 @@ import { z } from "zod"
 import { requireSessionUser } from "@/infrastructure/auth/getSessionUser"
 import { forbidden, handleError, unauthorized } from "@/interfaces/http/respond"
 import { assertCaseAccess } from "@/interfaces/http/guards"
+import { enforceUserRateLimit, BUCKETS } from "@/infrastructure/rate-limiter/guards"
 import { PrismaReformCaseRepository } from "@/modules/case-intake/infrastructure/repositories/PrismaReformCaseRepository"
 import { PrismaCommercialRepository } from "@/modules/commercial-offers/infrastructure/PrismaCommercialRepository"
 import { CommercialAgent } from "@/modules/commercial-offers/application/CommercialAgent"
@@ -29,6 +30,10 @@ export async function POST(req: NextRequest, ctx: { params: { caseId: string } }
     const user = await requireSessionUser()
     if (!QUOTE_ROLES.has(user.role)) return forbidden()
     const caseId = ctx.params.caseId
+
+    // Rate-limit por usuário: geração de proposta usa IA.
+    const limited = await enforceUserRateLimit(user.id, BUCKETS.aiQuote)
+    if (limited) return limited
 
     const body = await req.json()
     const { planId, extraInspections } = QuoteBodySchema.parse(body)

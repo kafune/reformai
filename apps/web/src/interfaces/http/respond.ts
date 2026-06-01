@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { DomainError } from "@/shared/errors/DomainError"
 import { ZodError } from "zod"
 import { logger } from "@/shared/logger"
+import { captureException } from "@/infrastructure/monitoring/sentry"
 
 export function unauthorized() {
   return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 })
@@ -27,6 +28,8 @@ export function handleError(err: unknown) {
           : 422
     return NextResponse.json({ error: err.code, message: err.message }, { status })
   }
+  // Erro não-tratado → 500. Loga e reporta ao monitoramento (no-op sem SENTRY_DSN).
   logger.error("unhandled.error", { message: (err as Error)?.message })
+  captureException(err, { route: "api" })
   return NextResponse.json({ error: "INTERNAL" }, { status: 500 })
 }

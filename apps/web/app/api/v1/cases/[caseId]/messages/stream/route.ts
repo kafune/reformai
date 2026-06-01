@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server"
 import { requireSessionUser } from "@/infrastructure/auth/getSessionUser"
 import { assertCaseAccess } from "@/interfaces/http/guards"
+import { enforceUserRateLimit, BUCKETS } from "@/infrastructure/rate-limiter/guards"
 import { prisma } from "@/infrastructure/database/prisma"
 import { buildEmailProvider } from "@/infrastructure/email/ResendEmailProvider"
 import { triageDoneTemplate } from "@/infrastructure/email/templates"
@@ -42,6 +43,10 @@ export async function GET(req: NextRequest, ctx: { params: { caseId: string } })
   } catch {
     return jsonError("UNAUTHORIZED", 401)
   }
+
+  // Rate-limit por usuário: protege custo de tokens da IA contra abuso.
+  const limited = await enforceUserRateLimit(user.id, BUCKETS.aiChat)
+  if (limited) return limited
 
   const caseId = ctx.params.caseId
   const content = req.nextUrl.searchParams.get("content")?.trim()
