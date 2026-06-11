@@ -1,4 +1,4 @@
-import type { DocStatus, PrismaClient, ReformCase } from "@reformai/database"
+import type { CaseStatus, DocStatus, PrismaClient, ReformCase } from "@reformai/database"
 import type { Job, Worker } from "bullmq"
 import { CaseStateMachine } from "@/modules/case-intake/domain/entities/CaseStateMachine"
 import type { ReformCaseRepository } from "@/modules/case-intake/domain/repositories/ReformCaseRepository"
@@ -25,6 +25,18 @@ import {
   type DocumentJobStep,
 } from "./types"
 
+/** Parâmetros de notificação de transição (mesma shape de CaseTransitionParams). */
+export interface CaseTransitionNotification {
+  caseId: string
+  protocol: string
+  toStatus: CaseStatus
+  clientId: string
+  tenantId: string
+  condominiumId: string
+}
+
+export type CaseTransitionNotifier = (params: CaseTransitionNotification) => Promise<void>
+
 export interface DocumentWorkerDeps {
   storage: StorageAdapter
   repo: DocumentRepository
@@ -34,12 +46,22 @@ export interface DocumentWorkerDeps {
   caseRepo: ReformCaseRepository
   prisma: PrismaClient
   eventBus?: (event: CaseDomainEvent) => Promise<void> | void
+  /** Notificador fire-and-forget chamado após cada transição de caso aplicada. */
+  notifications?: CaseTransitionNotifier
+  /**
+   * Fallback de extração de texto via leitura nativa do LLM — usado quando o
+   * OCR local volta vazio (ex.: PDF escaneado, sem texto embutido).
+   */
+  documentTextFallback?: (buffer: Buffer, mimeType: string) => Promise<string>
   queueManager?: QueueManager
   /** Override do TTL (segundos) da signed URL usada para baixar o arquivo. */
   signedUrlTtlSeconds?: number
 }
 
 const DEFAULT_SIGNED_URL_TTL = 300
+
+/** Tamanho máximo de arquivo enviado ao LLM no fallback de OCR (controle de custo). */
+const MAX_LLM_OCR_BYTES = 10 * 1024 * 1024
 
 const FINAL_STATUSES: ReadonlySet<DocStatus> = new Set<DocStatus>([
   "VALID",
@@ -58,6 +80,22 @@ function recommendationToStatus(
     case "request_corrections":
       return "INVALID"
   }
+}
+
+/**
+ * Retorna o documento mais recente de cada tipo. Um reenvio corrigido
+ * substitui o anterior do mesmo tipo na avaliação do caso — sem isso, um
+ * documento INVALID antigo bloquearia a liberação para sempre.
+ */
+function latestDocsPerType(docs: DocumentRecord[]): DocumentRecord[] {
+  const byType = new Map<string, DocumentRecord>()
+  for (const doc of docs) {
+    const current = byType.get(doc.type)
+    if (!current || doc.uploadedAt > current.uploadedAt) {
+      byType.set(doc.type, doc)
+    }
+  }
+  return [...byType.values()]
 }
 
 /**
@@ -82,6 +120,8 @@ export class DocumentWorker {
   private readonly caseRepo: ReformCaseRepository
   private readonly prisma: PrismaClient
   private readonly eventBus?: (event: CaseDomainEvent) => Promise<void> | void
+  private readonly notifications?: CaseTransitionNotifier
+  private readonly documentTextFallback?: (buffer: Buffer, mimeType: string) => Promise<string>
   private readonly queueManager: QueueManager
   private readonly signedUrlTtl: number
 
@@ -94,6 +134,8 @@ export class DocumentWorker {
     this.caseRepo = deps.caseRepo
     this.prisma = deps.prisma
     this.eventBus = deps.eventBus
+    this.notifications = deps.notifications
+    this.documentTextFallback = deps.documentTextFallback
     this.queueManager = deps.queueManager ?? QueueManager.getInstance()
     this.signedUrlTtl = deps.signedUrlTtlSeconds ?? DEFAULT_SIGNED_URL_TTL
   }
@@ -188,6 +230,23 @@ export class DocumentWorker {
       extractedText = await this.extractTextFromImage(buffer)
     }
 
+    // PDF escaneado (sem texto embutido): pdf-parse volta vazio. Fallback de
+    // leitura nativa pelo LLM, com teto de tamanho para controlar custo.
+    if (
+      extractedText.trim().length === 0 &&
+      data.mimeType === "application/pdf" &&
+      this.documentTextFallback &&
+      buffer.length <= MAX_LLM_OCR_BYTES
+    ) {
+      try {
+        extractedText = await this.documentTextFallback(buffer, data.mimeType)
+      } catch {
+        // Fallback é melhor-esforço: em falha, segue com texto vazio e a
+        // análise degrada para revisão manual como antes.
+        extractedText = ""
+      }
+    }
+
     await this.repo.updateExtractedData(
       data.documentId,
       { extractedText },
@@ -259,15 +318,16 @@ export class DocumentWorker {
 
     await this.repo.updateStatus(data.documentId, nextStatus, data.tenantId)
 
-    await this.queue.enqueue({ ...data, step: "status-update" })
+    // O status já foi gravado acima — o step "status-update" era no-op e foi
+    // retirado do fluxo. Segue direto para "checklist".
+    await this.queue.enqueue({ ...data, step: "checklist" })
 
     return { success: true, documentId: data.documentId, step: "validation" }
   }
 
   /**
-   * Mantido como step explícito por fazer parte do contrato em
-   * `queue/types.ts`. Hoje é no-op idempotente: o status já foi gravado em
-   * `validation`. Apenas re-lê e enfileira `checklist`.
+   * Step legado, mantido apenas para compatibilidade com jobs já enfileirados
+   * antes do deploy. Novos fluxos vão de `validation` direto para `checklist`.
    */
   private async runStatusUpdate(
     data: DocumentJobData,
@@ -327,39 +387,120 @@ export class DocumentWorker {
     }
 
     const docs = await this.repo.findByCaseId(data.caseId, data.tenantId)
+    // A avaliação considera o documento mais recente de cada tipo: um reenvio
+    // corrigido substitui o anterior (que permanece no histórico do caso).
+    const latestDocs = latestDocsPerType(docs)
     const checklist = DocumentChecklist.evaluate(reformCase.riskLevel ?? "LOW", docs)
     const allValid =
       checklist.complete &&
-      docs.length > 0 &&
-      docs.every((d) => FINAL_STATUSES.has(d.status))
+      latestDocs.length > 0 &&
+      latestDocs.every((d) => FINAL_STATUSES.has(d.status))
 
-    if (reformCase.status === "AWAITING_DOCUMENTS" && allValid) {
-      await this.transitionToUnderReview(reformCase)
+    let currentStatus = reformCase.status
+    if (
+      (currentStatus === "AWAITING_DOCUMENTS" || currentStatus === "PENDING_CORRECTIONS") &&
+      allValid
+    ) {
+      const applied = await this.transitionCase(
+        reformCase,
+        currentStatus,
+        "DOCUMENTS_UNDER_REVIEW",
+        "documents.processed",
+        doc,
+      )
+      if (applied) currentStatus = "DOCUMENTS_UNDER_REVIEW"
+    }
+
+    // IA sugere → regra determinística valida → CaseStateMachine executa.
+    if (currentStatus === "DOCUMENTS_UNDER_REVIEW") {
+      const next = this.resolveReviewOutcome(reformCase, latestDocs, checklist.complete)
+      if (next) {
+        await this.transitionCase(
+          reformCase,
+          currentStatus,
+          next,
+          "documents.analysis.resolved",
+          doc,
+        )
+      }
     }
 
     return { success: true, documentId: data.documentId, step: "emit-event" }
   }
 
-  private async transitionToUnderReview(reformCase: ReformCase): Promise<void> {
-    const machine = new CaseStateMachine(reformCase.status, reformCase.riskLevel)
-    const nextStatus = machine.transition("DOCUMENTS_UNDER_REVIEW", {
+  /**
+   * Decide, de forma determinística, o destino de um caso em
+   * DOCUMENTS_UNDER_REVIEW após o processamento dos documentos:
+   *
+   *   - algum documento INVALID ou checklist incompleto → PENDING_CORRECTIONS
+   *   - risco HIGH/CRITICAL ou regra requiresHumanReview → HUMAN_REVIEW_REQUIRED
+   *   - tudo VALID                                       → ELIGIBLE_FOR_RELEASE
+   *   - algum VALID_WITH_CAVEATS                         → RELEASED_WITH_CONDITIONS
+   *
+   * Retorna null enquanto houver documento ainda em processamento.
+   */
+  private resolveReviewOutcome(
+    reformCase: ReformCase,
+    latestDocs: DocumentRecord[],
+    checklistComplete: boolean,
+  ): CaseStatus | null {
+    if (latestDocs.length === 0) return null
+    const processed = latestDocs.every(
+      (d) => d.status !== "PENDING" && d.status !== "PROCESSING",
+    )
+    if (!processed) return null
+
+    const hasInvalid = latestDocs.some((d) => d.status === "INVALID")
+    if (hasInvalid || !checklistComplete) return "PENDING_CORRECTIONS"
+
+    const evaluation = reformCase.evaluationResult as { requiresHumanReview?: boolean } | null
+    const isHighRisk = reformCase.riskLevel === "HIGH" || reformCase.riskLevel === "CRITICAL"
+    if (isHighRisk || evaluation?.requiresHumanReview === true) {
+      return "HUMAN_REVIEW_REQUIRED"
+    }
+
+    const hasCaveats = latestDocs.some((d) => d.status === "VALID_WITH_CAVEATS")
+    return hasCaveats ? "RELEASED_WITH_CONDITIONS" : "ELIGIBLE_FOR_RELEASE"
+  }
+
+  /**
+   * Aplica uma transição de caso de forma idempotente entre jobs concorrentes:
+   * o UPDATE é condicionado ao status de origem (`updateMany` + count). Se
+   * outro job já transicionou o caso, retorna false sem efeito colateral.
+   */
+  private async transitionCase(
+    reformCase: ReformCase,
+    fromStatus: CaseStatus,
+    toStatus: CaseStatus,
+    reason: string,
+    doc?: DocumentRecord,
+  ): Promise<boolean> {
+    const machine = new CaseStateMachine(fromStatus, reformCase.riskLevel)
+    machine.transition(toStatus, {
       triggeredBy: "system",
-      previousStatus: reformCase.status,
+      previousStatus: fromStatus,
+      reason,
     })
 
-    await this.prisma.$transaction(async (tx) => {
-      await tx.reformCase.update({
-        where: { id: reformCase.id },
-        data: { status: nextStatus },
+    const analysis = (doc?.pendencies ?? null) as {
+      recommendation?: string
+      reasoning?: string
+    } | null
+
+    const applied = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.reformCase.updateMany({
+        where: { id: reformCase.id, status: fromStatus },
+        data: { status: toStatus },
       })
+      if (updated.count === 0) return false
 
       await tx.caseTransitionLog.create({
         data: {
           caseId: reformCase.id,
-          fromStatus: reformCase.status,
-          toStatus: nextStatus,
+          fromStatus,
+          toStatus,
           triggeredBy: "system",
-          reason: "documents.processed",
+          reason,
         },
       })
 
@@ -369,14 +510,35 @@ export class DocumentWorker {
           caseId: reformCase.id,
           action: "case.status.changed",
           triggeredBy: "system",
-          details: {
-            from: reformCase.status,
-            to: nextStatus,
-            reason: "documents.processed",
-          },
+          details: { from: fromStatus, to: toStatus, reason },
+          ...(analysis?.recommendation || analysis?.reasoning
+            ? {
+                aiReasoning: {
+                  recommendation: analysis.recommendation ?? null,
+                  reasoning: analysis.reasoning ?? null,
+                },
+              }
+            : {}),
         },
       })
+
+      return true
     })
+
+    if (applied && this.notifications) {
+      this.notifications({
+        caseId: reformCase.id,
+        protocol: reformCase.protocol,
+        toStatus,
+        clientId: reformCase.clientId,
+        tenantId: reformCase.tenantId,
+        condominiumId: reformCase.condominiumId,
+      }).catch(() => {
+        // Notificação é fire-and-forget — falha nunca derruba o job.
+      })
+    }
+
+    return applied
   }
 
   // ─── failure handling ───────────────────────────────────────────────

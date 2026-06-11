@@ -48,8 +48,16 @@ function extractJsonBetweenTags(raw: string): string | null {
   return raw.slice(start, closeIdx).trim()
 }
 
+export interface AnalysisAgentModelOptions {
+  /** Modelo usado na análise cruzada (exige raciocínio — modelo mais capaz). */
+  model?: string
+}
+
 export class ClaudeAnalysisAgent implements AnalysisAgent {
-  constructor(private readonly llm: LLMProvider) {}
+  constructor(
+    private readonly llm: LLMProvider,
+    private readonly models: AnalysisAgentModelOptions = {},
+  ) {}
 
   async analyze(documents: AnalysisAgentInput[]): Promise<DocumentAnalysisResult> {
     const messages: LLMMessage[] = [{ role: "user", content: buildUserPrompt(documents) }]
@@ -60,6 +68,7 @@ export class ClaudeAnalysisAgent implements AnalysisAgent {
         system: SYSTEM_PROMPT,
         maxTokens: 3000,
         temperature: 0,
+        model: this.models.model,
       })
     } catch (err) {
       return this.failure("Falha na chamada ao LLM", { error: (err as Error).message })

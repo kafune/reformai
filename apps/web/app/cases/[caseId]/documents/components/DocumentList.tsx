@@ -1,5 +1,6 @@
 "use client"
 import { useCallback, useEffect, useRef, useState } from "react"
+import { useRouter } from "next/navigation"
 import type { DocStatus, DocumentType } from "@reformai/database"
 import { DocumentStatusBadge } from "./DocumentStatusBadge"
 import { DOCUMENT_TYPE_LABELS } from "./document-type-constants"
@@ -252,6 +253,7 @@ export function DocumentList({
   initialDocuments: DocumentItem[]
   uploadZoneRef?: React.RefObject<DocumentUploadZoneHandle>
 }) {
+  const router = useRouter()
   const [documents, setDocuments] = useState<DocumentItem[]>(initialDocuments)
   const [viewer, setViewer] = useState<ViewerState>(DEFAULT_VIEWER)
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -273,6 +275,9 @@ export function DocumentList({
       if (pollingRef.current) {
         clearInterval(pollingRef.current)
         pollingRef.current = null
+        // Análise terminou: atualiza as partes server-rendered da página
+        // (status do caso, checklist e badge "em análise").
+        router.refresh()
       }
       return
     }
@@ -285,7 +290,7 @@ export function DocumentList({
         pollingRef.current = null
       }
     }
-  }, [documents, fetchDocs])
+  }, [documents, fetchDocs, router])
 
   function openViewer(doc: DocumentItem) {
     setViewer({

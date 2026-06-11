@@ -2,8 +2,12 @@ import Link from "next/link"
 import { notFound, redirect } from "next/navigation"
 import { getSessionUser } from "@/infrastructure/auth/getSessionUser"
 import { prisma } from "@/infrastructure/database/prisma"
-import { ReviewDecisionForm } from "./ReviewDecisionForm"
-import { ReviewDocumentList } from "./ReviewDocumentList"
+import { ReviewDecisionForm } from "@/interfaces/components/review/ReviewDecisionForm"
+import { ReviewDocumentList } from "@/interfaces/components/review/ReviewDocumentList"
+import {
+  AiAnalysisCard,
+  extractAiAnalysis,
+} from "@/interfaces/components/review/AiAnalysisCard"
 import {
   TopBar,
   Eyebrow,
@@ -51,7 +55,15 @@ export default async function ReviewCasePage({ params }: { params: { caseId: str
       unit: { select: { identifier: true } },
       messages: { orderBy: { createdAt: "asc" }, take: 100 },
       documents: {
-        select: { id: true, fileName: true, mimeType: true, status: true, type: true },
+        select: {
+          id: true,
+          fileName: true,
+          mimeType: true,
+          status: true,
+          type: true,
+          pendencies: true,
+          uploadedAt: true,
+        },
         orderBy: { uploadedAt: "desc" },
       },
     },
@@ -61,6 +73,10 @@ export default async function ReviewCasePage({ params }: { params: { caseId: str
 
   const scope = reformCase.reformScope as ReformScope | null
   const evaluation = reformCase.evaluationResult as EvaluationResult | null
+
+  // A análise cruzada da IA é gravada no documento processado mais recente
+  // (documents já vem ordenado por uploadedAt desc).
+  const aiAnalysis = extractAiAnalysis(reformCase.documents)
 
   return (
     <>
@@ -307,6 +323,9 @@ export default async function ReviewCasePage({ params }: { params: { caseId: str
             </Card>
           )}
 
+          {/* AI document analysis */}
+          {aiAnalysis && <AiAnalysisCard analysis={aiAnalysis} />}
+
           {/* Documents for review */}
           <Card padded>
             <div className="mb-4 flex items-center justify-between">
@@ -317,7 +336,13 @@ export default async function ReviewCasePage({ params }: { params: { caseId: str
             </div>
             <ReviewDocumentList
               caseId={reformCase.id}
-              documents={reformCase.documents}
+              documents={reformCase.documents.map(({ id, fileName, mimeType, status, type }) => ({
+                id,
+                fileName,
+                mimeType,
+                status,
+                type,
+              }))}
             />
           </Card>
 

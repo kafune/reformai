@@ -8,10 +8,18 @@ import type { EmailProvider, SendEmailInput } from "@/infrastructure/email/Email
 
 // Mock do módulo de banco — prisma singleton.
 // vi.hoisted garante que os mocks existam antes do vi.mock (que é içado ao topo).
-const { mockFindUnique, mockFindFirst, mockFindMany } = vi.hoisted(() => ({
+const {
+  mockFindUnique,
+  mockFindFirst,
+  mockFindMany,
+  mockCaseFindFirst,
+  mockPartnerFindMany,
+} = vi.hoisted(() => ({
   mockFindUnique: vi.fn(),
   mockFindFirst: vi.fn(),
   mockFindMany: vi.fn(),
+  mockCaseFindFirst: vi.fn().mockResolvedValue(null),
+  mockPartnerFindMany: vi.fn().mockResolvedValue([]),
 }))
 
 vi.mock("@/infrastructure/database/prisma", () => ({
@@ -21,6 +29,8 @@ vi.mock("@/infrastructure/database/prisma", () => ({
       findFirst: mockFindFirst,
       findMany: mockFindMany,
     },
+    reformCase: { findFirst: mockCaseFindFirst },
+    partner: { findMany: mockPartnerFindMany },
   },
 }))
 
@@ -82,6 +92,24 @@ describe("CaseNotificationService.onTransition", () => {
     expect(sentEmails[0]!.subject).toContain("RF-TEST-001")
     // Link deve apontar para a fila de revisão
     expect(sentEmails[0]!.html).toContain("review-queue")
+  })
+
+  it("notifica parceiros ativos (revisores técnicos) quando status é HUMAN_REVIEW_REQUIRED", async () => {
+    const { provider, sentEmails } = makeEmailProvider()
+    const service = new CaseNotificationService(provider)
+
+    mockFindMany.mockResolvedValue([]) // sem admins neste cenário
+    mockCaseFindFirst.mockResolvedValueOnce({ partnerId: null })
+    mockPartnerFindMany.mockResolvedValueOnce([
+      { user: { email: "engenheiro@example.com", name: "Eng. Ana", active: true } },
+    ])
+
+    await service.onTransition({ ...baseParams, toStatus: "HUMAN_REVIEW_REQUIRED" })
+
+    expect(sentEmails).toHaveLength(1)
+    expect(sentEmails[0]!.to).toBe("engenheiro@example.com")
+    expect(sentEmails[0]!.subject).toContain("parecer técnico")
+    expect(sentEmails[0]!.html).toContain("/partner/review")
   })
 
   it("envia e-mail ao morador e síndico quando status é CONCLUDED", async () => {

@@ -15,7 +15,7 @@ import type { CaseStatus } from "@reformai/database"
 import type { EmailProvider } from "@/infrastructure/email/EmailProvider"
 import { buildEmailProvider } from "@/infrastructure/email/EmailFactory"
 import { prisma } from "@/infrastructure/database/prisma"
-import { CASE_STATUS_TEMPLATES } from "@/infrastructure/email/caseTemplates"
+import { CASE_STATUS_TEMPLATES, type EmailTarget } from "@/infrastructure/email/caseTemplates"
 import { logger } from "@/shared/logger"
 
 // ---------------------------------------------------------------------------
@@ -35,6 +35,7 @@ interface Recipient {
   email: string
   name: string
   caseUrl: string
+  target: EmailTarget
 }
 
 // ---------------------------------------------------------------------------
@@ -74,11 +75,17 @@ export class CaseNotificationService {
         condominiumId,
         toStatus,
         appUrl,
+        caseId,
       )
 
-      for (const { email, name, caseUrl } of recipients) {
-        const subject = template.subject(protocol)
-        const html = template.html({ protocol, caseUrl, recipientName: name })
+      for (const { email, name, caseUrl, target } of recipients) {
+        const override = template.overrides?.[target]
+        const subject = (override?.subject ?? template.subject)(protocol)
+        const html = (override?.html ?? template.html)({
+          protocol,
+          caseUrl,
+          recipientName: name,
+        })
 
         emailProvider
           .send({ to: email, subject, html })
@@ -108,12 +115,13 @@ export class CaseNotificationService {
   // ---------------------------------------------------------------------------
 
   private async resolveRecipients(
-    targets: string[],
+    targets: EmailTarget[],
     clientId: string,
     tenantId: string,
     condominiumId: string,
     toStatus: CaseStatus,
     appUrl: string,
+    caseId: string,
   ): Promise<Recipient[]> {
     const results: Recipient[] = []
 
@@ -129,6 +137,7 @@ export class CaseNotificationService {
             email: user.email,
             name: user.name,
             caseUrl: `${appUrl}/cases`,
+            target,
           })
         }
       }
@@ -143,6 +152,7 @@ export class CaseNotificationService {
             email: syndic.email,
             name: syndic.name,
             caseUrl: `${appUrl}/sindico/cases`,
+            target,
           })
         }
       }
@@ -165,6 +175,36 @@ export class CaseNotificationService {
               toStatus === "HUMAN_REVIEW_REQUIRED"
                 ? `${appUrl}/review-queue`
                 : `${appUrl}/dashboard`,
+            target,
+          })
+        }
+      }
+
+      if (target === "PARTNER") {
+        // Caso já tem parceiro atribuído → notifica só ele; caso contrário
+        // (ex.: HUMAN_REVIEW_REQUIRED), todos os parceiros ativos do tenant
+        // são revisores técnicos em potencial.
+        const reformCase = await prisma.reformCase.findFirst({
+          where: { id: caseId, tenantId },
+          select: { partnerId: true },
+        })
+        const partners = await prisma.partner.findMany({
+          where: reformCase?.partnerId
+            ? { id: reformCase.partnerId, tenantId, active: true }
+            : { tenantId, active: true },
+          select: { user: { select: { email: true, name: true, active: true } } },
+        })
+        const caseUrl =
+          toStatus === "HUMAN_REVIEW_REQUIRED"
+            ? `${appUrl}/partner/review`
+            : `${appUrl}/partner/cases`
+        for (const partner of partners) {
+          if (!partner.user.active) continue
+          results.push({
+            email: partner.user.email,
+            name: partner.user.name,
+            caseUrl,
+            target,
           })
         }
       }
