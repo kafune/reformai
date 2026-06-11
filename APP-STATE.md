@@ -52,7 +52,7 @@ implementado de ponta a ponta, com painéis para os 4 perfis de usuário
 | Fila | BullMQ 5.76 + Redis 7 (ioredis) |
 | Auth | NextAuth.js 4.24 (JWT, CredentialsProvider) |
 | Storage | Adapter abstrato — MinIO 8 / AWS S3 (`@aws-sdk/client-s3`) |
-| IA / LLM | `@anthropic-ai/sdk` 0.32 — modelo fixo `claude-sonnet-4-20250514` |
+| IA / LLM | `@anthropic-ai/sdk` 0.32 — modelos por env var (`ANTHROPIC_MODEL*`); defaults: geral/análise `claude-sonnet-4-6`, extração `claude-haiku-4-5` |
 | OCR | `pdf-parse` 2.4 (PDF) + `tesseract.js` 7 (imagens, idioma `por`) |
 | Validação | Zod 3.23 nas bordas |
 | Email | Resend 6.12 / Nodemailer 8 (SMTP fallback), via `EmailFactory` |
@@ -175,7 +175,7 @@ Todos em `apps/web/src/modules/`. **12 módulos implementados** (CLAUDE.md docum
 
 ### document-intelligence — ✅ implementado
 - `domain/LLMProvider.ts` — interface (`complete`, `stream`, `completeWithTools`, `streamComplete`).
-- `infrastructure/llm/AnthropicProvider.ts` — **único arquivo que importa o SDK**; modelo fixo `claude-sonnet-4-20250514`.
+- `infrastructure/llm/AnthropicProvider.ts` — **único arquivo que importa o SDK**; modelo default `claude-sonnet-4-6` (override global via `ANTHROPIC_MODEL`, por chamada via `CompletionOptions.model`).
 - `application/ClaudeDocumentAgent.ts` — extração por tipo de documento; JSON em `<extraction>`; em falha retorna `failure()` (confiança 0), **não lança**.
 - `application/ClaudeAnalysisAgent.ts` — coerência cross-document; JSON em `<analysis>`; em falha degrada para `request_corrections` ✅ corrigido.
 - Teste: `ClaudeDocumentAgent.test.ts`.
@@ -250,7 +250,7 @@ mapa `VALID_TRANSITIONS` idêntico ao CLAUDE.md §6. `transition()` lança
 | `ClaudeReportAgent` | document-generation | `complete`, `temp 0.2`, JSON em `<narrative>` | `NarrativeSchema` + `ReportContentSchema` |
 | `CommercialAgent` | commercial-offers | `complete`, `temp 0.3`, JSON em `<offer>` | `CommercialOfferOutputSchema` |
 
-- Modelo **fixo** `claude-sonnet-4-20250514` no `AnthropicProvider` (infra) — único lugar que importa o SDK.
+- Modelos configuráveis por env (`ANTHROPIC_MODEL`, `ANTHROPIC_MODEL_EXTRACTION`, `ANTHROPIC_MODEL_ANALYSIS`, `ANTHROPIC_MODEL_PHOTOS`); `AnthropicProvider` (infra) segue sendo o único lugar que importa o SDK.
 - Toda saída de IA é validada por Zod (CLAUDE.md §9).
 - Só o `TriageAgent` usa tool-use real; os outros 4 usam JSON delimitado por tags.
 - A IA nunca chama `stateMachine.transition()` — sugere; o application service decide.
@@ -266,14 +266,17 @@ checa se o documento ainda existe e re-enfileira o próximo:
 
 1. **ocr** — baixa via signed URL 300s; PDF → `pdf-parse`, imagem → `tesseract.js` (`por`); salva `extractedText`.
 2. **extraction** — `ClaudeDocumentAgent.extract()`; salva `extractedData` + `inconsistencies`.
-3. **validation** — `ClaudeAnalysisAgent.analyze()` cross-document; mapeia recomendação → `DocStatus`; salva `pendencies`.
-4. **status-update** — no-op explícito (status já gravado no passo 3); mantido por contrato.
+3. **validation** — `ClaudeAnalysisAgent.analyze()` cross-document; mapeia recomendação → `DocStatus`; salva `pendencies`; enfileira `checklist` direto.
+4. **status-update** — legado, mantido só para jobs em voo de deploys antigos (novo fluxo pula este passo).
 5. **checklist** — `DocumentChecklist.evaluate()`; emite evento `checklist.updated`.
-6. **emit-event** — emite `document.processed`; se caso em `AWAITING_DOCUMENTS` e todos os docs válidos → transiciona para `DOCUMENTS_UNDER_REVIEW` via `CaseStateMachine`.
+6. **emit-event** — emite `document.processed` e resolve o caso de forma determinística (IA sugere → regra valida → `CaseStateMachine` executa), avaliando o **documento mais recente de cada tipo**:
+   - `AWAITING_DOCUMENTS`/`PENDING_CORRECTIONS` + tudo válido → `DOCUMENTS_UNDER_REVIEW`;
+   - em `DOCUMENTS_UNDER_REVIEW`: doc `INVALID` ou checklist incompleto → `PENDING_CORRECTIONS`; risco HIGH/CRITICAL ou `requiresHumanReview` → `HUMAN_REVIEW_REQUIRED`; tudo `VALID` → `ELIGIBLE_FOR_RELEASE`; algum `VALID_WITH_CAVEATS` → `RELEASED_WITH_CONDITIONS`.
+   - Transições usam `updateMany` condicionado ao status de origem (idempotente entre jobs concorrentes), gravam `CaseTransitionLog` + `AuditLog` (com `aiReasoning`) e disparam `CaseNotificationService` fire-and-forget.
 
 Falha permanente (após 3 tentativas) → documento `INVALID` + `AuditLog`
 `document.processing.failed`. Entrypoint standalone: `src/workers/document-worker.ts`
-(wire das dependências reais + shutdown gracioso SIGTERM/SIGINT).
+(wire das dependências reais — modelos por etapa via `ANTHROPIC_MODEL_*` — + shutdown gracioso SIGTERM/SIGINT).
 
 ---
 

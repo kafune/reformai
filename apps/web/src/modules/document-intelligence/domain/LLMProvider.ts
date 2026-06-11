@@ -14,6 +14,8 @@ export interface CompletionOptions {
   maxTokens?: number
   temperature?: number
   tools?: LLMTool[]
+  /** Identificador do modelo a usar nesta chamada. Sem valor, usa o default do provider. */
+  model?: string
 }
 
 export interface ToolCall {

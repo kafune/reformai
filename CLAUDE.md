@@ -838,7 +838,16 @@ interface LLMProvider {
 | `ClaudeReportAgent` | document-generation/application | `complete`, JSON em `<narrative>` | `NarrativeSchema` + `ReportContentSchema` |
 | `CommercialAgent` | commercial-offers/application | `complete`, JSON em `<offer>` | `CommercialOfferOutputSchema` |
 
-**Modelo:** `claude-sonnet-4-20250514` — fixado em `AnthropicProvider`. Não usar outro sem decisão documentada.
+**Modelos:** configuráveis por env var, com defaults no código (decisão documentada — `claude-sonnet-4-20250514` foi aposentado pela Anthropic em 15/06/2026):
+
+| Env var | Uso | Default |
+|---------|-----|---------|
+| `ANTHROPIC_MODEL` | Default geral (`AnthropicProvider`) | `claude-sonnet-4-6` |
+| `ANTHROPIC_MODEL_EXTRACTION` | Extração de campos de documentos | `claude-haiku-4-5` |
+| `ANTHROPIC_MODEL_ANALYSIS` | Análise cruzada de documentos | `claude-sonnet-4-6` |
+| `ANTHROPIC_MODEL_PHOTOS` | Documentos `PHOTOS` (precisão extra) | = `ANTHROPIC_MODEL_ANALYSIS` |
+
+O wiring por etapa fica no entrypoint do worker (`src/workers/document-worker.ts`); os agentes recebem o modelo via construtor e o repassam em `CompletionOptions.model`.
 
 **Apenas `TriageAgent` usa tool-use real da API.** Os outros 4 usam JSON delimitado por tags com `safeParse` Zod. Em falha de parse, todos os agentes (exceto `ClaudeAnalysisAgent`) retornam fallback sem lançar exceção.
 
@@ -1022,6 +1031,12 @@ REDIS_URL=redis://localhost:6379
 NEXTAUTH_SECRET=change-me-in-production
 NEXTAUTH_URL=http://localhost:3000
 ANTHROPIC_API_KEY=
+
+# Modelos Claude por finalidade (opcionais — ver §9 para defaults)
+# ANTHROPIC_MODEL=claude-sonnet-4-6
+# ANTHROPIC_MODEL_EXTRACTION=claude-haiku-4-5
+# ANTHROPIC_MODEL_ANALYSIS=claude-sonnet-4-6
+# ANTHROPIC_MODEL_PHOTOS=
 
 # Storage (minio | s3)
 STORAGE_ADAPTER=minio

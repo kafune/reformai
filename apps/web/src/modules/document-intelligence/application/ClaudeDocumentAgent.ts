@@ -65,8 +65,18 @@ function extractJsonBetweenTags(raw: string): string | null {
   return raw.slice(start, closeIdx).trim()
 }
 
+export interface DocumentAgentModelOptions {
+  /** Modelo usado na extração de campos (tarefa estruturada — modelo econômico). */
+  model?: string
+  /** Modelo de maior precisão para documentos do tipo PHOTOS. Sem valor, usa `model`. */
+  photosModel?: string
+}
+
 export class ClaudeDocumentAgent implements DocumentAgent {
-  constructor(private readonly llm: LLMProvider) {}
+  constructor(
+    private readonly llm: LLMProvider,
+    private readonly models: DocumentAgentModelOptions = {},
+  ) {}
 
   async extract(text: string, documentType: DocumentType): Promise<DocumentExtractionResult> {
     const system = buildSystemPrompt(documentType)
@@ -74,9 +84,14 @@ export class ClaudeDocumentAgent implements DocumentAgent {
       { role: "user", content: buildUserPrompt(text, documentType) },
     ]
 
+    const model =
+      documentType === "PHOTOS"
+        ? (this.models.photosModel ?? this.models.model)
+        : this.models.model
+
     let raw: string
     try {
-      raw = await this.llm.complete(messages, { system, maxTokens: 2000, temperature: 0 })
+      raw = await this.llm.complete(messages, { system, maxTokens: 2000, temperature: 0, model })
     } catch (err) {
       return this.failure(documentType, `LLM error: ${(err as Error).message}`)
     }
