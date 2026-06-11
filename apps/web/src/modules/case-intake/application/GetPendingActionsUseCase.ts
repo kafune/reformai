@@ -10,6 +10,7 @@ export type ActionType =
   | "accept_assignment"
   | "complete_inspection"
   | "human_review"
+  | "technical_review"
   | "assign_partner"
 
 export type ActionUrgency = "critical" | "high" | "normal"
@@ -183,7 +184,7 @@ export class GetPendingActionsUseCase {
       include: { unit: true, condominium: { select: { name: true } } },
       orderBy: { updatedAt: "asc" },
     })
-    return cases.map((c) => {
+    const ownCases: PendingAction[] = cases.map((c) => {
       const mapping = PARTNER_STATUS_MAP[c.status]!
       return {
         type: mapping.type,
@@ -197,6 +198,28 @@ export class GetPendingActionsUseCase {
         createdAt: c.updatedAt.toISOString(),
       }
     })
+
+    // Parceiros atuam como revisores técnicos: casos do tenant aguardando
+    // revisão humana também aparecem como ação pendente (fila compartilhada).
+    const reviewCases = await prisma.reformCase.findMany({
+      where: { tenantId, status: "HUMAN_REVIEW_REQUIRED" },
+      include: { unit: true, condominium: { select: { name: true } } },
+      orderBy: { updatedAt: "asc" },
+      take: 50,
+    })
+    const reviewActions: PendingAction[] = reviewCases.map((c) => ({
+      type: "technical_review",
+      caseId: c.id,
+      protocol: c.protocol,
+      unitIdentifier: c.unit.identifier,
+      condominiumName: c.condominium.name,
+      description: "Emitir parecer técnico sobre a documentação",
+      urgency: "high",
+      href: `/partner/review/${c.id}`,
+      createdAt: c.updatedAt.toISOString(),
+    }))
+
+    return [...ownCases, ...reviewActions]
   }
 
   private async getAdminPending(tenantId: string): Promise<PendingAction[]> {

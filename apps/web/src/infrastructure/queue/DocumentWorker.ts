@@ -48,12 +48,20 @@ export interface DocumentWorkerDeps {
   eventBus?: (event: CaseDomainEvent) => Promise<void> | void
   /** Notificador fire-and-forget chamado após cada transição de caso aplicada. */
   notifications?: CaseTransitionNotifier
+  /**
+   * Fallback de extração de texto via leitura nativa do LLM — usado quando o
+   * OCR local volta vazio (ex.: PDF escaneado, sem texto embutido).
+   */
+  documentTextFallback?: (buffer: Buffer, mimeType: string) => Promise<string>
   queueManager?: QueueManager
   /** Override do TTL (segundos) da signed URL usada para baixar o arquivo. */
   signedUrlTtlSeconds?: number
 }
 
 const DEFAULT_SIGNED_URL_TTL = 300
+
+/** Tamanho máximo de arquivo enviado ao LLM no fallback de OCR (controle de custo). */
+const MAX_LLM_OCR_BYTES = 10 * 1024 * 1024
 
 const FINAL_STATUSES: ReadonlySet<DocStatus> = new Set<DocStatus>([
   "VALID",
@@ -113,6 +121,7 @@ export class DocumentWorker {
   private readonly prisma: PrismaClient
   private readonly eventBus?: (event: CaseDomainEvent) => Promise<void> | void
   private readonly notifications?: CaseTransitionNotifier
+  private readonly documentTextFallback?: (buffer: Buffer, mimeType: string) => Promise<string>
   private readonly queueManager: QueueManager
   private readonly signedUrlTtl: number
 
@@ -126,6 +135,7 @@ export class DocumentWorker {
     this.prisma = deps.prisma
     this.eventBus = deps.eventBus
     this.notifications = deps.notifications
+    this.documentTextFallback = deps.documentTextFallback
     this.queueManager = deps.queueManager ?? QueueManager.getInstance()
     this.signedUrlTtl = deps.signedUrlTtlSeconds ?? DEFAULT_SIGNED_URL_TTL
   }
@@ -218,6 +228,23 @@ export class DocumentWorker {
       extractedText = await this.extractTextFromPdf(buffer)
     } else if (data.mimeType.startsWith("image/")) {
       extractedText = await this.extractTextFromImage(buffer)
+    }
+
+    // PDF escaneado (sem texto embutido): pdf-parse volta vazio. Fallback de
+    // leitura nativa pelo LLM, com teto de tamanho para controlar custo.
+    if (
+      extractedText.trim().length === 0 &&
+      data.mimeType === "application/pdf" &&
+      this.documentTextFallback &&
+      buffer.length <= MAX_LLM_OCR_BYTES
+    ) {
+      try {
+        extractedText = await this.documentTextFallback(buffer, data.mimeType)
+      } catch {
+        // Fallback é melhor-esforço: em falha, segue com texto vazio e a
+        // análise degrada para revisão manual como antes.
+        extractedText = ""
+      }
     }
 
     await this.repo.updateExtractedData(

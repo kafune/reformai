@@ -129,9 +129,12 @@ describe("GetPendingActionsUseCase", () => {
     vi.mocked(prisma.partner.findUnique).mockResolvedValueOnce({
       id: "partner-1",
     } as any)
-    vi.mocked(prisma.reformCase.findMany).mockResolvedValueOnce([
-      mockCase({ id: "case-5", status: "ASSIGNED_TO_PARTNER" }),
-    ] as any)
+    vi.mocked(prisma.reformCase.findMany)
+      .mockResolvedValueOnce([
+        mockCase({ id: "case-5", status: "ASSIGNED_TO_PARTNER" }),
+      ] as any)
+      // segunda query: fila de revisão técnica (HUMAN_REVIEW_REQUIRED)
+      .mockResolvedValueOnce([] as any)
 
     const actions = await useCase.execute({
       userId: "user-6",
@@ -142,6 +145,27 @@ describe("GetPendingActionsUseCase", () => {
     expect(actions).toHaveLength(1)
     expect(actions[0]?.type).toBe("accept_assignment")
     expect(actions[0]?.href).toBe("/partner/cases/case-5")
+  })
+
+  it("PARTNER vê casos HUMAN_REVIEW_REQUIRED do tenant como revisão técnica", async () => {
+    vi.mocked(prisma.partner.findUnique).mockResolvedValueOnce({
+      id: "partner-1",
+    } as any)
+    vi.mocked(prisma.reformCase.findMany)
+      .mockResolvedValueOnce([] as any)
+      .mockResolvedValueOnce([
+        mockCase({ id: "case-9", status: "HUMAN_REVIEW_REQUIRED" }),
+      ] as any)
+
+    const actions = await useCase.execute({
+      userId: "user-6",
+      role: "PARTNER",
+      tenantId: "tenant-1",
+    })
+
+    expect(actions).toHaveLength(1)
+    expect(actions[0]?.type).toBe("technical_review")
+    expect(actions[0]?.href).toBe("/partner/review/case-9")
   })
 
   it("SUPER_ADMIN usa o mesmo caminho de admin", async () => {

@@ -6,6 +6,8 @@ import { Button } from "@/interfaces/components/ui"
 
 interface ReviewDecisionFormProps {
   caseId: string
+  /** Para onde redirecionar após registrar a decisão (default: fila do admin). */
+  redirectTo?: string
 }
 
 const DECISION_OPTIONS = [
@@ -17,7 +19,10 @@ const DECISION_OPTIONS = [
 
 type DecisionValue = (typeof DECISION_OPTIONS)[number]["value"]
 
-export function ReviewDecisionForm({ caseId }: ReviewDecisionFormProps) {
+export function ReviewDecisionForm({
+  caseId,
+  redirectTo = "/review-queue",
+}: ReviewDecisionFormProps) {
   const router = useRouter()
   const [decision, setDecision] = useState<DecisionValue | "">("")
   const [notes, setNotes] = useState("")
@@ -51,7 +56,7 @@ export function ReviewDecisionForm({ caseId }: ReviewDecisionFormProps) {
         return
       }
 
-      router.push("/review-queue")
+      router.push(redirectTo)
     } catch {
       setError("Erro de rede. Tente novamente.")
     } finally {

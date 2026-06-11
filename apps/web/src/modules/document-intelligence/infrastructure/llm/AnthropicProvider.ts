@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk"
 import type {
   CompletionOptions,
   CompletionResult,
+  DocumentInput,
   LLMMessage,
   LLMProvider,
   LLMTool,
@@ -98,6 +99,56 @@ export class AnthropicProvider implements LLMProvider {
       messages,
     })
     return processMessage(res)
+  }
+
+  /**
+   * Transcreve o texto de um PDF (incl. escaneado) ou imagem via leitura
+   * nativa do modelo — usado como fallback quando o OCR local volta vazio.
+   */
+  async readDocumentText(
+    document: DocumentInput,
+    options?: CompletionOptions,
+  ): Promise<string> {
+    const base64 = document.data.toString("base64")
+    const contentBlock: Anthropic.Beta.BetaContentBlockParam =
+      document.mimeType === "application/pdf"
+        ? {
+            type: "document",
+            source: { type: "base64", media_type: "application/pdf", data: base64 },
+          }
+        : {
+            type: "image",
+            source: {
+              type: "base64",
+              media_type: document.mimeType as "image/jpeg" | "image/png" | "image/gif" | "image/webp",
+              data: base64,
+            },
+          }
+
+    const res = await this.client.beta.messages.create({
+      model: options?.model ?? this.model,
+      max_tokens: options?.maxTokens ?? 4000,
+      temperature: 0,
+      betas: ["pdfs-2024-09-25"],
+      system:
+        "Você é um transcritor de documentos. Transcreva fielmente todo o texto " +
+        "legível do documento, preservando a ordem de leitura. Não resuma, não " +
+        "comente e não invente conteúdo. Se algo estiver ilegível, marque [ilegível].",
+      messages: [
+        {
+          role: "user",
+          content: [
+            contentBlock,
+            { type: "text", text: "Transcreva o texto deste documento." },
+          ],
+        },
+      ],
+    })
+
+    return res.content
+      .filter((c): c is Anthropic.Beta.BetaTextBlock => c.type === "text")
+      .map((c) => c.text)
+      .join("\n")
   }
 
   streamComplete(messages: LLMMessage[], options?: CompletionOptions): StreamCompleteResult {

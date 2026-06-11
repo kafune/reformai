@@ -11,7 +11,7 @@ import type { CaseStatus } from "@reformai/database"
 // Types
 // ---------------------------------------------------------------------------
 
-export type EmailTarget = "CLIENT" | "CONDOMINIUM" | "ADMIN"
+export type EmailTarget = "CLIENT" | "CONDOMINIUM" | "ADMIN" | "PARTNER"
 
 export interface CaseEmailParams {
   protocol: string
@@ -25,6 +25,13 @@ export interface CaseEmailTemplate {
   subject: (protocol: string) => string
   targets: EmailTarget[]
   html: (params: CaseEmailParams) => string
+  /** Assunto/corpo específicos por destinatário (fallback: subject/html acima). */
+  overrides?: Partial<
+    Record<
+      EmailTarget,
+      { subject?: (protocol: string) => string; html?: (params: CaseEmailParams) => string }
+    >
+  >
 }
 
 // ---------------------------------------------------------------------------
@@ -145,9 +152,30 @@ export const CASE_STATUS_TEMPLATES: Partial<Record<CaseStatus, CaseEmailTemplate
       ),
   },
 
-  // ── Morador: apto para liberação ────────────────────────────────────────
+  // ── Morador + Síndico: apto para liberação ──────────────────────────────
   ELIGIBLE_FOR_RELEASE: {
-    targets: ["CLIENT"],
+    targets: ["CLIENT", "CONDOMINIUM"],
+    overrides: {
+      CONDOMINIUM: {
+        subject: (p) => `[${p}] Reforma no seu condomínio liberada`,
+        html: ({ protocol, caseUrl, recipientName }) =>
+          layout(
+            "Reforma liberada no seu condomínio",
+            `
+            <p>Olá, <strong>${recipientName}</strong>!</p>
+            <div class="protocol-badge">${protocol}</div>
+            <p>
+              A documentação de uma reforma no seu condomínio foi analisada e o caso
+              está <strong>apto para liberação</strong>.
+            </p>
+            <p>
+              Acesse o painel do síndico para acompanhar o caso e os próximos passos.
+            </p>
+            <p><a class="cta" href="${caseUrl}">Acompanhar caso</a></p>
+            `,
+          ),
+      },
+    },
     subject: (p) => `[${p}] Sua reforma está apta para liberação`,
     html: ({ protocol, caseUrl, recipientName }) =>
       layout(
@@ -168,9 +196,30 @@ export const CASE_STATUS_TEMPLATES: Partial<Record<CaseStatus, CaseEmailTemplate
       ),
   },
 
-  // ── Morador: liberação com condições ────────────────────────────────────
+  // ── Morador + Síndico: liberação com condições ──────────────────────────
   RELEASED_WITH_CONDITIONS: {
-    targets: ["CLIENT"],
+    targets: ["CLIENT", "CONDOMINIUM"],
+    overrides: {
+      CONDOMINIUM: {
+        subject: (p) => `[${p}] Reforma no seu condomínio liberada com condições`,
+        html: ({ protocol, caseUrl, recipientName }) =>
+          layout(
+            "Reforma liberada com condições no seu condomínio",
+            `
+            <p>Olá, <strong>${recipientName}</strong>!</p>
+            <div class="protocol-badge">${protocol}</div>
+            <div class="alert">
+              Uma reforma no seu condomínio foi liberada com <strong>condições
+              específicas</strong> que devem ser observadas durante a execução.
+            </div>
+            <p>
+              Acesse o painel do síndico para conhecer as condições e acompanhar a obra.
+            </p>
+            <p><a class="cta" href="${caseUrl}">Ver condições</a></p>
+            `,
+          ),
+      },
+    },
     subject: (p) => `[${p}] Reforma liberada com condições`,
     html: ({ protocol, caseUrl, recipientName }) =>
       layout(
@@ -238,9 +287,27 @@ export const CASE_STATUS_TEMPLATES: Partial<Record<CaseStatus, CaseEmailTemplate
       ),
   },
 
-  // ── Morador: parceiro atribuído ─────────────────────────────────────────
+  // ── Morador + Parceiro: parceiro atribuído ──────────────────────────────
   ASSIGNED_TO_PARTNER: {
-    targets: ["CLIENT"],
+    targets: ["CLIENT", "PARTNER"],
+    overrides: {
+      PARTNER: {
+        subject: (p) => `[${p}] Novo caso atribuído a você`,
+        html: ({ protocol, caseUrl, recipientName }) =>
+          layout(
+            "Novo caso atribuído",
+            `
+            <p>Olá, <strong>${recipientName}</strong>!</p>
+            <div class="protocol-badge">${protocol}</div>
+            <div class="alert">
+              <strong>Ação necessária:</strong> um novo caso de reforma foi atribuído
+              a você. Acesse o painel do parceiro para aceitar ou recusar a atribuição.
+            </div>
+            <p><a class="cta" href="${caseUrl}">Ver caso atribuído</a></p>
+            `,
+          ),
+      },
+    },
     subject: (p) => `[${p}] Parceiro técnico atribuído à sua obra`,
     html: ({ protocol, caseUrl, recipientName }) =>
       layout(
@@ -330,9 +397,32 @@ export const CASE_STATUS_TEMPLATES: Partial<Record<CaseStatus, CaseEmailTemplate
       ),
   },
 
-  // ── Admin: revisão humana necessária ────────────────────────────────────
+  // ── Admin + Parceiro (revisor técnico): revisão humana necessária ───────
   HUMAN_REVIEW_REQUIRED: {
-    targets: ["ADMIN"],
+    targets: ["ADMIN", "PARTNER"],
+    overrides: {
+      PARTNER: {
+        subject: (p) => `[AÇÃO NECESSÁRIA] Caso ${p} aguarda parecer técnico`,
+        html: ({ protocol, caseUrl, recipientName }) =>
+          layout(
+            `Caso ${protocol} aguarda parecer técnico`,
+            `
+            <p>Olá, <strong>${recipientName}</strong>.</p>
+            <div class="protocol-badge">${protocol}</div>
+            <div class="alert alert-red">
+              <strong>Ação necessária:</strong> um caso de reforma teve a documentação
+              analisada pela IA e aguarda o parecer de um responsável técnico habilitado.
+            </div>
+            <p>
+              Acesse a fila de revisão técnica para verificar os documentos, a análise
+              da IA e registrar o seu parecer (aprovar, aprovar com condições,
+              solicitar correções ou arquivar).
+            </p>
+            <p><a class="cta" href="${caseUrl}">Emitir parecer técnico</a></p>
+            `,
+          ),
+      },
+    },
     subject: (p) => `[AÇÃO NECESSÁRIA] Caso ${p} aguarda revisão humana`,
     html: ({ protocol, caseUrl, recipientName }) =>
       layout(

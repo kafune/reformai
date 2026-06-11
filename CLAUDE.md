@@ -110,6 +110,7 @@ Plataforma SaaS B2B2C multi-tenant para triagem técnica, análise documental, l
 │       │   │   └── cadastro/               # QR code de autocadastro
 │       │   └── (partner)/partner/           # Painel do parceiro
 │       │       ├── dashboard/
+│       │       ├── review/[caseId]/         # Fila de revisão técnica (parecer do parceiro)
 │       │       └── cases/[caseId]/inspections/
 │       ├── src/
 │       │   ├── modules/                     # 10 bounded contexts
@@ -946,7 +947,7 @@ POST      /api/v1/partners/:partnerId/cases/:caseId/decline  # PARTNER — verif
 # ── ADMIN (ADMIN | SUPER_ADMIN) ───────────────────────────────────────────────
 GET       /api/v1/admin/dashboard
 GET       /api/v1/admin/review-queue
-POST      /api/v1/admin/review/:caseId
+POST      /api/v1/admin/review/:caseId               # + PARTNER (revisor técnico — exige Partner ativo)
 
 GET       /api/v1/admin/policies
 POST      /api/v1/admin/policies                   # política global: só SUPER_ADMIN

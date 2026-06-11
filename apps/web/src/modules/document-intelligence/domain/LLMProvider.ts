@@ -34,6 +34,11 @@ export interface StreamCompleteResult {
   completion: Promise<CompletionResult>
 }
 
+export interface DocumentInput {
+  data: Buffer
+  mimeType: string
+}
+
 export interface LLMProvider {
   /** Conclusão simples — retorna apenas o texto agregado. */
   complete(messages: LLMMessage[], options?: CompletionOptions): Promise<string>
@@ -43,4 +48,9 @@ export interface LLMProvider {
   completeWithTools(messages: LLMMessage[], options?: CompletionOptions): Promise<CompletionResult>
   /** Streaming com tool-use — chunks de texto + promessa do resultado final estruturado. */
   streamComplete(messages: LLMMessage[], options?: CompletionOptions): StreamCompleteResult
+  /**
+   * Transcreve o texto de um documento binário (ex.: PDF escaneado) via leitura
+   * nativa do modelo. Opcional — providers sem suporte podem omitir.
+   */
+  readDocumentText?(document: DocumentInput, options?: CompletionOptions): Promise<string>
 }

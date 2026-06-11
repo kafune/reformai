@@ -8,7 +8,9 @@ import { CaseStateMachine } from "@/modules/case-intake/domain/entities/CaseStat
 import { NotFoundError, BusinessRuleViolationError } from "@/shared/errors/DomainError"
 import { getCaseNotificationService } from "@/modules/case-intake/application/CaseNotificationService"
 
-const ADMIN_ROLES = new Set(["SUPER_ADMIN", "ADMIN", "MANAGER"])
+// PARTNER participa como revisor técnico (engenheiro/arquiteto habilitado) —
+// validado adiante contra um registro Partner ativo do próprio usuário.
+const REVIEWER_ROLES = new Set(["SUPER_ADMIN", "ADMIN", "MANAGER", "PARTNER"])
 
 const BodySchema = z.object({
   decision: z.enum(["approve", "approve_with_conditions", "reject", "request_corrections"]),
@@ -26,8 +28,18 @@ export async function POST(req: NextRequest, ctx: { params: { caseId: string } }
   try {
     const user = await requireSessionUser()
 
-    if (!ADMIN_ROLES.has(user.role)) {
+    if (!REVIEWER_ROLES.has(user.role)) {
       return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 })
+    }
+
+    if (user.role === "PARTNER") {
+      const partner = await prisma.partner.findUnique({
+        where: { userId: user.id },
+        select: { active: true, tenantId: true },
+      })
+      if (!partner || !partner.active || partner.tenantId !== user.tenantId) {
+        return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 })
+      }
     }
 
     const body = BodySchema.parse(await req.json())

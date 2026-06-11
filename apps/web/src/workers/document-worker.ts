@@ -1,6 +1,7 @@
 import { prisma } from "@/infrastructure/database/prisma"
 import { createStorageAdapter } from "@/infrastructure/storage/StorageFactory"
 import { DocumentWorker } from "@/infrastructure/queue/DocumentWorker"
+import { OrphanDocumentSweeper } from "@/infrastructure/queue/OrphanDocumentSweeper"
 import { QueueDocumentJob } from "@/modules/document-management/infrastructure/QueueDocumentJob"
 import { PrismaDocumentRepository } from "@/modules/document-management/infrastructure/PrismaDocumentRepository"
 import { PrismaReformCaseRepository } from "@/modules/case-intake/infrastructure/repositories/PrismaReformCaseRepository"
@@ -24,10 +25,11 @@ async function main() {
   initMonitoring()
   logConfigStatus()
   const llm = new AnthropicProvider()
+  const queue = new QueueDocumentJob()
   const worker = new DocumentWorker({
     storage: createStorageAdapter(),
     repo: new PrismaDocumentRepository(prisma),
-    queue: new QueueDocumentJob(),
+    queue,
     documentAgent: new ClaudeDocumentAgent(llm, {
       model: EXTRACTION_MODEL,
       photosModel: PHOTOS_MODEL,
@@ -36,7 +38,14 @@ async function main() {
     caseRepo: new PrismaReformCaseRepository(),
     prisma,
     notifications: (params) => getCaseNotificationService().onTransition(params),
+    // PDF escaneado: leitura nativa pelo modelo de maior precisão
+    documentTextFallback: (buffer, mimeType) =>
+      llm.readDocumentText({ data: buffer, mimeType }, { model: PHOTOS_MODEL, maxTokens: 4000 }),
   })
+
+  // Reenfileira documentos órfãos (ex.: Redis fora do ar durante o upload).
+  const sweeper = new OrphanDocumentSweeper({ prisma, queue })
+  sweeper.start()
 
   const handle = worker.start()
   logger.info("worker.started", {
@@ -46,6 +55,7 @@ async function main() {
 
   const shutdown = async (signal: string) => {
     logger.info("worker.shutdown", { signal })
+    sweeper.stop()
     await handle.close()
     await prisma.$disconnect()
     process.exit(0)
