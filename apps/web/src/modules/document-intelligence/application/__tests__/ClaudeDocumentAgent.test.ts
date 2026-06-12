@@ -140,6 +140,13 @@ describe("ClaudeAnalysisAgent", () => {
     expect(options.system).toContain("impermeabilização")
     expect(options.system).toMatch(/NÃO avalie/i)
     expect(options.system).toContain("marcas")
+    // Cronograma FÍSICO continua exigível (datas coerentes com a ART/RRT);
+    // só a dimensão financeira está fora da alçada do condomínio
+    expect(options.system).toMatch(/cronograma/i)
+    expect(options.system).toContain("ART/RRT")
+    expect(options.system).toMatch(/físico-financeiro/i)
+    // Lista de trabalhadores para liberação na portaria
+    expect(options.system).toContain("portaria")
   })
 
   it("inclui o escopo declarado na triagem no prompt quando fornecido", async () => {
