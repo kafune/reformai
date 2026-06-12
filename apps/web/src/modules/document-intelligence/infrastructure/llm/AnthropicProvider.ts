@@ -58,13 +58,24 @@ export class AnthropicProvider implements LLMProvider {
   }
 
   async complete(messages: LLMMessage[], options?: CompletionOptions): Promise<string> {
-    const res = await this.client.messages.create({
+    const params: Anthropic.MessageCreateParamsNonStreaming = {
       model: options?.model ?? this.model,
       max_tokens: options?.maxTokens ?? 1024,
       temperature: options?.temperature ?? 0.2,
       system: options?.system,
       messages,
-    })
+    }
+    if (options?.outputJsonSchema) {
+      // Structured outputs (output_config.format): a API garante JSON válido no
+      // schema. O SDK 0.32 ainda não tipa o parâmetro, mas repassa o corpo
+      // integral à API — daí o Object.assign em vez de campo tipado.
+      Object.assign(params, {
+        output_config: {
+          format: { type: "json_schema", schema: options.outputJsonSchema },
+        },
+      })
+    }
+    const res = await this.client.messages.create(params)
     const parts = res.content
       .filter((c): c is Anthropic.TextBlock => c.type === "text")
       .map((c) => c.text)

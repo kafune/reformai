@@ -97,7 +97,7 @@ describe("ClaudeDocumentAgent", () => {
 
 describe("ClaudeAnalysisAgent", () => {
   it("detecta inconsistência entre ART e MEMORIAL com nomes diferentes", async () => {
-    const llmResponse = `<analysis>{
+    const llmResponse = `{
       "consistent": false,
       "inconsistencies": [
         {
@@ -111,7 +111,7 @@ describe("ClaudeAnalysisAgent", () => {
       "pendencies": ["Esclarecer divergência de nome do responsável técnico"],
       "recommendation": "request_corrections",
       "reasoning": "O nome listado na ART não corresponde ao do memorial."
-    }</analysis>`
+    }`
     const agent = new ClaudeAnalysisAgent(makeLLM(llmResponse))
 
     const result = await agent.analyze([
@@ -123,10 +123,38 @@ describe("ClaudeAnalysisAgent", () => {
     expect(result.inconsistencies.length).toBeGreaterThan(0)
     expect(result.inconsistencies[0]!.severity).toBe("high")
     expect(result.recommendation).toBe("request_corrections")
+    expect(result.degraded).toBeUndefined()
   })
 
-  it("degrada para revisão manual quando a resposta do LLM falha na validação Zod", async () => {
-    const llmResponse = `<analysis>{"consistent":"not-a-boolean","inconsistencies":[],"pendencies":[],"recommendation":"approve","reasoning":""}</analysis>`
+  it("envia o JSON Schema de structured outputs na chamada ao LLM", async () => {
+    const llmResponse = `{"consistent":true,"inconsistencies":[],"pendencies":[],"recommendation":"approve","reasoning":"ok"}`
+    const llm = makeLLM(llmResponse)
+    const agent = new ClaudeAnalysisAgent(llm)
+
+    await agent.analyze([])
+
+    const completeMock = llm.complete as ReturnType<typeof vi.fn>
+    const [, options] = completeMock.mock.calls[0] as [
+      unknown,
+      { outputJsonSchema?: Record<string, unknown>; maxTokens: number },
+    ]
+    expect(options.outputJsonSchema).toMatchObject({ type: "object" })
+    expect(options.maxTokens).toBeGreaterThanOrEqual(8000)
+  })
+
+  it("tolera JSON cercado por preâmbulo/markdown (provider sem structured outputs)", async () => {
+    const llmResponse =
+      'Segue a análise:\n```json\n{"consistent":true,"inconsistencies":[],"pendencies":[],"recommendation":"approve","reasoning":"ok"}\n```'
+    const agent = new ClaudeAnalysisAgent(makeLLM(llmResponse))
+
+    const result = await agent.analyze([])
+
+    expect(result.recommendation).toBe("approve")
+    expect(result.degraded).toBeUndefined()
+  })
+
+  it("degrada com degraded=true quando a resposta do LLM falha na validação Zod", async () => {
+    const llmResponse = `{"consistent":"not-a-boolean","inconsistencies":[],"pendencies":[],"recommendation":"approve","reasoning":""}`
     const agent = new ClaudeAnalysisAgent(makeLLM(llmResponse))
 
     const result = await agent.analyze([])
@@ -134,14 +162,27 @@ describe("ClaudeAnalysisAgent", () => {
     expect(result.consistent).toBe(false)
     expect(result.recommendation).toBe("request_corrections")
     expect(result.pendencies.length).toBeGreaterThan(0)
+    expect(result.degraded).toBe(true)
   })
 
-  it("degrada para revisão manual quando não há tags <analysis> na resposta", async () => {
-    const agent = new ClaudeAnalysisAgent(makeLLM("resposta sem tags"))
+  it("degrada com degraded=true quando a resposta não contém JSON", async () => {
+    const agent = new ClaudeAnalysisAgent(makeLLM("resposta sem json nenhum"))
 
     const result = await agent.analyze([])
 
     expect(result.consistent).toBe(false)
     expect(result.recommendation).toBe("request_corrections")
+    expect(result.degraded).toBe(true)
+  })
+
+  it("degrada com degraded=true quando a chamada ao LLM lança erro", async () => {
+    const llm = makeLLM("")
+    ;(llm.complete as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("rate limit"))
+    const agent = new ClaudeAnalysisAgent(llm)
+
+    const result = await agent.analyze([])
+
+    expect(result.degraded).toBe(true)
+    expect(result.reasoning).toMatch(/Falha na chamada ao LLM/)
   })
 })

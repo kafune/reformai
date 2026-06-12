@@ -15,6 +15,12 @@ export interface DocumentAnalysisResult {
   pendencies: string[]
   recommendation: "approve" | "approve_with_caveats" | "reject" | "request_corrections"
   reasoning: string
+  /**
+   * true quando a análise automática falhou tecnicamente (LLM indisponível ou
+   * resposta inválida). Não é um veredito sobre o documento — o consumidor
+   * decide como tratar (ex.: re-tentar em vez de marcar INVALID).
+   */
+  degraded?: boolean
 }
 
 export interface AnalysisAgentInput {

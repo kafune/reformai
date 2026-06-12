@@ -16,6 +16,11 @@ export interface CompletionOptions {
   tools?: LLMTool[]
   /** Identificador do modelo a usar nesta chamada. Sem valor, usa o default do provider. */
   model?: string
+  /**
+   * JSON Schema para saída estruturada — quando presente, o provider instrui a
+   * API a responder somente com JSON válido nesse shape (structured outputs).
+   */
+  outputJsonSchema?: Record<string, unknown>
 }
 
 export interface ToolCall {
