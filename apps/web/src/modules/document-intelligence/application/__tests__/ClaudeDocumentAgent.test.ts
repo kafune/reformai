@@ -126,6 +126,42 @@ describe("ClaudeAnalysisAgent", () => {
     expect(result.degraded).toBeUndefined()
   })
 
+  it("system prompt foca impacto predial e proíbe auditoria de materiais/comercial", async () => {
+    const llmResponse = `{"consistent":true,"inconsistencies":[],"pendencies":[],"recommendation":"approve","reasoning":"ok"}`
+    const llm = makeLLM(llmResponse)
+    const agent = new ClaudeAnalysisAgent(llm)
+
+    await agent.analyze([])
+
+    const completeMock = llm.complete as ReturnType<typeof vi.fn>
+    const [, options] = completeMock.mock.calls[0] as [unknown, { system: string }]
+    expect(options.system).toContain("áreas comuns")
+    expect(options.system).toContain("prumadas")
+    expect(options.system).toContain("impermeabilização")
+    expect(options.system).toMatch(/NÃO avalie/i)
+    expect(options.system).toContain("marcas")
+  })
+
+  it("inclui o escopo declarado na triagem no prompt quando fornecido", async () => {
+    const llmResponse = `{"consistent":true,"inconsistencies":[],"pendencies":[],"recommendation":"approve","reasoning":"ok"}`
+    const llm = makeLLM(llmResponse)
+    const agent = new ClaudeAnalysisAgent(llm)
+
+    await agent.analyze(
+      [{ type: "MEMORIAL", extractedData: { servicos: ["Troca de piso"] } }],
+      {
+        reformScope: { services: ["Troca de piso com demolição"], affectsCommonAreas: false },
+        riskLevel: "MEDIUM",
+      },
+    )
+
+    const completeMock = llm.complete as ReturnType<typeof vi.fn>
+    const [messages] = completeMock.mock.calls[0] as [Array<{ content: string }>]
+    expect(messages[0]!.content).toContain("Escopo declarado pelo morador")
+    expect(messages[0]!.content).toContain("Troca de piso com demolição")
+    expect(messages[0]!.content).toContain("MEDIUM")
+  })
+
   it("envia o JSON Schema de structured outputs na chamada ao LLM", async () => {
     const llmResponse = `{"consistent":true,"inconsistencies":[],"pendencies":[],"recommendation":"approve","reasoning":"ok"}`
     const llm = makeLLM(llmResponse)

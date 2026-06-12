@@ -28,8 +28,18 @@ export interface AnalysisAgentInput {
   extractedData: Record<string, unknown>
 }
 
+/** Contexto do caso usado como base de comparação na análise documental. */
+export interface AnalysisContext {
+  /** Escopo declarado pelo morador na triagem (ReformScope serializado). */
+  reformScope?: Record<string, unknown> | null
+  riskLevel?: string | null
+}
+
 export interface AnalysisAgent {
-  analyze(documents: AnalysisAgentInput[]): Promise<DocumentAnalysisResult>
+  analyze(
+    documents: AnalysisAgentInput[],
+    context?: AnalysisContext,
+  ): Promise<DocumentAnalysisResult>
 }
 
 export const DocumentInconsistencySchema = z.object({

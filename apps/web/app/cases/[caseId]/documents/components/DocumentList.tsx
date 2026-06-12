@@ -61,6 +61,9 @@ const STATUS_ICON_BG: Record<DocStatus, string> = {
 
 const DEFAULT_VIEWER: ViewerState = { open: false, documentId: "", mimeType: "", fileName: "" }
 
+/** Campos internos do JSON de análise que não são problemas legíveis para o morador. */
+const INTERNAL_ANALYSIS_KEYS = new Set(["recommendation", "degraded", "confidence"])
+
 /** Extract a flat list of human-readable problem strings from pendencies / inconsistencies JSON */
 function extractProblems(doc: DocumentItem): string[] {
   const problems: string[] = []
@@ -77,7 +80,8 @@ function extractProblems(doc: DocumentItem): string[] {
         }
       }
     } else if (typeof source === "object") {
-      for (const [, val] of Object.entries(source)) {
+      for (const [key, val] of Object.entries(source)) {
+        if (INTERNAL_ANALYSIS_KEYS.has(key)) continue
         if (typeof val === "string") problems.push(val)
         else if (Array.isArray(val)) {
           for (const v of val) {

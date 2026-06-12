@@ -3,20 +3,44 @@ import {
   DocumentAnalysisResultSchema,
   type AnalysisAgent,
   type AnalysisAgentInput,
+  type AnalysisContext,
   type DocumentAnalysisResult,
 } from "../domain/AnalysisAgent"
 import type { LLMMessage, LLMProvider } from "../domain/LLMProvider"
 
 const SYSTEM_PROMPT = [
-  "Você é auditor técnico. Identifique inconsistências cross-documentos",
-  "(nomes divergentes entre ART e memorial/autorização, datas incoerentes,",
-  "serviços executados não autorizados, materiais não previstos).",
+  "Você é o analista técnico de um condomínio avaliando a documentação de uma",
+  "reforma em unidade autônoma. A responsabilidade do condomínio NÃO é auditar",
+  "a qualidade da obra do morador — é proteger as áreas comuns e os sistemas",
+  "prediais. Avalie SOMENTE:",
+  "",
+  "1. Impacto predial: os documentos indicam intervenção em estrutura, prumadas",
+  "   (hidráulica/esgoto), fachada, esquadrias externas, alteração de demanda ou",
+  "   carga elétrica, gás, remoção de piso com risco à impermeabilização, ou",
+  "   acréscimo de carga sobre lajes?",
+  "2. Coerência com o escopo declarado: os documentos descrevem serviços com",
+  "   impacto predial que NÃO constam do escopo declarado na triagem (ou o",
+  "   escopo declara impactos que a documentação não cobre)?",
+  "3. Cobertura documental dos impactos: para cada impacto identificado, a",
+  "   documentação de respaldo esperada está presente e coerente — ex.:",
+  "   declaração de não intervenção estrutural, projeto hidráulico/elétrico,",
+  "   ART/RRT correspondente aos serviços de risco?",
+  "4. Identificação formal mínima: responsável técnico identificado (nome e",
+  "   CREA/CAU) nos documentos que o exigem.",
+  "",
+  "NÃO avalie e NÃO gere pendências sobre: marcas, qualidade ou adequação de",
+  "materiais; escolhas técnicas ou estéticas internas da unidade; cláusulas",
+  "comerciais ou financeiras; valores; cronograma. Nada disso compete ao",
+  "condomínio quando não afeta áreas comuns.",
+  "",
   "Campos da resposta:",
-  '- "consistent": true se não há inconsistências relevantes entre os documentos.',
-  '- "inconsistencies": conflitos entre documentos, com severidade low | medium | high.',
-  '- "pendencies": itens faltando ou a corrigir, em linguagem simples para o morador.',
+  '- "consistent": true se não há conflito relevante entre documentos e escopo.',
+  '- "inconsistencies": conflitos entre documentos ou entre documento e escopo',
+  "  declarado, com severidade low | medium | high.",
+  '- "pendencies": apenas itens que bloqueiam a liberação pelo condomínio',
+  "  (impacto predial sem documento de respaldo), em linguagem simples.",
   '- "recommendation": "approve" | "approve_with_caveats" | "reject" | "request_corrections".',
-  '- "reasoning": justificativa breve da recomendação.',
+  '- "reasoning": justificativa breve, centrada em impacto predial.',
   "Responda somente com o JSON — sem texto adicional.",
 ].join("\n")
 
@@ -52,15 +76,28 @@ const ANALYSIS_OUTPUT_SCHEMA: Record<string, unknown> = {
   additionalProperties: false,
 }
 
-function buildUserPrompt(documents: AnalysisAgentInput[]): string {
-  const lines: string[] = ["Documentos para análise cruzada:", ""]
+function buildUserPrompt(documents: AnalysisAgentInput[], context?: AnalysisContext): string {
+  const lines: string[] = []
+
+  if (context?.reformScope) {
+    lines.push("Escopo declarado pelo morador na triagem (base de comparação):")
+    lines.push(JSON.stringify(context.reformScope, null, 2))
+    if (context.riskLevel) {
+      lines.push(`Nível de risco classificado: ${context.riskLevel}`)
+    }
+    lines.push("")
+  }
+
+  lines.push("Documentos para análise:", "")
   documents.forEach((doc, idx) => {
     lines.push(`Documento ${idx + 1} — tipo: ${doc.type}`)
     lines.push("Dados extraídos:")
     lines.push(JSON.stringify(doc.extractedData, null, 2))
     lines.push("")
   })
-  lines.push("Analise os documentos acima e devolva o JSON da análise.")
+  lines.push(
+    "Avalie o impacto predial e a cobertura documental conforme as instruções e devolva o JSON da análise.",
+  )
   return lines.join("\n")
 }
 
@@ -89,8 +126,13 @@ export class ClaudeAnalysisAgent implements AnalysisAgent {
     private readonly models: AnalysisAgentModelOptions = {},
   ) {}
 
-  async analyze(documents: AnalysisAgentInput[]): Promise<DocumentAnalysisResult> {
-    const messages: LLMMessage[] = [{ role: "user", content: buildUserPrompt(documents) }]
+  async analyze(
+    documents: AnalysisAgentInput[],
+    context?: AnalysisContext,
+  ): Promise<DocumentAnalysisResult> {
+    const messages: LLMMessage[] = [
+      { role: "user", content: buildUserPrompt(documents, context) },
+    ]
 
     let raw: string
     try {

@@ -301,7 +301,13 @@ export class DocumentWorker {
         extractedData: d.extractedData as Record<string, unknown>,
       }))
 
-    const analysis = await this.analysisAgent.analyze(inputs)
+    // O escopo declarado na triagem é a base de comparação: a análise avalia
+    // impacto predial e cobertura documental, não a qualidade da obra.
+    const reformCase = await this.caseRepo.findById(data.caseId, data.tenantId)
+    const analysis = await this.analysisAgent.analyze(inputs, {
+      reformScope: (reformCase?.reformScope as Record<string, unknown> | null) ?? null,
+      riskLevel: reformCase?.riskLevel ?? null,
+    })
 
     if (analysis.degraded) {
       // Falha técnica da análise (LLM indisponível/resposta inválida) — não é
