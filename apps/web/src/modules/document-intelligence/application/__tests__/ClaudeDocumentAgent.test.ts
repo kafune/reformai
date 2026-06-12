@@ -157,6 +157,11 @@ describe("ClaudeAnalysisAgent", () => {
     expect(options.system).toContain("janelas")
     expect(options.system).toContain("pintura externa")
     expect(options.system).toContain("assembleia")
+    // Proibições explícitas: nada de auditoria de materiais/comercial
+    expect(options.system).toContain("FISPQ")
+    expect(options.system).toContain("CNPJ")
+    expect(options.system).toMatch(/versão ou edição de normas/i)
+    expect(options.system).toMatch(/Aceite as declarações/i)
   })
 
   it("inclui o escopo declarado na triagem no prompt quando fornecido", async () => {
