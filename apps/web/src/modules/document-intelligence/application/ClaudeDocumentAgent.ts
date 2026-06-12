@@ -13,7 +13,7 @@ const SYSTEM_PROMPTS: Record<DocumentType, string> = {
   ART_RRT:
     "Você é um analista técnico. Extraia: número da ART, CREA do responsável, data de validade, período previsto de execução do serviço (datas de início e término, se constarem), tipo de obra, valor da obra, nome do responsável técnico.",
   MEMORIAL:
-    "Extraia do memorial descritivo: serviços descritos; intervenções com impacto predial (estrutura, prumadas, fachada, esquadrias externas, alteração de demanda/carga elétrica, hidráulica, gás, remoção de piso com risco à impermeabilização, acréscimo de carga sobre laje); responsável técnico (nome e CREA/CAU) se identificado; data de emissão e assinatura se presentes. Não extraia marcas nem quantidades de materiais.",
+    "Extraia do memorial descritivo: serviços descritos; intervenções com impacto predial (estrutura, prumadas, alteração de demanda/carga elétrica, hidráulica, gás, remoção de piso com risco à impermeabilização, acréscimo de carga sobre laje); qualquer indício de alteração de fachada, mesmo indireto (troca de janelas/esquadrias externas, pintura externa, fechamento ou envidraçamento de varanda, grades, toldos, ar-condicionado com unidade externa); responsável técnico (nome e CREA/CAU) se identificado; data de emissão e assinatura se presentes. Não extraia marcas nem quantidades de materiais.",
   AUTHORIZATION:
     "Extraia: nome do condômino, identificador da unidade, data de autorização, lista de serviços autorizados.",
   PROJECT:

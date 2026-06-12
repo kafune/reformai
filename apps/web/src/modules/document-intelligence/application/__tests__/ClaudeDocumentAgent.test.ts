@@ -147,6 +147,16 @@ describe("ClaudeAnalysisAgent", () => {
     expect(options.system).toMatch(/físico-financeiro/i)
     // Lista de trabalhadores para liberação na portaria
     expect(options.system).toContain("portaria")
+    // Intervenção identificada → indicação de projeto com a norma aplicável
+    expect(options.system).toContain("NBR 9575")
+    expect(options.system).toContain("NBR 9574")
+    expect(options.system).toContain("NBR 5410")
+    expect(options.system).toContain("NBR 5626")
+    // Fachada: alerta para alterações implícitas e proibição de approve
+    expect(options.system).toMatch(/FACHADA/i)
+    expect(options.system).toContain("janelas")
+    expect(options.system).toContain("pintura externa")
+    expect(options.system).toContain("assembleia")
   })
 
   it("inclui o escopo declarado na triagem no prompt quando fornecido", async () => {
