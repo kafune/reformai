@@ -1,3 +1,4 @@
+import { zodToJsonSchema } from "zod-to-json-schema"
 import { logger } from "@/shared/logger"
 import {
   DocumentAnalysisResultSchema,
@@ -92,37 +93,12 @@ const SYSTEM_PROMPT = [
   "Responda somente com o JSON — sem texto adicional.",
 ].join("\n")
 
-// Espelha DocumentAnalysisResultSchema (Zod) no formato JSON Schema exigido
-// por structured outputs (todos os objetos com additionalProperties: false).
-const ANALYSIS_OUTPUT_SCHEMA: Record<string, unknown> = {
-  type: "object",
-  properties: {
-    consistent: { type: "boolean" },
-    inconsistencies: {
-      type: "array",
-      items: {
-        type: "object",
-        properties: {
-          field: { type: "string" },
-          documentA: { type: "string" },
-          documentB: { type: "string" },
-          description: { type: "string" },
-          severity: { type: "string", enum: ["low", "medium", "high"] },
-        },
-        required: ["field", "documentA", "documentB", "description", "severity"],
-        additionalProperties: false,
-      },
-    },
-    pendencies: { type: "array", items: { type: "string" } },
-    recommendation: {
-      type: "string",
-      enum: ["approve", "approve_with_caveats", "reject", "request_corrections"],
-    },
-    reasoning: { type: "string" },
-  },
-  required: ["consistent", "inconsistencies", "pendencies", "recommendation", "reasoning"],
-  additionalProperties: false,
-}
+// Derived from DocumentAnalysisResultSchema — single source of truth.
+// .strict() on the Zod schemas ensures additionalProperties: false throughout,
+// which is required by the structured outputs API.
+const ANALYSIS_OUTPUT_SCHEMA = zodToJsonSchema(DocumentAnalysisResultSchema, {
+  $refStrategy: "none",
+}) as Record<string, unknown>
 
 function buildUserPrompt(documents: AnalysisAgentInput[], context?: AnalysisContext): string {
   const lines: string[] = []

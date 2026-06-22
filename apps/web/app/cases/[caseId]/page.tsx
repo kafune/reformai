@@ -17,8 +17,8 @@ import {
   StarRating,
   SpecialistBadge,
   useSpeechRecognition,
-  appendTranscript,
 } from "@/interfaces/components/ui"
+import { appendTranscript } from "@/shared/text"
 import type { RiskLevel, IconName } from "@/interfaces/components/ui"
 
 interface MessageMetadata {
