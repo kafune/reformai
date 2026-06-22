@@ -66,9 +66,8 @@ export class AnthropicProvider implements LLMProvider {
       messages,
     }
     if (options?.outputJsonSchema) {
-      // Structured outputs (output_config.format): a API garante JSON válido no
-      // schema. O SDK 0.32 ainda não tipa o parâmetro, mas repassa o corpo
-      // integral à API — daí o Object.assign em vez de campo tipado.
+      // output_config.format is the correct API field for structured outputs.
+      // TODO: migrate to client.messages.parse() once the SDK types this parameter.
       Object.assign(params, {
         output_config: {
           format: { type: "json_schema", schema: options.outputJsonSchema },

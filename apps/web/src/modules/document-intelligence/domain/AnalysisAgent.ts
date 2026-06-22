@@ -48,7 +48,7 @@ export const DocumentInconsistencySchema = z.object({
   documentB: z.string(),
   description: z.string(),
   severity: z.enum(["low", "medium", "high"]),
-}) satisfies z.ZodType<DocumentInconsistency>
+}).strict() satisfies z.ZodType<DocumentInconsistency>
 
 export const DocumentAnalysisResultSchema = z.object({
   consistent: z.boolean(),
@@ -56,4 +56,4 @@ export const DocumentAnalysisResultSchema = z.object({
   pendencies: z.array(z.string()),
   recommendation: z.enum(["approve", "approve_with_caveats", "reject", "request_corrections"]),
   reasoning: z.string(),
-}) satisfies z.ZodType<DocumentAnalysisResult>
+}).strict() satisfies z.ZodType<DocumentAnalysisResult>
