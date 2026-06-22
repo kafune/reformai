@@ -20,9 +20,9 @@ export class PrismaNotificationRepository implements NotificationRepository {
     })
   }
 
-  async listForUser(userId: string, limit = 30): Promise<NotificationDTO[]> {
+  async listForUser(userId: string, tenantId: string, limit = 30): Promise<NotificationDTO[]> {
     return prisma.notification.findMany({
-      where: { userId },
+      where: { userId, tenantId },
       orderBy: { createdAt: "desc" },
       take: limit,
       select: SELECT,

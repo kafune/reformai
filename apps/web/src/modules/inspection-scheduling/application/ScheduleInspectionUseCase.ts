@@ -2,7 +2,7 @@ import { CaseStatus, InspectionType, type Inspection } from "@reformai/database"
 import { prisma } from "@/infrastructure/database/prisma"
 import { CaseStateMachine } from "@/modules/case-intake/domain/entities/CaseStateMachine"
 import type { PolicyEvaluationResult } from "@/modules/rule-engine/domain/types"
-import { BusinessRuleViolationError, NotFoundError } from "@/shared/errors/DomainError"
+import { BusinessRuleViolationError, InvalidTransitionError, NotFoundError } from "@/shared/errors/DomainError"
 import { ReformScopeSchema } from "@/shared/schemas/ReformScopeSchema"
 import { InspectionRules } from "../domain/InspectionRules"
 import type { InspectionRepository } from "../domain/repositories/InspectionRepository"
@@ -23,30 +23,28 @@ export class ScheduleInspectionUseCase {
   async execute(input: ScheduleInspectionInput): Promise<Inspection> {
     const { caseId, tenantId, type, scheduledAt, notes, scheduledBy } = input
 
-    // 1. Fetch and validate case
-    const reformCase = await prisma.reformCase.findFirst({ where: { id: caseId, tenantId } })
-    if (!reformCase) throw new NotFoundError("ReformCase", caseId)
+    // 1. Pre-flight: verify case exists and partner is assigned (non-transactional read for fast fail)
+    const preflight = await prisma.reformCase.findFirst({ where: { id: caseId, tenantId } })
+    if (!preflight) throw new NotFoundError("ReformCase", caseId)
 
-    // 2. Partner must be assigned before scheduling
-    if (!reformCase.partnerId) {
+    if (!preflight.partnerId) {
       throw new BusinessRuleViolationError(
         "Não é possível agendar vistoria sem um parceiro atribuído ao caso",
       )
     }
 
-    // 3. Parse scope and evaluation (may be null)
-    const scopeRaw = reformCase.reformScope
-    const scope = scopeRaw ? ReformScopeSchema.safeParse(scopeRaw).data ?? null : null
+    // 2. Parse scope and evaluation for business-rule checks (based on preflight data which is immutable for these fields)
+    const scope = preflight.reformScope
+      ? ReformScopeSchema.safeParse(preflight.reformScope).data ?? null
+      : null
+    const evaluation = (preflight.evaluationResult as PolicyEvaluationResult | null) ?? null
 
-    const evaluationRaw = reformCase.evaluationResult as PolicyEvaluationResult | null
-    const evaluation = evaluationRaw ?? null
-
-    // 4. List existing inspections for this case
+    // 3. List existing inspections for this case
     const existingInspections = await this.inspectionRepo.findByCaseId(caseId, tenantId)
 
-    // 5. Validate business rules via InspectionRules
+    // 4. Validate business rules via InspectionRules
     const check = InspectionRules.canScheduleInspection({
-      reformCase,
+      reformCase: preflight,
       scope,
       type,
       existingInspections,
@@ -55,12 +53,12 @@ export class ScheduleInspectionUseCase {
       throw new BusinessRuleViolationError(check.reason ?? "Agendamento de vistoria não permitido")
     }
 
-    // 6. Calculate extra charge if applicable
+    // 5. Calculate extra charge if applicable
     let extraCharge: number | null = null
     if (type === InspectionType.EXTRA || (evaluation && evaluation.riskLevel === "CRITICAL")) {
-      if (reformCase.commercialPlanId) {
+      if (preflight.commercialPlanId) {
         const plan = await prisma.commercialPlan.findFirst({
-          where: { id: reformCase.commercialPlanId, tenantId },
+          where: { id: preflight.commercialPlanId, tenantId },
         })
         if (plan) {
           extraCharge = Number(plan.extraInspectionPrice)
@@ -68,94 +66,105 @@ export class ScheduleInspectionUseCase {
       }
     }
 
-    // 7. Determine if a case status transition is needed
-    const currentStatus = reformCase.status as CaseStatus
-    const isFirstInspection = existingInspections.length === 0
-    let newStatus: CaseStatus | null = null
+    // 6. Execute in transaction: re-fetch case with lock, validate transition, create inspection + logs
+    const { inspection, newStatus, protocol, clientId, condominiumId } =
+      await prisma.$transaction(async (tx) => {
+        // Re-fetch inside transaction so the status we act on is authoritative
+        const reformCase = await tx.reformCase.findFirst({ where: { id: caseId, tenantId } })
+        if (!reformCase) throw new NotFoundError("ReformCase", caseId)
 
-    if (
-      isFirstInspection &&
-      (currentStatus === CaseStatus.ASSIGNED_TO_PARTNER ||
-        currentStatus === CaseStatus.ART_RRT_PENDING)
-    ) {
-      newStatus = CaseStatus.INSPECTIONS_SCHEDULED
-    } else if (
-      currentStatus === CaseStatus.INSPECTIONS_SCHEDULED &&
-      type === InspectionType.INITIAL
-    ) {
-      newStatus = CaseStatus.IN_EXECUTION
-    }
+        const currentStatus = reformCase.status as CaseStatus
+        const isFirstInspection = existingInspections.length === 0
+        let nextStatus: CaseStatus | null = null
 
-    // 8. Validate transition if needed
-    if (newStatus) {
-      const machine = new CaseStateMachine(currentStatus, reformCase.riskLevel)
-      machine.transition(newStatus, {
-        previousStatus: currentStatus,
-        triggeredBy: scheduledBy,
-        reason: `Vistoria ${type} agendada`,
-      })
-    }
+        if (
+          isFirstInspection &&
+          (currentStatus === CaseStatus.ASSIGNED_TO_PARTNER ||
+            currentStatus === CaseStatus.ART_RRT_PENDING)
+        ) {
+          nextStatus = CaseStatus.INSPECTIONS_SCHEDULED
+        } else if (
+          currentStatus === CaseStatus.INSPECTIONS_SCHEDULED &&
+          type === InspectionType.INITIAL
+        ) {
+          nextStatus = CaseStatus.IN_EXECUTION
+        }
 
-    // 9. Execute in transaction: create inspection + optional case transition + logs
-    const inspection = await prisma.$transaction(async (tx) => {
-      const created = await tx.inspection.create({
-        data: {
-          caseId,
-          tenantId,
-          partnerId: reformCase.partnerId!,
-          type: type as never,
-          scheduledAt,
-          notes,
-          status: "SCHEDULED",
-          photoKeys: [],
-          extraCharge: extraCharge !== null ? extraCharge : undefined,
-        },
-      })
-
-      if (newStatus) {
-        await tx.reformCase.update({
-          where: { id: caseId },
-          data: { status: newStatus },
-        })
-
-        await tx.caseTransitionLog.create({
-          data: {
-            caseId,
-            fromStatus: currentStatus,
-            toStatus: newStatus,
+        if (nextStatus) {
+          const machine = new CaseStateMachine(currentStatus, reformCase.riskLevel)
+          machine.transition(nextStatus, {
+            previousStatus: currentStatus,
             triggeredBy: scheduledBy,
             reason: `Vistoria ${type} agendada`,
+          })
+
+          const updated = await tx.reformCase.updateMany({
+            where: { id: caseId, status: currentStatus },
+            data: { status: nextStatus, updatedAt: new Date() },
+          })
+
+          if (updated.count === 0) {
+            throw new InvalidTransitionError(currentStatus, nextStatus)
+          }
+
+          await tx.caseTransitionLog.create({
+            data: {
+              caseId,
+              fromStatus: currentStatus,
+              toStatus: nextStatus,
+              triggeredBy: scheduledBy,
+              reason: `Vistoria ${type} agendada`,
+            },
+          })
+        }
+
+        const created = await tx.inspection.create({
+          data: {
+            caseId,
+            tenantId,
+            partnerId: reformCase.partnerId!,
+            type: type as never,
+            scheduledAt,
+            notes,
+            status: "SCHEDULED",
+            photoKeys: [],
+            extraCharge: extraCharge !== null ? extraCharge : undefined,
           },
         })
-      }
 
-      await tx.auditLog.create({
-        data: {
-          tenantId,
-          caseId,
-          action: "inspection.scheduled",
-          triggeredBy: scheduledBy,
-          details: {
-            inspectionId: created.id,
-            type,
-            scheduledAt: scheduledAt.toISOString(),
-          } as object,
-        },
+        await tx.auditLog.create({
+          data: {
+            tenantId,
+            caseId,
+            action: "inspection.scheduled",
+            triggeredBy: scheduledBy,
+            details: {
+              inspectionId: created.id,
+              type,
+              scheduledAt: scheduledAt.toISOString(),
+            } as object,
+          },
+        })
+
+        return {
+          inspection: created,
+          newStatus: nextStatus,
+          protocol: reformCase.protocol,
+          clientId: reformCase.clientId,
+          condominiumId: reformCase.condominiumId,
+        }
       })
-
-      return created
-    })
 
     // Notificação por e-mail se houve transição de status — fire-and-forget
     if (newStatus) {
       getCaseNotificationService()
         .onTransition({
           caseId,
-          protocol: reformCase.protocol,
+          protocol,
           toStatus: newStatus,
-          clientId: reformCase.clientId,
+          clientId,
           tenantId,
-          condominiumId: reformCase.condominiumId,
+          condominiumId,
         })
         .catch(() => {})
     }
