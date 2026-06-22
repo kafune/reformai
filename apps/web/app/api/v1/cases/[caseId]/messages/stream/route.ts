@@ -77,6 +77,7 @@ export async function GET(req: NextRequest, ctx: { params: { caseId: string } })
       try {
         const userMsg = await repo.appendMessage(caseId, tenantId, "USER", content)
         controller.enqueue(sse({ type: "user_message", message: userMsg }))
+        controller.enqueue(sse({ type: "ack" }))
 
         const history = await repo.listMessages(caseId, tenantId)
         const priorHistory = history.slice(0, -1).map((m) => ({ role: m.role, content: m.content }))

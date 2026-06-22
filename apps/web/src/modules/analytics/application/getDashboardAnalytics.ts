@@ -43,22 +43,31 @@ export async function getDashboardAnalytics(tenantId: string): Promise<Dashboard
   const statusCounts: Record<string, number> = {}
   for (const row of byStatusRaw) statusCounts[row.status] = row._count._all
 
-  // SLA por parceiro: casos concluídos e vistorias concluídas.
-  const partnerSla: PartnerSla[] = await Promise.all(
-    partners.map(async (p) => {
-      const [concludedCases, completedInspections] = await Promise.all([
-        prisma.reformCase.count({ where: { tenantId, partnerId: p.id, status: "CONCLUDED" } }),
-        prisma.inspection.count({ where: { tenantId, partnerId: p.id, status: "COMPLETED" } }),
-      ])
-      return {
-        partnerId: p.id,
-        name: p.user.name,
-        assignedCases: p._count.cases,
-        concludedCases,
-        completedInspections,
-      }
+  const partnerIds = partners.map((p) => p.id)
+
+  const [concludedCaseRows, completedInspectionRows] = await Promise.all([
+    prisma.reformCase.groupBy({
+      by: ["partnerId"],
+      where: { tenantId, partnerId: { in: partnerIds }, status: "CONCLUDED" },
+      _count: { id: true },
     }),
-  )
+    prisma.inspection.groupBy({
+      by: ["partnerId"],
+      where: { tenantId, partnerId: { in: partnerIds }, status: "COMPLETED" },
+      _count: { id: true },
+    }),
+  ])
+
+  const concludedByPartner = new Map(concludedCaseRows.map((r) => [r.partnerId, r._count.id]))
+  const inspectionsByPartner = new Map(completedInspectionRows.map((r) => [r.partnerId, r._count.id]))
+
+  const partnerSla: PartnerSla[] = partners.map((p) => ({
+    partnerId: p.id,
+    name: p.user.name,
+    assignedCases: p._count.cases,
+    concludedCases: concludedByPartner.get(p.id) ?? 0,
+    completedInspections: inspectionsByPartner.get(p.id) ?? 0,
+  }))
 
   return {
     funnel: computeFunnel(statusCounts),
