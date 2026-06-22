@@ -67,8 +67,9 @@ export class QueueManager {
     const existing = this.workers.get(name)
     if (existing) return existing as Worker<T>
 
+    const concurrency = parseInt(process.env.DOCUMENT_WORKER_CONCURRENCY ?? "3", 10)
     const worker = new Worker<T>(name, processor as (job: Job<T>) => Promise<unknown>, {
-      concurrency: 1,
+      concurrency,
       ...opts,
       connection: this.connection,
     })

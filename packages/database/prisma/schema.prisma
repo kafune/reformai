@@ -92,6 +92,8 @@ model User {
   passwordResetTokens PasswordResetToken[]
   pushSubscriptions   PushSubscription[]
   partnerReviews      PartnerReview[]
+
+  @@index([condominiumId, role])
 }
 
 model PushSubscription {
@@ -176,6 +178,11 @@ model ReformCase {
   transitions   CaseTransitionLog[]
   auditLogs     AuditLog[]
   partnerReview PartnerReview?
+
+  @@index([tenantId, status])
+  @@index([tenantId, clientId])
+  @@index([tenantId, condominiumId])
+  @@index([tenantId, partnerId])
 }
 
 enum CaseStatus {
@@ -217,6 +224,8 @@ model CaseTransitionLog {
   createdAt   DateTime   @default(now())
 
   case ReformCase @relation(fields: [caseId], references: [id])
+
+  @@index([caseId, createdAt])
 }
 
 // ─── CHAT ─────────────────────────────────────────────────────
@@ -258,6 +267,8 @@ model Document {
   uploadedAt      DateTime     @default(now())
 
   case ReformCase @relation(fields: [caseId], references: [id])
+
+  @@index([caseId])
 }
 
 enum DocumentType {
@@ -414,6 +425,9 @@ model Inspection {
 
   case    ReformCase @relation(fields: [caseId], references: [id])
   partner Partner    @relation(fields: [partnerId], references: [id])
+
+  @@index([caseId])
+  @@index([partnerId])
 }
 
 enum InspectionType {
@@ -461,6 +475,9 @@ model AuditLog {
 
   case ReformCase? @relation(fields: [caseId], references: [id])
   user User?       @relation(fields: [userId], references: [id])
+
+  @@index([tenantId, createdAt])
+  @@index([caseId])
 }
 
 // ─── NOTIFICATIONS ────────────────────────────────────────────

@@ -29,6 +29,11 @@ export class LocalEmbeddingProvider implements EmbeddingProvider {
     return LocalEmbeddingProvider.extractor!
   }
 
+  /** Triggers ONNX pipeline load without waiting for an embed call. */
+  static warmup(): Promise<unknown> {
+    return LocalEmbeddingProvider.getExtractor()
+  }
+
   async embed(texts: string[]): Promise<number[][]> {
     if (texts.length === 0) return []
     const extractor = await LocalEmbeddingProvider.getExtractor()

@@ -11,5 +11,16 @@ export async function register(): Promise<void> {
     const { logConfigStatus } = await import("@/infrastructure/config/configStatus")
     initMonitoring()
     logConfigStatus()
+
+    try {
+      const { LocalEmbeddingProvider } = await import(
+        "@/infrastructure/embedding/EmbeddingProvider"
+      )
+      LocalEmbeddingProvider.warmup().catch(() => {
+        // non-fatal: model will load on first embed call
+      })
+    } catch {
+      // non-fatal: ONNX unavailable in this environment
+    }
   }
 }

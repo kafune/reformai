@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { requireSessionUser } from "@/infrastructure/auth/getSessionUser"
+import { assertCaseAccess } from "@/interfaces/http/guards"
 import { forbidden, handleError, unauthorized } from "@/interfaces/http/respond"
 import { ReviewPartnerUseCase } from "@/modules/partner-network/application/ReviewPartnerUseCase"
 import { BusinessRuleViolationError } from "@/shared/errors/DomainError"
@@ -56,6 +57,8 @@ export async function GET(_: NextRequest, ctx: { params: { caseId: string } }) {
     const user = await requireSessionUser()
     const { caseId } = ctx.params
 
+    await assertCaseAccess(user, caseId)
+
     const { prisma } = await import("@/infrastructure/database/prisma")
 
     const review = await prisma.partnerReview.findUnique({
@@ -65,16 +68,8 @@ export async function GET(_: NextRequest, ctx: { params: { caseId: string } }) {
         score: true,
         comment: true,
         createdAt: true,
-        clientId: true,
       },
     })
-
-    // Só dono do caso ou admin pode ver a avaliação
-    const ADMIN_ROLES = new Set(["SUPER_ADMIN", "ADMIN", "MANAGER", "CONDOMINIUM"])
-    if (!ADMIN_ROLES.has(user.role)) {
-      // Para CLIENT: verificar que é dono do caso
-      if (review && review.clientId !== user.id) return forbidden()
-    }
 
     return NextResponse.json({ review: review ?? null })
   } catch (err) {

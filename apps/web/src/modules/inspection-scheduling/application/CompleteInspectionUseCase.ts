@@ -46,7 +46,7 @@ export class CompleteInspectionUseCase {
     const evaluation = (reformCase.evaluationResult as PolicyEvaluationResult | null) ?? null
 
     // 5. Execute in transaction
-    const completed = await prisma.$transaction(async (tx) => {
+    const { completed, concluded } = await prisma.$transaction(async (tx) => {
       // Complete the inspection
       const updated = await tx.inspection.update({
         where: { id: inspectionId },
@@ -127,31 +127,21 @@ export class CompleteInspectionUseCase {
         },
       })
 
-      return updated
+      return { completed: updated, concluded: shouldConclude }
     })
 
     // Notificação por e-mail se caso foi concluído — fire-and-forget
-    if (
-      completed &&
-      reformCase.status !== "CONCLUDED"
-    ) {
-      // Recheck: precisamos saber se shouldConclude foi true — buscamos o status atual
-      const updatedCase = await prisma.reformCase.findFirst({
-        where: { id: caseId, tenantId },
-        select: { status: true, protocol: true, clientId: true, condominiumId: true },
-      })
-      if (updatedCase?.status === "CONCLUDED") {
-        getCaseNotificationService()
-          .onTransition({
-            caseId,
-            protocol: updatedCase.protocol,
-            toStatus: "CONCLUDED",
-            clientId: updatedCase.clientId,
-            tenantId,
-            condominiumId: updatedCase.condominiumId,
-          })
-          .catch(() => {})
-      }
+    if (concluded) {
+      getCaseNotificationService()
+        .onTransition({
+          caseId,
+          protocol: reformCase.protocol,
+          toStatus: "CONCLUDED",
+          clientId: reformCase.clientId,
+          tenantId,
+          condominiumId: reformCase.condominiumId,
+        })
+        .catch(() => {})
     }
 
     return completed
