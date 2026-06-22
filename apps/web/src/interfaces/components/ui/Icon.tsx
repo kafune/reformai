@@ -33,6 +33,7 @@ const PATHS = {
   settings:
     "M8 5.5a2.5 2.5 0 100 5 2.5 2.5 0 000-5zM8 1v2M8 13v2M3 8H1M15 8h-2M3.5 3.5l1.5 1.5M11 11l1.5 1.5M3.5 12.5L5 11M11 5l1.5-1.5",
   filter: "M2 4h12L9 9v5l-2-1V9L2 4z",
+  mic: "M8 1.5a2 2 0 012 2V7a2 2 0 11-4 0V3.5a2 2 0 012-2zM3.5 7a4.5 4.5 0 009 0M8 11.5V14",
 } as const
 
 export type IconName = keyof typeof PATHS

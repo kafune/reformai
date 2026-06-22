@@ -248,6 +248,67 @@ describe("DocumentWorker", () => {
     expect(enqueued?.step).toBe("checklist")
   })
 
+  it("step 'validation' com análise degradada: persiste motivo, lança erro e não marca status", async () => {
+    const deps = makeDeps()
+    const doc = makeDocument({ extractedData: { art: "123" } })
+    ;(deps.repo.findById as ReturnType<typeof vi.fn>).mockResolvedValue(doc)
+    ;(deps.repo.findByCaseId as ReturnType<typeof vi.fn>).mockResolvedValue([doc])
+    ;(deps.analysisAgent.analyze as ReturnType<typeof vi.fn>).mockResolvedValue({
+      consistent: false,
+      inconsistencies: [],
+      pendencies: ["Análise automática indisponível — requer revisão manual."],
+      recommendation: "request_corrections",
+      reasoning: "Análise automática não pôde ser concluída: Falha na chamada ao LLM.",
+      degraded: true,
+    })
+
+    const worker = new DocumentWorker(deps)
+
+    await expect(worker.process(makeJob({ step: "validation" }))).rejects.toThrow(
+      /Análise automática não pôde ser concluída/,
+    )
+
+    // Persiste o motivo para auditoria/UI, mas não grava veredito de status
+    const updateCall = (deps.repo.updateExtractedData as ReturnType<typeof vi.fn>).mock.calls[0]
+    expect(updateCall?.[1]).toMatchObject({
+      pendencies: expect.objectContaining({ degraded: true, recommendation: null }),
+    })
+    expect(deps.repo.updateStatus).not.toHaveBeenCalled()
+    expect(deps.queue.enqueue).not.toHaveBeenCalled()
+  })
+
+  describe("handlePermanentFailure: status após esgotar retentativas", () => {
+    it("falha permanente no step 'validation' devolve o documento a PENDING (não INVALID)", async () => {
+      const deps = makeDeps()
+      const worker = new DocumentWorker(deps)
+
+      await (
+        worker as unknown as {
+          handlePermanentFailure(data: DocumentJobData, err: Error): Promise<void>
+        }
+      ).handlePermanentFailure(makeJob({ step: "validation" }).data, new Error("LLM down"))
+
+      expect(deps.repo.updateStatus).toHaveBeenCalledWith("doc-1", "PENDING", "tenant-1")
+      expect(
+        (deps.prisma as unknown as { auditLog: { create: ReturnType<typeof vi.fn> } }).auditLog
+          .create,
+      ).toHaveBeenCalled()
+    })
+
+    it("falha permanente em outros steps mantém INVALID", async () => {
+      const deps = makeDeps()
+      const worker = new DocumentWorker(deps)
+
+      await (
+        worker as unknown as {
+          handlePermanentFailure(data: DocumentJobData, err: Error): Promise<void>
+        }
+      ).handlePermanentFailure(makeJob({ step: "ocr" }).data, new Error("arquivo corrompido"))
+
+      expect(deps.repo.updateStatus).toHaveBeenCalledWith("doc-1", "INVALID", "tenant-1")
+    })
+  })
+
   describe("step 'emit-event': resolução determinística pós-análise", () => {
     function setupEmitEvent(
       deps: ReturnType<typeof makeDeps>,

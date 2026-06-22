@@ -16,6 +16,8 @@ import {
   Eyebrow,
   StarRating,
   SpecialistBadge,
+  useSpeechRecognition,
+  appendTranscript,
 } from "@/interfaces/components/ui"
 import type { RiskLevel, IconName } from "@/interfaces/components/ui"
 
@@ -119,6 +121,27 @@ export default function CaseDetailPage() {
   const [streamingContent, setStreamingContent] = useState("")
   const endRef = useRef<HTMLDivElement>(null)
 
+  // Ditado por voz — texto que já estava no input ao iniciar a sessão
+  const dictationBaseRef = useRef("")
+  const {
+    supported: voiceSupported,
+    listening,
+    start: startDictation,
+    stop: stopDictation,
+  } = useSpeechRecognition({
+    onResult: (transcript) =>
+      setInput(appendTranscript(dictationBaseRef.current, transcript)),
+  })
+
+  function toggleDictation() {
+    if (listening) {
+      stopDictation()
+      return
+    }
+    dictationBaseRef.current = input
+    startDictation()
+  }
+
   // Mobile tab
   const [activeTab, setActiveTab] = useState<"chat" | "details">("chat")
 
@@ -215,6 +238,7 @@ export default function CaseDetailPage() {
   function send(e: React.FormEvent) {
     e.preventDefault()
     if (!input.trim() || sending) return
+    stopDictation()
     const content = input.trim()
     setInput("")
     setSending(true)
@@ -567,7 +591,7 @@ export default function CaseDetailPage() {
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Descreva a reforma…"
+            placeholder={listening ? "Ouvindo… fale agora" : "Descreva a reforma…"}
             className="min-h-[22px] border-none bg-transparent text-sm text-ink-900 outline-none placeholder:text-ink-300"
             disabled={sending}
             data-testid="chat-input"
@@ -583,16 +607,37 @@ export default function CaseDetailPage() {
               <Icon name="paperclip" size={14} />
               <span className="hidden sm:inline">Documentos</span>
             </Link>
-            <Button
-              type="submit"
-              variant="primary"
-              size="sm"
-              iconRight="send"
-              disabled={sending || !input.trim()}
-              data-testid="chat-send"
-            >
-              {sending ? "Enviando…" : "Enviar"}
-            </Button>
+            <div className="flex items-center gap-1.5">
+              {/* Ditado por voz — oculto em browsers sem Web Speech API */}
+              {voiceSupported && (
+                <button
+                  type="button"
+                  onClick={toggleDictation}
+                  disabled={sending}
+                  aria-label={listening ? "Parar ditado por voz" : "Ditar mensagem por voz"}
+                  aria-pressed={listening}
+                  title={listening ? "Parar ditado" : "Falar em vez de digitar"}
+                  data-testid="chat-mic"
+                  className={`flex h-8 w-8 cursor-pointer items-center justify-center rounded transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                    listening
+                      ? "animate-pulse bg-red-50 text-red-600 hover:bg-red-100"
+                      : "text-ink-500 hover:bg-bone-100 hover:text-ink-700"
+                  }`}
+                >
+                  <Icon name="mic" size={15} />
+                </button>
+              )}
+              <Button
+                type="submit"
+                variant="primary"
+                size="sm"
+                iconRight="send"
+                disabled={sending || !input.trim()}
+                data-testid="chat-send"
+              >
+                {sending ? "Enviando…" : "Enviar"}
+              </Button>
+            </div>
           </div>
         </form>
       </div>

@@ -11,14 +11,19 @@ const EXTRACTION_CLOSE_TAG = "</extraction>"
 
 const SYSTEM_PROMPTS: Record<DocumentType, string> = {
   ART_RRT:
-    "Você é um analista técnico. Extraia: número da ART, CREA do responsável, data de validade, tipo de obra, valor da obra, nome do responsável técnico.",
-  MEMORIAL: "Extraia: materiais listados (com quantidades), serviços descritos.",
+    "Você é um analista técnico. Extraia: número da ART, CREA do responsável, data de validade, período previsto de execução do serviço (datas de início e término, se constarem), tipo de obra, valor da obra, nome do responsável técnico.",
+  MEMORIAL:
+    "Extraia do memorial descritivo: serviços descritos; intervenções com impacto predial (estrutura, prumadas, alteração de demanda/carga elétrica, hidráulica, gás, remoção de piso com risco à impermeabilização, acréscimo de carga sobre laje); qualquer indício de alteração de fachada, mesmo indireto (troca de janelas/esquadrias externas, pintura externa, fechamento ou envidraçamento de varanda, grades, toldos, ar-condicionado com unidade externa); responsável técnico (nome e CREA/CAU) se identificado; data de emissão e assinatura se presentes. Não extraia marcas nem quantidades de materiais.",
   AUTHORIZATION:
     "Extraia: nome do condômino, identificador da unidade, data de autorização, lista de serviços autorizados.",
-  PROJECT: "Você é um analista técnico. Extraia os campos relevantes ao tipo do documento.",
-  SCHEDULE: "Você é um analista técnico. Extraia os campos relevantes ao tipo do documento.",
-  WORKFORCE: "Você é um analista técnico. Extraia os campos relevantes ao tipo do documento.",
-  WORKER_DOCS: "Você é um analista técnico. Extraia os campos relevantes ao tipo do documento.",
+  PROJECT:
+    "Você é um analista técnico. Extraia: tipo de projeto, intervenções descritas com impacto predial (estrutura, prumadas, fachada, elétrica, hidráulica, gás, impermeabilização) e responsável técnico se identificado.",
+  SCHEDULE:
+    "Extraia do cronograma de obra: data de início, data de término e etapas com datas, se houver. Ignore valores, custos e desembolsos (a dimensão financeira não é avaliada).",
+  WORKFORCE:
+    "Extraia: lista de trabalhadores que atuarão na obra (nome e documento de cada um), empresa/prestadora responsável se houver, e tipo de mão de obra (própria ou terceirizada).",
+  WORKER_DOCS:
+    "Extraia: identificação dos trabalhadores (nome e documento) presentes nos documentos.",
   PHOTOS: "Você é um analista técnico. Extraia os campos relevantes ao tipo do documento.",
   INSPECTION_REPORT:
     "Você é um analista técnico. Extraia os campos relevantes ao tipo do documento.",

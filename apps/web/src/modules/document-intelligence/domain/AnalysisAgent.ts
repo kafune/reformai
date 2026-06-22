@@ -15,6 +15,12 @@ export interface DocumentAnalysisResult {
   pendencies: string[]
   recommendation: "approve" | "approve_with_caveats" | "reject" | "request_corrections"
   reasoning: string
+  /**
+   * true quando a análise automática falhou tecnicamente (LLM indisponível ou
+   * resposta inválida). Não é um veredito sobre o documento — o consumidor
+   * decide como tratar (ex.: re-tentar em vez de marcar INVALID).
+   */
+  degraded?: boolean
 }
 
 export interface AnalysisAgentInput {
@@ -22,8 +28,18 @@ export interface AnalysisAgentInput {
   extractedData: Record<string, unknown>
 }
 
+/** Contexto do caso usado como base de comparação na análise documental. */
+export interface AnalysisContext {
+  /** Escopo declarado pelo morador na triagem (ReformScope serializado). */
+  reformScope?: Record<string, unknown> | null
+  riskLevel?: string | null
+}
+
 export interface AnalysisAgent {
-  analyze(documents: AnalysisAgentInput[]): Promise<DocumentAnalysisResult>
+  analyze(
+    documents: AnalysisAgentInput[],
+    context?: AnalysisContext,
+  ): Promise<DocumentAnalysisResult>
 }
 
 export const DocumentInconsistencySchema = z.object({

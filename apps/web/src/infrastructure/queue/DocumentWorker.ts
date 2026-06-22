@@ -108,8 +108,9 @@ function latestDocsPerType(docs: DocumentRecord[]): DocumentRecord[] {
  * existe (`repo.findById`). Se não existir, retorna sem erro (skip).
  *
  * Retentativas são tratadas pelo BullMQ (3 tentativas, backoff exponencial).
- * Após esgotar tentativas, o hook `failed` marca o documento como INVALID e
- * registra `document.processing.failed` no AuditLog.
+ * Após esgotar tentativas, o hook `failed` marca o documento como INVALID
+ * (ou PENDING, se a falha foi no step "validation" — análise indisponível não
+ * é veredito) e registra `document.processing.failed` no AuditLog.
  */
 export class DocumentWorker {
   private readonly storage: StorageAdapter
@@ -300,7 +301,35 @@ export class DocumentWorker {
         extractedData: d.extractedData as Record<string, unknown>,
       }))
 
-    const analysis = await this.analysisAgent.analyze(inputs)
+    // O escopo declarado na triagem é a base de comparação: a análise avalia
+    // impacto predial e cobertura documental, não a qualidade da obra.
+    const reformCase = await this.caseRepo.findById(data.caseId, data.tenantId)
+    const analysis = await this.analysisAgent.analyze(inputs, {
+      reformScope: (reformCase?.reformScope as Record<string, unknown> | null) ?? null,
+      riskLevel: reformCase?.riskLevel ?? null,
+    })
+
+    if (analysis.degraded) {
+      // Falha técnica da análise (LLM indisponível/resposta inválida) — não é
+      // veredito sobre o documento. Persiste o motivo para auditoria/UI e
+      // lança para o BullMQ re-tentar (3x, backoff exponencial). Esgotadas as
+      // tentativas, handlePermanentFailure devolve o documento a PENDING.
+      await this.repo.updateExtractedData(
+        data.documentId,
+        {
+          pendencies: {
+            items: analysis.pendencies,
+            inconsistencies: analysis.inconsistencies,
+            recommendation: null,
+            reasoning: analysis.reasoning,
+            degraded: true,
+          },
+        },
+        data.tenantId,
+      )
+      throw new Error(analysis.reasoning)
+    }
+
     const nextStatus = recommendationToStatus(analysis.recommendation)
 
     await this.repo.updateExtractedData(
@@ -554,7 +583,12 @@ export class DocumentWorker {
       documentId: data.documentId,
       step: data.step,
     })
-    await this.repo.updateStatus(data.documentId, "INVALID", data.tenantId)
+    // Falha permanente em "validation" significa análise automática
+    // indisponível — não é veredito sobre o documento. Volta a PENDING para
+    // permitir reanálise (POST /documents/analyze re-enfileira PENDING).
+    // Falhas nos demais steps (ex.: arquivo ilegível no OCR) seguem INVALID.
+    const failureStatus: DocStatus = data.step === "validation" ? "PENDING" : "INVALID"
+    await this.repo.updateStatus(data.documentId, failureStatus, data.tenantId)
     await this.prisma.auditLog.create({
       data: {
         tenantId: data.tenantId,
