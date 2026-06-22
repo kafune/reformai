@@ -25,7 +25,8 @@ export type { ImageCarouselProps, CarouselImage } from "./ImageCarousel"
 export { PendingActionsWidget } from "./PendingActionsWidget"
 export { SpecialistChips, type SpecialistChipsProps, type Specialist } from "./SpecialistChips"
 export { SpecialistBadge } from "./SpecialistBadge"
-export { useSpeechRecognition, appendTranscript } from "./useSpeechRecognition"
+export { useSpeechRecognition } from "./useSpeechRecognition"
+export { appendTranscript } from "../../shared/text"
 
 // ── Componentes de estado de erro ─────────────────────────────
 export { ClientBackButton } from "./ClientBackButton"

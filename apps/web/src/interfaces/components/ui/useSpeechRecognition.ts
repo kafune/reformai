@@ -43,14 +43,6 @@ function getSpeechRecognitionCtor(): SpeechRecognitionConstructor | null {
     null) as SpeechRecognitionConstructor | null
 }
 
-/** Junta o texto já digitado com o transcript ditado, sem duplicar espaços. */
-export function appendTranscript(base: string, transcript: string): string {
-  const spoken = transcript.trim()
-  if (!spoken) return base
-  if (!base) return spoken
-  return base.endsWith(" ") ? base + spoken : `${base} ${spoken}`
-}
-
 /**
  * Ditado por voz via Web Speech API nativa do browser (sem backend).
  *
@@ -63,7 +55,7 @@ export function appendTranscript(base: string, transcript: string): string {
  */
 export function useSpeechRecognition(options: {
   lang?: string
-  onResult: (sessionTranscript: string, isFinal: boolean) => void
+  onResult: (sessionTranscript: string) => void
 }) {
   const { lang = "pt-BR", onResult } = options
   const [supported, setSupported] = useState(false)
@@ -102,7 +94,7 @@ export function useSpeechRecognition(options: {
         if (result.isFinal) finalText += result[0].transcript
         else interimText += result[0].transcript
       }
-      onResultRef.current(finalText + interimText, interimText === "")
+      onResultRef.current(finalText + interimText)
     }
 
     // onend dispara tanto após stop() quanto após erro (ex.: not-allowed)

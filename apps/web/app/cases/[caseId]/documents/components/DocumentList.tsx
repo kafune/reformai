@@ -61,36 +61,33 @@ const STATUS_ICON_BG: Record<DocStatus, string> = {
 
 const DEFAULT_VIEWER: ViewerState = { open: false, documentId: "", mimeType: "", fileName: "" }
 
-/** Campos internos do JSON de análise que não são problemas legíveis para o morador. */
-const INTERNAL_ANALYSIS_KEYS = new Set(["recommendation", "degraded", "confidence"])
+// Known shapes stored by DocumentWorker in doc.pendencies and doc.inconsistencies.
+type StoredAnalysis = {
+  items: string[]
+  inconsistencies: Array<{ description: string }>
+  recommendation: string | null
+  reasoning: string
+  degraded?: boolean
+}
 
-/** Extract a flat list of human-readable problem strings from pendencies / inconsistencies JSON */
+type StoredExtraction = {
+  warnings: string[]
+  confidence: number
+}
+
 function extractProblems(doc: DocumentItem): string[] {
   const problems: string[] = []
 
-  const sources = [doc.pendencies, doc.inconsistencies]
-  for (const source of sources) {
-    if (!source) continue
-    if (Array.isArray(source)) {
-      for (const item of source) {
-        if (typeof item === "string") problems.push(item)
-        else if (item && typeof item === "object") {
-          const msg = (item as Record<string, unknown>).message ?? (item as Record<string, unknown>).description
-          if (typeof msg === "string") problems.push(msg)
-        }
-      }
-    } else if (typeof source === "object") {
-      for (const [key, val] of Object.entries(source)) {
-        if (INTERNAL_ANALYSIS_KEYS.has(key)) continue
-        if (typeof val === "string") problems.push(val)
-        else if (Array.isArray(val)) {
-          for (const v of val) {
-            if (typeof v === "string") problems.push(v)
-          }
-        }
-      }
+  const analysis = doc.pendencies as StoredAnalysis | null
+  if (analysis?.items) problems.push(...analysis.items)
+  if (analysis?.inconsistencies) {
+    for (const inc of analysis.inconsistencies) {
+      if (inc?.description) problems.push(inc.description)
     }
   }
+
+  const extraction = doc.inconsistencies as StoredExtraction | null
+  if (extraction?.warnings) problems.push(...extraction.warnings)
 
   return problems.filter(Boolean)
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { appendTranscript } from "../useSpeechRecognition"
+import { appendTranscript } from "../../../../shared/text"
 
 describe("appendTranscript", () => {
   it("retorna o transcript quando o input está vazio", () => {
