@@ -9,8 +9,23 @@ if (process.env.NEXT_PUBLIC_APP_URL) {
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'standalone',
   reactStrictMode: true,
   transpilePackages: ["@reformai/database", "@reformai/templates"],
+  async redirects() {
+    return [
+      {
+        source: '/register',
+        destination: '/login',
+        permanent: true,
+      },
+      {
+        source: '/register/:condominiumId',
+        destination: '/login',
+        permanent: true,
+      },
+    ]
+  },
   experimental: {
     serverActions: { allowedOrigins },
     // Habilita instrumentation.ts (init de monitoramento + status de config no boot).

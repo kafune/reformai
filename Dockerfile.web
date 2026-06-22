@@ -26,20 +26,21 @@ COPY . .
 RUN bun run --cwd packages/database db:generate
 RUN bun run --cwd apps/web build
 
-# Remove APENAS os binários nativos de outras plataformas para economizar espaço.
-# NÃO remova node_modules/.bun inteiro — ele contém os packages reais (symlinks apontam para cá).
-RUN find node_modules/.bun -type d -name "onnxruntime-node*" -exec rm -rf {} + 2>/dev/null || true
-RUN find node_modules/.bun -name "*.dll" -o -name "*.pdb" | xargs rm -f 2>/dev/null || true
-
 # ─── runtime ───────────────────────────────────────────────────
 FROM base AS runtime
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 
-COPY --from=build /app ./
+# Standalone output is self-contained; static assets and public must be added separately.
+COPY --from=build /app/apps/web/.next/standalone ./
+COPY --from=build /app/apps/web/.next/static ./apps/web/.next/static
+COPY --from=build /app/apps/web/public ./apps/web/public
+
+# Migration step needs the database package and its Prisma CLI.
+COPY --from=build /app/packages/database ./packages/database
 
 EXPOSE 3000
 
 # Migrações idempotentes antes do servidor
-CMD ["sh", "-c", "bun run --cwd packages/database db:migrate:deploy && bun run --cwd apps/web start -p ${PORT}"]
+CMD ["sh", "-c", "bun run --cwd packages/database db:migrate:deploy && node apps/web/server.js"]
