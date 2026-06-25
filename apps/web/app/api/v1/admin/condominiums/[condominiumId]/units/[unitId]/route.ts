@@ -18,10 +18,21 @@ const UpdateUnitSchema = z.object({
 
 type Params = { params: { condominiumId: string; unitId: string } }
 
-/** Busca a unidade garantindo que ela pertence a um condomínio do tenant. */
-async function findUnit(condominiumId: string, unitId: string, tenantId: string) {
+/**
+ * Busca a unidade garantindo o acesso do usuário ao condomínio.
+ * SUPER_ADMIN acessa qualquer condomínio; demais papéis só os do próprio tenant.
+ */
+async function findUnit(
+  condominiumId: string,
+  unitId: string,
+  user: { role: string; tenantId: string },
+) {
   return prisma.unit.findFirst({
-    where: { id: unitId, condominiumId, condominium: { tenantId } },
+    where: {
+      id: unitId,
+      condominiumId,
+      ...(user.role === "SUPER_ADMIN" ? {} : { condominium: { tenantId: user.tenantId } }),
+    },
     include: { _count: { select: { cases: true } } },
   })
 }
@@ -31,7 +42,7 @@ export async function PATCH(req: NextRequest, ctx: Params) {
     const user = await requireSessionUser()
     if (!ADMIN_ROLES.has(user.role)) return forbidden()
 
-    const existing = await findUnit(ctx.params.condominiumId, ctx.params.unitId, user.tenantId)
+    const existing = await findUnit(ctx.params.condominiumId, ctx.params.unitId, user)
     if (!existing) return notFound()
 
     const body = UpdateUnitSchema.parse(await req.json())
@@ -72,7 +83,7 @@ export async function DELETE(_req: NextRequest, ctx: Params) {
     const user = await requireSessionUser()
     if (!ADMIN_ROLES.has(user.role)) return forbidden()
 
-    const existing = await findUnit(ctx.params.condominiumId, ctx.params.unitId, user.tenantId)
+    const existing = await findUnit(ctx.params.condominiumId, ctx.params.unitId, user)
     if (!existing) return notFound()
 
     if (existing._count.cases > 0) {
