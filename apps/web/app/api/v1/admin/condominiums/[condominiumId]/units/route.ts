@@ -16,9 +16,16 @@ const CreateUnitSchema = z.object({
   ownerPhone: z.string().max(40).optional(),
 })
 
-/** Confirma que o condomínio existe e pertence ao tenant do usuário. */
-async function assertCondominium(condominiumId: string, tenantId: string) {
-  return prisma.condominium.findFirst({ where: { id: condominiumId, tenantId } })
+/**
+ * Confirma que o condomínio existe e é acessível ao usuário.
+ * SUPER_ADMIN acessa qualquer condomínio; demais papéis só os do próprio tenant.
+ */
+async function assertCondominium(condominiumId: string, user: { role: string; tenantId: string }) {
+  const where =
+    user.role === "SUPER_ADMIN"
+      ? { id: condominiumId }
+      : { id: condominiumId, tenantId: user.tenantId }
+  return prisma.condominium.findFirst({ where })
 }
 
 /** Lista as unidades de um condomínio, com contagem de casos. */
@@ -27,7 +34,7 @@ export async function GET(_req: NextRequest, ctx: { params: { condominiumId: str
     const user = await requireSessionUser()
     if (!ADMIN_ROLES.has(user.role)) return forbidden()
 
-    const condominium = await assertCondominium(ctx.params.condominiumId, user.tenantId)
+    const condominium = await assertCondominium(ctx.params.condominiumId, user)
     if (!condominium) return notFound()
 
     const units = await prisma.unit.findMany({
@@ -59,7 +66,7 @@ export async function POST(req: NextRequest, ctx: { params: { condominiumId: str
     const user = await requireSessionUser()
     if (!ADMIN_ROLES.has(user.role)) return forbidden()
 
-    const condominium = await assertCondominium(ctx.params.condominiumId, user.tenantId)
+    const condominium = await assertCondominium(ctx.params.condominiumId, user)
     if (!condominium) return notFound()
 
     const body = CreateUnitSchema.parse(await req.json())
