@@ -26,7 +26,7 @@ export { PendingActionsWidget } from "./PendingActionsWidget"
 export { SpecialistChips, type SpecialistChipsProps, type Specialist } from "./SpecialistChips"
 export { SpecialistBadge } from "./SpecialistBadge"
 export { useSpeechRecognition } from "./useSpeechRecognition"
-export { appendTranscript } from "../../shared/text"
+export { appendTranscript } from "../../../shared/text"
 
 // ── Componentes de estado de erro ─────────────────────────────
 export { ClientBackButton } from "./ClientBackButton"
