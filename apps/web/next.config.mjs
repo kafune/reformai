@@ -1,3 +1,8 @@
+import { fileURLToPath } from "node:url"
+import { dirname, join } from "node:path"
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
+
 const allowedOrigins = ["localhost:3000"]
 if (process.env.NEXT_PUBLIC_APP_URL) {
   try {
@@ -27,6 +32,12 @@ const nextConfig = {
     ]
   },
   experimental: {
+    // Raiz do monorepo: faz o standalone preservar o layout aninhado
+    // (.next/standalone/apps/web/server.js + node_modules na raiz), que é o que
+    // o Dockerfile.web espera. Sem isto o output sai achatado (server.js na raiz)
+    // e os COPY de static/public + o CMD ficam todos no caminho errado.
+    // (No Next 14 esta chave é experimental; virou top-level no Next 15.)
+    outputFileTracingRoot: join(__dirname, '../../'),
     serverActions: { allowedOrigins },
     // Habilita instrumentation.ts (init de monitoramento + status de config no boot).
     instrumentationHook: true,

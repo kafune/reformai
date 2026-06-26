@@ -42,5 +42,7 @@ COPY --from=build /app/packages/database ./packages/database
 
 EXPOSE 3000
 
-# Migrações idempotentes antes do servidor
-CMD ["sh", "-c", "bun run --cwd packages/database db:migrate:deploy && node apps/web/server.js"]
+# As migrations rodam como passo separado do deploy (estágio `build`, que tem o
+# Prisma CLI) — NÃO aqui: o standalone não inclui o CLI do Prisma, e migrar no
+# CMD ainda causaria corrida entre réplicas web.
+CMD ["node", "apps/web/server.js"]
