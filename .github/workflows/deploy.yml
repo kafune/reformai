@@ -42,7 +42,8 @@ jobs:
           script: |
             set -euo pipefail
             cd /home/paiva/reformai
-            git pull origin main
+            git fetch origin main
+            git reset --hard origin/main
             ./scripts/deploy.sh
 
       - name: Health check
