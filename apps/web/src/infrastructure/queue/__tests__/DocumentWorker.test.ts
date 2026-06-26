@@ -10,7 +10,7 @@ import type { QueueDocumentJob } from "@/modules/document-management/infrastruct
 import type { AnalysisAgent } from "@/modules/document-intelligence/domain/AnalysisAgent"
 import type { DocumentAgent } from "@/modules/document-intelligence/domain/DocumentAgent"
 import type { StorageAdapter } from "@/infrastructure/storage/StorageAdapter"
-import { DocumentWorker } from "../DocumentWorker"
+import { DocumentWorker, stripPdfPageMarkers } from "../DocumentWorker"
 import type { DocumentJobData, DocumentJobStep } from "../types"
 
 function makeDocument(overrides: Partial<DocumentRecord> = {}): DocumentRecord {
@@ -277,6 +277,48 @@ describe("DocumentWorker", () => {
     expect(deps.queue.enqueue).not.toHaveBeenCalled()
   })
 
+  it("step 'validation' com 'request_corrections': documento legível fica VALID (não INVALID)", async () => {
+    const deps = makeDeps()
+    // Documento legível (tem dados extraídos), mas o conjunto do caso precisa de
+    // correções/documentos — veredito de CASO, não invalida este documento.
+    const doc = makeDocument({ extractedData: { artNumber: "17029225", crea: "A116332-9" } })
+    ;(deps.repo.findById as ReturnType<typeof vi.fn>).mockResolvedValue(doc)
+    ;(deps.repo.findByCaseId as ReturnType<typeof vi.fn>).mockResolvedValue([doc])
+    ;(deps.analysisAgent.analyze as ReturnType<typeof vi.fn>).mockResolvedValue({
+      consistent: false,
+      inconsistencies: [],
+      pendencies: ["Falta autorização do condomínio."],
+      recommendation: "request_corrections",
+      reasoning: "Conjunto incompleto.",
+    })
+
+    const worker = new DocumentWorker(deps)
+    await worker.process(makeJob({ step: "validation" }))
+
+    expect(deps.repo.updateStatus).toHaveBeenCalledWith("doc-1", "VALID", "tenant-1")
+  })
+
+  it("step 'validation' sem dados extraídos: documento ilegível fica INVALID", async () => {
+    const deps = makeDeps()
+    // Sem extractedData (PDF escaneado que não pôde ser lido): veredito sobre o
+    // próprio documento, independente da recomendação de caso.
+    const doc = makeDocument({ extractedData: null })
+    ;(deps.repo.findById as ReturnType<typeof vi.fn>).mockResolvedValue(doc)
+    ;(deps.repo.findByCaseId as ReturnType<typeof vi.fn>).mockResolvedValue([doc])
+    ;(deps.analysisAgent.analyze as ReturnType<typeof vi.fn>).mockResolvedValue({
+      consistent: false,
+      inconsistencies: [],
+      pendencies: ["ART/RRT ilegível."],
+      recommendation: "request_corrections",
+      reasoning: "Documento ilegível.",
+    })
+
+    const worker = new DocumentWorker(deps)
+    await worker.process(makeJob({ step: "validation" }))
+
+    expect(deps.repo.updateStatus).toHaveBeenCalledWith("doc-1", "INVALID", "tenant-1")
+  })
+
   describe("handlePermanentFailure: status após esgotar retentativas", () => {
     it("falha permanente no step 'validation' devolve o documento a PENDING (não INVALID)", async () => {
       const deps = makeDeps()
@@ -386,6 +428,27 @@ describe("DocumentWorker", () => {
       })
     })
 
+    it("documento VALID com recomendação 'request_corrections': caso vai para PENDING_CORRECTIONS", async () => {
+      const deps = makeDeps()
+      // O documento é legível (VALID), mas a análise do conjunto pede correções
+      // — o caso é roteado para PENDING_CORRECTIONS sem invalidar o documento.
+      const doc = makeDocument({
+        status: "VALID",
+        pendencies: { recommendation: "request_corrections", reasoning: "falta autorização" },
+      })
+      setupEmitEvent(deps, { status: "DOCUMENTS_UNDER_REVIEW", riskLevel: "LOW" }, [doc])
+
+      const worker = new DocumentWorker(deps)
+      await worker.process(makeJob({ step: "emit-event" }))
+
+      const calls = deps.txMocks.reformCase.updateMany.mock.calls
+      expect(calls).toHaveLength(1)
+      expect(calls[0]?.[0]).toEqual({
+        where: { id: "case-1", status: "DOCUMENTS_UNDER_REVIEW" },
+        data: { status: "PENDING_CORRECTIONS" },
+      })
+    })
+
     it("reenvio corrigido: INVALID antigo do mesmo tipo não bloqueia a liberação", async () => {
       const deps = makeDeps()
       const oldInvalid = makeDocument({
@@ -451,5 +514,24 @@ describe("DocumentWorker", () => {
       expect(deps.txMocks.caseTransitionLog.create).not.toHaveBeenCalled()
       expect(deps.notifications).not.toHaveBeenCalled()
     })
+  })
+})
+
+describe("stripPdfPageMarkers", () => {
+  it("PDF escaneado (só marcadores de página) vira string vazia → dispara fallback de OCR", () => {
+    // Conteúdo real observado em produção: pdf-parse@2.x devolve apenas os
+    // separadores de página em PDF sem camada de texto.
+    const onlyMarkers = "\n\n-- 1 of 2 --\n\n\n\n-- 2 of 2 --\n\n"
+    expect(stripPdfPageMarkers(onlyMarkers)).toBe("")
+  })
+
+  it("preserva o conteúdo real e remove apenas os marcadores", () => {
+    const text = "RRT: 17029225\nCAU: A116332-9\n-- 1 of 1 --\n"
+    expect(stripPdfPageMarkers(text)).toBe("RRT: 17029225\nCAU: A116332-9")
+  })
+
+  it("não remove texto legítimo que contenha 'N of M' fora de marcador", () => {
+    const text = "Página 1 of 3 do contrato em vigor"
+    expect(stripPdfPageMarkers(text)).toBe("Página 1 of 3 do contrato em vigor")
   })
 })

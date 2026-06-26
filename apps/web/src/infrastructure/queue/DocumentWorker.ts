@@ -63,23 +63,75 @@ const DEFAULT_SIGNED_URL_TTL = 300
 /** Tamanho máximo de arquivo enviado ao LLM no fallback de OCR (controle de custo). */
 const MAX_LLM_OCR_BYTES = 10 * 1024 * 1024
 
+/**
+ * `pdf-parse@2.x` injeta separadores de página ("-- 1 of 2 --") entre as
+ * páginas. Em PDF escaneado (sem camada de texto) esses marcadores são o ÚNICO
+ * conteúdo retornado e mascaram o vazio — derrotando o gatilho do fallback de
+ * OCR por visão (que dispara só quando o texto é vazio). Removê-los faz o PDF
+ * sem texto ser corretamente tratado como vazio e limpa o ruído enviado à
+ * etapa de extração.
+ */
+const PDF_PAGE_MARKER = /^[ \t]*--\s*\d+\s+of\s+\d+\s*--[ \t]*$/gim
+export function stripPdfPageMarkers(text: string): string {
+  return text.replace(PDF_PAGE_MARKER, "").replace(/\n{3,}/g, "\n\n").trim()
+}
+
 const FINAL_STATUSES: ReadonlySet<DocStatus> = new Set<DocStatus>([
   "VALID",
   "VALID_WITH_CAVEATS",
 ])
 
-function recommendationToStatus(
+/** Há dados estruturados extraídos deste documento? (objeto não-vazio) */
+function hasExtractedData(doc: DocumentRecord): boolean {
+  const data = doc.extractedData
+  return (
+    data != null &&
+    typeof data === "object" &&
+    !Array.isArray(data) &&
+    Object.keys(data as Record<string, unknown>).length > 0
+  )
+}
+
+/**
+ * Status do DOCUMENTO — reflete a legibilidade/coerência do próprio documento,
+ * não o veredito do conjunto do caso.
+ *
+ * - Documento sem dados extraídos é ilegível/vazio → INVALID, independente da
+ *   recomendação de caso.
+ * - `reject` é veredito sobre o documento (ex.: alteração de fachada,
+ *   contradição) → INVALID.
+ * - `request_corrections` é veredito de CASO (faltam/corrigir documentos do
+ *   conjunto). Não invalida um documento legível: ele permanece VALID e o caso
+ *   é roteado para PENDING_CORRECTIONS por `resolveReviewOutcome`.
+ */
+function resolveDocumentStatus(
   recommendation: DocumentAnalysisResult["recommendation"],
+  documentReadable: boolean,
 ): DocStatus {
+  if (!documentReadable) return "INVALID"
   switch (recommendation) {
     case "approve":
+    case "request_corrections":
       return "VALID"
     case "approve_with_caveats":
       return "VALID_WITH_CAVEATS"
     case "reject":
-    case "request_corrections":
       return "INVALID"
   }
+}
+
+/**
+ * Recomendação da análise mais recente do caso. Cada validação reavalia o
+ * conjunto inteiro e grava o resultado no documento que a disparou; o documento
+ * enviado por último carrega o veredito de caso mais atual.
+ */
+function latestCaseRecommendation(latestDocs: DocumentRecord[]): string | null {
+  let newest: DocumentRecord | null = null
+  for (const d of latestDocs) {
+    if (!newest || d.uploadedAt > newest.uploadedAt) newest = d
+  }
+  const pend = (newest?.pendencies ?? null) as { recommendation?: string } | null
+  return pend?.recommendation ?? null
 }
 
 /**
@@ -233,19 +285,17 @@ export class DocumentWorker {
 
     // PDF escaneado (sem texto embutido): pdf-parse volta vazio. Fallback de
     // leitura nativa pelo LLM, com teto de tamanho para controlar custo.
+    // Sem try/catch que engula o erro: uma falha (transitória) do fallback deve
+    // ser re-tentada pelo BullMQ (3x, backoff) — não virar texto vazio e, em
+    // seguida, um veredito INVALID silencioso sobre o documento. Esgotadas as
+    // tentativas, `handlePermanentFailure` registra o erro no AuditLog.
     if (
       extractedText.trim().length === 0 &&
       data.mimeType === "application/pdf" &&
       this.documentTextFallback &&
       buffer.length <= MAX_LLM_OCR_BYTES
     ) {
-      try {
-        extractedText = await this.documentTextFallback(buffer, data.mimeType)
-      } catch {
-        // Fallback é melhor-esforço: em falha, segue com texto vazio e a
-        // análise degrada para revisão manual como antes.
-        extractedText = ""
-      }
+      extractedText = await this.documentTextFallback(buffer, data.mimeType)
     }
 
     await this.repo.updateExtractedData(
@@ -291,7 +341,7 @@ export class DocumentWorker {
 
   private async runValidation(
     data: DocumentJobData,
-    _doc: DocumentRecord,
+    doc: DocumentRecord,
   ): Promise<DocumentJobResult> {
     const allDocs = await this.repo.findByCaseId(data.caseId, data.tenantId)
     const inputs: AnalysisAgentInput[] = allDocs
@@ -330,7 +380,7 @@ export class DocumentWorker {
       throw new Error(analysis.reasoning)
     }
 
-    const nextStatus = recommendationToStatus(analysis.recommendation)
+    const nextStatus = resolveDocumentStatus(analysis.recommendation, hasExtractedData(doc))
 
     await this.repo.updateExtractedData(
       data.documentId,
@@ -479,8 +529,12 @@ export class DocumentWorker {
     )
     if (!processed) return null
 
+    // `request_corrections` é veredito de CASO: o documento pode estar legível
+    // (VALID), mas o conjunto precisa de correções/documentos. Roteia o caso
+    // sem depender de um documento marcado INVALID.
     const hasInvalid = latestDocs.some((d) => d.status === "INVALID")
-    if (hasInvalid || !checklistComplete) return "PENDING_CORRECTIONS"
+    const needsCorrections = latestCaseRecommendation(latestDocs) === "request_corrections"
+    if (hasInvalid || needsCorrections || !checklistComplete) return "PENDING_CORRECTIONS"
 
     const evaluation = reformCase.evaluationResult as { requiresHumanReview?: boolean } | null
     const isHighRisk = reformCase.riskLevel === "HIGH" || reformCase.riskLevel === "CRITICAL"
@@ -613,7 +667,7 @@ export class DocumentWorker {
     const parser = new PDFParse({ data: new Uint8Array(buffer) })
     try {
       const result = await parser.getText()
-      return result.text ?? ""
+      return stripPdfPageMarkers(result.text ?? "")
     } finally {
       try {
         await parser.destroy()
