@@ -5,7 +5,7 @@ import type {
   NotificationRepository,
 } from "../domain/repositories/NotificationRepository"
 
-const SELECT = { id: true, title: true, body: true, read: true, createdAt: true } as const
+const SELECT = { id: true, title: true, body: true, read: true, caseId: true, createdAt: true } as const
 
 export class PrismaNotificationRepository implements NotificationRepository {
   async create(input: CreateNotificationInput): Promise<NotificationDTO> {
@@ -15,6 +15,7 @@ export class PrismaNotificationRepository implements NotificationRepository {
         tenantId: input.tenantId,
         title: input.title,
         body: input.body,
+        caseId: input.caseId ?? null,
       },
       select: SELECT,
     })

@@ -54,6 +54,11 @@ export function statusFamily(status: string): Family {
   return MAP[status as CaseStatus]?.fam ?? "draft"
 }
 
+/** Rótulo PT-BR de um status de caso (fallback: o próprio código). */
+export function statusLabel(status: string): string {
+  return MAP[status as CaseStatus]?.label ?? status
+}
+
 export function StatusChip({ status }: { status: string }) {
   const it = MAP[status as CaseStatus] ?? { fam: "draft" as Family, label: status }
   return (

@@ -486,6 +486,7 @@ model Notification {
   id        String   @id @default(cuid())
   userId    String
   tenantId  String
+  caseId    String?  // deep-link opcional para o caso relacionado
   title     String
   body      String
   read      Boolean  @default(false)

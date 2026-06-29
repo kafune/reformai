@@ -1,5 +1,6 @@
 "use client"
 import { useEffect, useRef, useState } from "react"
+import { useRouter } from "next/navigation"
 import { cn } from "@/shared/cn"
 import { Icon } from "./ui/Icon"
 import { isPushSupported, vapidPublicKey, isSubscribed, enablePush, disablePush } from "@/shared/push-client"
@@ -9,6 +10,7 @@ interface Notification {
   title: string
   body: string
   read: boolean
+  caseId: string | null
   createdAt: string
 }
 
@@ -30,6 +32,7 @@ export function NotificationBell() {
   const [pushOn, setPushOn] = useState<boolean | null>(null) // null = indisponível
   const [pushBusy, setPushBusy] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+  const router = useRouter()
 
   async function load() {
     try {
@@ -90,6 +93,15 @@ export function NotificationBell() {
     } catch { /* silencioso */ }
   }
 
+  // Abrir notificação: marca como lida e, havendo caso, navega até ele.
+  function openNotification(n: Notification) {
+    if (!n.read) markRead(n.id)
+    if (n.caseId) {
+      setOpen(false)
+      router.push(`/cases/${n.caseId}`)
+    }
+  }
+
   return (
     <div ref={ref} className="relative">
       <button
@@ -141,34 +153,45 @@ export function NotificationBell() {
                 <p className="text-xs text-ink-400">Nenhuma notificação.</p>
               </div>
             ) : (
-              items.map((n) => (
-                <div
-                  key={n.id}
-                  role={!n.read ? "button" : undefined}
-                  tabIndex={!n.read ? 0 : undefined}
-                  onClick={() => !n.read && markRead(n.id)}
-                  onKeyDown={(e) => { if (!n.read && (e.key === "Enter" || e.key === " ")) markRead(n.id) }}
-                  className={cn(
-                    "border-b border-divider px-3 py-2.5 last:border-0",
-                    // Não-lidas: interativas com hover e cursor
-                    !n.read && "cursor-pointer hover:bg-bone-100",
-                    // Lidas: estáticas, sem feedback visual de interação
-                    n.read && "opacity-60",
-                    !n.read && "bg-[rgba(58,129,99,0.06)]",
-                  )}
-                >
-                  <div className="flex items-start gap-2">
-                    {!n.read && (
-                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-green-500" />
+              items.map((n) => {
+                // Interativa quando há ação possível: abrir o caso ou marcar lida.
+                const interactive = !n.read || !!n.caseId
+                return (
+                  <div
+                    key={n.id}
+                    role={interactive ? "button" : undefined}
+                    tabIndex={interactive ? 0 : undefined}
+                    onClick={() => interactive && openNotification(n)}
+                    onKeyDown={(e) => { if (interactive && (e.key === "Enter" || e.key === " ")) openNotification(n) }}
+                    className={cn(
+                      "border-b border-divider px-3 py-2.5 last:border-0",
+                      interactive && "cursor-pointer hover:bg-bone-100",
+                      // Lidas: estáticas, sem feedback visual de interação
+                      n.read && "opacity-60",
+                      !n.read && "bg-[rgba(58,129,99,0.06)]",
                     )}
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs font-medium text-ink-900">{n.title}</p>
-                      <p className="mt-0.5 text-xs text-ink-500">{n.body}</p>
-                      <p className="mt-1 text-[11px] text-ink-400">{timeAgo(n.createdAt)}</p>
+                  >
+                    <div className="flex items-start gap-2">
+                      {!n.read && (
+                        <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-green-500" />
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-medium text-ink-900">{n.title}</p>
+                        <p className="mt-0.5 text-xs text-ink-500">{n.body}</p>
+                        <div className="mt-1 flex items-center gap-1.5">
+                          <p className="text-[11px] text-ink-400">{timeAgo(n.createdAt)}</p>
+                          {n.caseId && (
+                            <span className="inline-flex items-center gap-0.5 text-[11px] font-medium text-green-700">
+                              <Icon name="arrow" size={10} />
+                              Abrir caso
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))
+                )
+              })
             )}
           </div>
 
