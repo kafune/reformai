@@ -17,6 +17,8 @@ import { buildEmailProvider } from "@/infrastructure/email/EmailFactory"
 import { prisma } from "@/infrastructure/database/prisma"
 import { CASE_STATUS_TEMPLATES, type EmailTarget } from "@/infrastructure/email/caseTemplates"
 import { logger } from "@/shared/logger"
+import { NotifyUserUseCase } from "@/modules/notifications/application/NotifyUserUseCase"
+import { clientTransitionMessage } from "./clientNotificationMessages"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -57,7 +59,17 @@ export class CaseNotificationService {
   async onTransition(params: CaseTransitionParams): Promise<void> {
     const { protocol, toStatus, clientId, tenantId, condominiumId, caseId } = params
 
-    // Sem provedor configurado, nada a fazer
+    // Notificação in-app (+push) ao morador — independente do provedor de
+    // e-mail e fire-and-forget. Habilita o sino e o deep-link ao caso.
+    this.notifyClientInApp(toStatus, protocol, clientId, tenantId, caseId).catch((err) => {
+      logger.warn("case.notification.in_app_failed", {
+        caseId,
+        toStatus,
+        error: (err as Error).message,
+      })
+    })
+
+    // Sem provedor configurado, nada a fazer (e-mail)
     if (!this.emailProvider) return
 
     // Sem template para este status, silêncio
@@ -113,6 +125,31 @@ export class CaseNotificationService {
   // ---------------------------------------------------------------------------
   // Private helpers
   // ---------------------------------------------------------------------------
+
+  /**
+   * Cria a notificação in-app (e push) do morador para a transição. O e-mail é
+   * desativado aqui (o onTransition já cuida do e-mail templado) para não
+   * duplicar a mensagem. Status sem mensagem ao morador são ignorados.
+   */
+  private async notifyClientInApp(
+    toStatus: CaseStatus,
+    protocol: string,
+    clientId: string,
+    tenantId: string,
+    caseId: string,
+  ): Promise<void> {
+    const message = clientTransitionMessage(toStatus, protocol)
+    if (!message) return
+
+    // email = null → não envia e-mail aqui; push permanece ativo via factory.
+    await new NotifyUserUseCase(undefined, null).execute({
+      userId: clientId,
+      tenantId,
+      caseId,
+      title: message.title,
+      body: message.body,
+    })
+  }
 
   private async resolveRecipients(
     targets: EmailTarget[],
