@@ -24,6 +24,8 @@ import { CommercialOfferCard } from "./components/CommercialOfferCard"
 import { InspectionsPanel } from "./components/InspectionsPanel"
 import { CaseHistoryTimeline } from "./components/CaseHistoryTimeline"
 import { ReportsSection } from "./components/ReportsSection"
+import { NextStepCard } from "./components/NextStepCard"
+import { ScopeSummaryCard } from "./components/ScopeSummaryCard"
 
 interface MessageMetadata {
   specialistId?: string
@@ -42,6 +44,7 @@ interface Message {
 interface CaseData {
   id: string; protocol: string; status: string; riskLevel: string | null;
   triageScore: number | null; requiresART: boolean | null; evaluationResult: any;
+  reformScope?: any;
   partner?: { user?: { name?: string } } | null
 }
 
@@ -314,6 +317,11 @@ export default function CaseDetailPage() {
   // ── Right rail content ───────────────────────────────────────────────────
   const rightRail = (
     <aside className="overflow-y-auto border-t border-divider bg-paper p-4 md:p-6 lg:border-l lg:border-t-0">
+      {/* Próximo passo — CTA primário (só quando acionável) */}
+      <div className="mb-4 empty:hidden">
+        <NextStepCard caseId={caseId} status={data.status} />
+      </div>
+
       <Eyebrow>Caso em andamento</Eyebrow>
       <p className="mt-1.5 font-mono text-sm text-ink-500">{data.protocol}</p>
 
@@ -352,7 +360,7 @@ export default function CaseDetailPage() {
       )}
 
       {/* Proposta comercial — aparece quando há oferta para o caso */}
-      <div className="mt-4 empty:hidden">
+      <div id="proposta-comercial" className="mt-4 empty:hidden">
         <CommercialOfferCard
           caseId={caseId}
           isClient={session?.user?.role === "CLIENT"}
@@ -380,6 +388,11 @@ export default function CaseDetailPage() {
           </span>
         </div>
       )}
+
+      {/* Resumo do escopo da reforma */}
+      <div className="mt-4 empty:hidden">
+        <ScopeSummaryCard scope={data.reformScope} />
+      </div>
 
       {/* Por que essa classificação? (regras disparadas) */}
       <div className="mt-5" data-testid="evaluation-result">

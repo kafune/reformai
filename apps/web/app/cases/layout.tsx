@@ -5,6 +5,7 @@ import { SignOutButton } from "@/interfaces/components/SignOutButton"
 
 const NAV: NavItem[] = [
   { href: "/cases", icon: "list", label: "Minhas reformas" },
+  { href: "/cases/conta", icon: "user", label: "Minha conta" },
   { href: "/cases/privacidade", icon: "shield", label: "Privacidade & dados" },
 ]
 
