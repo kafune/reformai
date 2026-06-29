@@ -118,11 +118,12 @@ export default async function CaseDocumentsPage({ params }: { params: { caseId: 
               </div>
 
               <div className="flex items-start gap-2.5 rounded-sm bg-bone-50 px-3.5 py-3">
-                <Icon name="shield" size={14} className="mt-0.5 shrink-0 text-ink-500" />
+                <Icon name="sparkle" size={14} className="mt-0.5 shrink-0 text-green-700" />
                 <p className="text-xs leading-relaxed text-ink-500">
-                  Extração feita por IA validada por schema Zod.{" "}
-                  <strong>A análise é assistiva</strong> — a decisão final é do
-                  analista humano, que pode reverter qualquer pendência.
+                  Em cada documento, toque em <strong>&ldquo;Análise&rdquo;</strong>{" "}
+                  para ver o que a IA leu: dados extraídos, nível de confiança e
+                  pontos de atenção. <strong>A análise é assistiva</strong> — a
+                  decisão final é do analista humano.
                 </p>
               </div>
             </div>

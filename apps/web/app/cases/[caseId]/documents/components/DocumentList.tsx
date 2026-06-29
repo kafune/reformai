@@ -6,6 +6,8 @@ import { DocumentStatusBadge } from "./DocumentStatusBadge"
 import { DOCUMENT_TYPE_LABELS } from "./document-type-constants"
 import { Icon, DocumentViewer } from "@/interfaces/components/ui"
 import type { DocumentUploadZoneHandle } from "./DocumentUploadZone"
+import { DocumentAnalysisPanel } from "./DocumentAnalysisPanel"
+import { buildAnalysisView } from "./analysis-display"
 
 export interface DocumentItem {
   id: string
@@ -61,38 +63,7 @@ const STATUS_ICON_BG: Record<DocStatus, string> = {
 
 const DEFAULT_VIEWER: ViewerState = { open: false, documentId: "", mimeType: "", fileName: "" }
 
-// Known shapes stored by DocumentWorker in doc.pendencies and doc.inconsistencies.
-type StoredAnalysis = {
-  items: string[]
-  inconsistencies: Array<{ description: string }>
-  recommendation: string | null
-  reasoning: string
-  degraded?: boolean
-}
-
-type StoredExtraction = {
-  warnings: string[]
-  confidence: number
-}
-
-function extractProblems(doc: DocumentItem): string[] {
-  const problems: string[] = []
-
-  const analysis = doc.pendencies as StoredAnalysis | null
-  if (analysis?.items) problems.push(...analysis.items)
-  if (analysis?.inconsistencies) {
-    for (const inc of analysis.inconsistencies) {
-      if (inc?.description) problems.push(inc.description)
-    }
-  }
-
-  const extraction = doc.inconsistencies as StoredExtraction | null
-  if (extraction?.warnings) problems.push(...extraction.warnings)
-
-  return problems.filter(Boolean)
-}
-
-/** Individual document row with optional problem accordion */
+/** Individual document row with AI analysis accordion */
 function DocumentRow({
   doc,
   onView,
@@ -107,7 +78,9 @@ function DocumentRow({
   const iconBg = STATUS_ICON_BG[doc.status]
   const isProcessing = POLL_STATUSES.includes(doc.status)
   const hasProblem = PROBLEM_STATUSES.includes(doc.status)
-  const problems = hasProblem ? extractProblems(doc) : []
+  // Análise da IA disponível para todo documento já processado (inclusive VÁLIDO).
+  const analysis = isProcessing ? null : buildAnalysisView(doc)
+  const canExpand = !!analysis && (analysis.hasContent || analysis.degraded)
 
   return (
     <li
@@ -152,17 +125,19 @@ function DocumentRow({
           <DocumentStatusBadge status={doc.status} />
         </span>
 
-        {/* Expand toggle for problem statuses */}
-        {hasProblem && (
+        {/* Expand toggle — abre a análise da IA de qualquer doc processado */}
+        {canExpand && (
           <button
             type="button"
             onClick={() => setExpanded((v) => !v)}
             aria-expanded={expanded}
-            aria-label={expanded ? "Ocultar detalhes" : "Ver problemas encontrados"}
-            className="flex h-7 w-7 cursor-pointer items-center justify-center rounded border-0 bg-transparent text-ink-400 transition-colors duration-150 hover:bg-bone-100 hover:text-ink-700 max-md:h-11 max-md:w-11"
-            title={expanded ? "Ocultar" : "Ver problemas"}
+            aria-label={expanded ? "Ocultar análise da IA" : "Ver análise da IA"}
+            className="flex h-7 cursor-pointer items-center gap-1 rounded border-0 bg-transparent px-1.5 text-[11px] font-medium text-green-700 transition-colors duration-150 hover:bg-bone-100 max-md:h-11"
+            title={expanded ? "Ocultar análise" : "Ver análise da IA"}
+            data-testid="document-analysis-toggle"
           >
-            <Icon name={expanded ? "minus" : "plus"} size={14} />
+            <Icon name="sparkle" size={13} />
+            <span className="hidden sm:inline">{expanded ? "Ocultar" : "Análise"}</span>
           </button>
         )}
 
@@ -178,67 +153,31 @@ function DocumentRow({
         </button>
       </div>
 
-      {/* Problem accordion */}
-      {hasProblem && expanded && (
+      {/* Accordion de análise da IA */}
+      {canExpand && expanded && (
         <div
-          className={`mx-4 mb-3.5 rounded-sm px-4 py-3.5 ${
-            doc.status === "INVALID"
-              ? "border border-iron-200 bg-iron-50"
-              : "border border-ochre-200 bg-ochre-50"
-          }`}
+          className="mx-4 mb-3.5"
           role="region"
-          aria-label="Detalhes do problema"
+          aria-label="Análise da IA do documento"
         >
-          <div className="mb-2.5 flex items-center gap-2">
-            <Icon
-              name="alert"
-              size={14}
-              className={doc.status === "INVALID" ? "text-iron-600" : "text-ochre-600"}
-            />
-            <span
-              className={`text-xs font-semibold ${
-                doc.status === "INVALID" ? "text-iron-700" : "text-ochre-700"
-              }`}
-            >
-              {doc.status === "INVALID" ? "Problemas encontrados:" : "Ressalvas:"}
-            </span>
-          </div>
+          <DocumentAnalysisPanel doc={doc} />
 
-          {problems.length > 0 ? (
-            <ul className="ml-1 flex flex-col gap-1.5">
-              {problems.map((p, i) => (
-                <li key={i} className="flex items-start gap-2 text-xs text-ink-700">
-                  <span
-                    className={`mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full ${
-                      doc.status === "INVALID" ? "bg-iron-500" : "bg-ochre-500"
-                    }`}
-                    aria-hidden="true"
-                  />
-                  {p}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-xs text-ink-500">
-              {doc.status === "INVALID"
-                ? "Documento rejeitado. Verifique se o arquivo está correto e legível."
-                : "Documento aceito com ressalvas. Pode precisar de correção."}
-            </p>
+          {/* CTA de nova versão — apenas em docs com problema */}
+          {hasProblem && (
+            <div className="mt-2.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setExpanded(false)
+                  onNewVersion()
+                }}
+                className="inline-flex cursor-pointer items-center gap-1.5 rounded-sm border border-ink-900 bg-transparent px-3 py-1.5 text-xs font-medium text-ink-900 transition-colors duration-150 hover:bg-ink-900 hover:text-bone-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400"
+              >
+                <Icon name="upload" size={12} />
+                Enviar nova versão
+              </button>
+            </div>
           )}
-
-          <div className="mt-3.5">
-            <button
-              type="button"
-              onClick={() => {
-                setExpanded(false)
-                onNewVersion()
-              }}
-              className="inline-flex cursor-pointer items-center gap-1.5 rounded-sm border border-ink-900 bg-transparent px-3 py-1.5 text-xs font-medium text-ink-900 transition-colors duration-150 hover:bg-ink-900 hover:text-bone-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400"
-            >
-              <Icon name="upload" size={12} />
-              Enviar nova versão
-            </button>
-          </div>
         </div>
       )}
     </li>

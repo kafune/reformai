@@ -128,10 +128,18 @@ export class QuoteCaseUseCase {
             planName: plan.name,
             quote: {
               basePrice: quote.basePrice,
+              riskSurcharge: quote.riskSurcharge,
               inspectionsIncluded: quote.inspectionsIncluded,
               extraInspectionCost: quote.extraInspectionCost,
               totalPrice: quote.totalPrice,
               breakdown: quote.breakdown as unknown as object,
+            },
+            // Narrativa da oferta — persistida para o morador rever a proposta
+            // depois (o GET /commercial/offer reconstrói a partir daqui).
+            offer: {
+              narrativa: agentOutput.narrativa,
+              beneficios: agentOutput.beneficiosDestacados,
+              prazo: agentOutput.prazo,
             },
           } as object,
         },

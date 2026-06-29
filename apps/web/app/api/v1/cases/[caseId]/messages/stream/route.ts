@@ -183,6 +183,7 @@ export async function GET(req: NextRequest, ctx: { params: { caseId: string } })
             await new NotifyUserUseCase().execute({
               userId: reformCase.clientId,
               tenantId,
+              caseId: reformCase.id,
               title: "Triagem técnica concluída",
               body: `Caso ${reformCase.protocol}: risco ${evaluation.riskLevel}, score ${evaluation.triageScore}.`,
             })

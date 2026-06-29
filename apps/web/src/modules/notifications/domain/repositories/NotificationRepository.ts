@@ -3,6 +3,7 @@ export interface NotificationDTO {
   title: string
   body: string
   read: boolean
+  caseId: string | null
   createdAt: Date
 }
 
@@ -11,6 +12,8 @@ export interface CreateNotificationInput {
   tenantId: string
   title: string
   body: string
+  /** Caso relacionado — habilita deep-link na UI (opcional). */
+  caseId?: string | null
 }
 
 export interface NotificationRepository {

@@ -20,6 +20,10 @@ import {
 } from "@/interfaces/components/ui"
 import { appendTranscript } from "@/shared/text"
 import type { RiskLevel, IconName } from "@/interfaces/components/ui"
+import { CommercialOfferCard } from "./components/CommercialOfferCard"
+import { InspectionsPanel } from "./components/InspectionsPanel"
+import { CaseHistoryTimeline } from "./components/CaseHistoryTimeline"
+import { ReportsSection } from "./components/ReportsSection"
 
 interface MessageMetadata {
   specialistId?: string
@@ -347,6 +351,25 @@ export default function CaseDetailPage() {
         </div>
       )}
 
+      {/* Proposta comercial — aparece quando há oferta para o caso */}
+      <div className="mt-4 empty:hidden">
+        <CommercialOfferCard
+          caseId={caseId}
+          isClient={session?.user?.role === "CLIENT"}
+          onAccepted={reload}
+        />
+      </div>
+
+      {/* Vistorias — aparece quando há vistorias no caso */}
+      <div className="mt-4 empty:hidden">
+        <InspectionsPanel caseId={caseId} />
+      </div>
+
+      {/* Relatórios & documentos gerados — aparece quando há relatórios */}
+      <div className="mt-4 empty:hidden">
+        <ReportsSection caseId={caseId} refreshKey={data.status} />
+      </div>
+
       {/* ART */}
       {data.requiresART !== null && (
         <div className="mt-4 flex items-center gap-2">
@@ -400,6 +423,9 @@ export default function CaseDetailPage() {
           }))}
         />
       </div>
+
+      {/* Histórico real de transições (CaseTransitionLog) */}
+      <CaseHistoryTimeline caseId={caseId} refreshKey={data.status} />
 
       {/* ART/RRT disclaimer — apenas uma vez, no final, discreto */}
       <div className="mt-5 flex items-start gap-2 rounded-md bg-bone-100 px-3 py-2.5">
