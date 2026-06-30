@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useSession } from "next-auth/react"
 import { TopBar, Card, Button, Input, Icon } from "@/interfaces/components/ui"
+import { isStandalone, openInstallModal } from "@/shared/pwa"
 
 type SaveState = "idle" | "saving" | "saved" | "error"
 
@@ -18,6 +19,12 @@ export default function AccountPage() {
   useEffect(() => {
     if (session?.user?.name) setName(session.user.name)
   }, [session?.user?.name])
+
+  // Mostra o atalho de instalação apenas quando ainda não está em standalone.
+  const [canShowInstall, setCanShowInstall] = useState(false)
+  useEffect(() => {
+    setCanShowInstall(!isStandalone())
+  }, [])
 
   async function saveProfile(e: React.FormEvent) {
     e.preventDefault()
@@ -196,6 +203,27 @@ export default function AccountPage() {
               </div>
             </form>
           </Card>
+
+          {/* Instalar o app (PWA) — oculto quando já instalado */}
+          {canShowInstall && (
+            <button
+              type="button"
+              onClick={openInstallModal}
+              className="flex items-center justify-between rounded-md bg-surface px-5 py-4 text-left shadow-hair transition-colors hover:bg-bone-50"
+              data-testid="install-app-row"
+            >
+              <div className="flex items-center gap-2.5">
+                <Icon name="upload" size={16} className="text-green-700" />
+                <div>
+                  <span className="block text-sm font-medium text-ink-800">Instalar aplicativo</span>
+                  <span className="block text-xs text-ink-500">
+                    Acesso rápido na tela inicial e uso offline.
+                  </span>
+                </div>
+              </div>
+              <Icon name="chev" size={16} className="text-ink-400" />
+            </button>
+          )}
 
           {/* Atalho para privacidade/LGPD */}
           <Link

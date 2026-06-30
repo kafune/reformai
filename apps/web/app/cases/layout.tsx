@@ -2,6 +2,7 @@ import { redirect } from "next/navigation"
 import { getSessionUser } from "@/infrastructure/auth/getSessionUser"
 import { AppShell, type NavItem } from "@/interfaces/components/ui"
 import { SignOutButton } from "@/interfaces/components/SignOutButton"
+import { PwaInstallModal } from "@/interfaces/components/PwaInstallModal"
 
 const NAV: NavItem[] = [
   { href: "/cases", icon: "list", label: "Minhas reformas" },
@@ -31,6 +32,7 @@ export default async function CasesLayout({
       }
     >
       {children}
+      <PwaInstallModal />
     </AppShell>
   )
 }
