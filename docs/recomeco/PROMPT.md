@@ -17,13 +17,16 @@ mexer em arquivos, ative o plan mode (Shift+Tab) antes de colar.
 ## Prompt
 
 ```
-Vamos construir do zero uma plataforma web de autorização e acompanhamento de
-reformas em unidades de condomínio. O plano completo está em PLAN.md — leia
-inteiro antes de qualquer coisa. Ele é a fonte de verdade.
+Vamos construir do zero uma plataforma web para uma administradora de
+condomínios controlar as reformas nas unidades: saber quais obras exigem ART/RRT,
+orientar o morador sobre como conseguir e conferir se ela foi entregue antes de
+liberar a obra. O plano completo está em PLAN.md — leia inteiro antes de
+qualquer coisa. Ele é a fonte de verdade, e as decisões da §2 já estão tomadas
+(uma administradora só, sem parceiro técnico, sem pagamento, sem dados legados).
 
 Contexto: já existe uma versão deste produto que ficou complexa demais (DDD com
 12 bounded contexts, monorepo, filas, OCR, 5 agentes de IA, state machine de 18
-estados, multi-tenant). Esta versão nova tem que ser o oposto: um único app
+estados, multi-tenant, rede de parceiros, proposta comercial). Esta versão nova tem que ser o oposto: um único app
 Next.js, código direto e fácil de ler, com as regras de negócio em funções puras
 e testadas. Se em algum momento você se pegar criando um repositório, um use
 case, uma interface com uma implementação só, um "provider", uma factory ou uma
@@ -50,11 +53,11 @@ Regras de trabalho:
 9. Prefira Server Components e Server Actions. Crie route handler só quando não
    houver alternativa (ex.: download de arquivo).
 10. Na Fase 0, crie um CLAUDE.md com no máximo 80 linhas contendo: o que é o
-    produto (2 linhas), os princípios da §3 do PLAN.md, a estrutura de pastas,
-    os comandos e o padrão de server action. Mantenha-o atualizado se algo mudar.
+    produto (2 linhas), os princípios da §4 do PLAN.md, a estrutura de pastas,
+    os comandos e o padrão de server action, além das decisões da §2. Mantenha-o
+    atualizado se algo mudar.
 11. Se algo no PLAN.md estiver ambíguo ou parecer errado, pergunte em vez de
-    inventar. As "Decisões em aberto" da §13 eu vou responder antes da Fase 2 —
-    me lembre delas ao final da Fase 1.
+    inventar. Não implemente nada da §13 (backlog) sem eu pedir.
 
 Pode começar lendo o PLAN.md e me apresentando o que vai fazer na Fase 0.
 ```
