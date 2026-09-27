@@ -27,6 +27,7 @@ contratado pelo morador. Todo documento gerado pela plataforma traz esse aviso.
 | 3 | **Sem comercial/pagamento** | Sem proposta, plano comercial ou cobrança |
 | 4 | **Nenhum dado em produção** | Sem migração de dados. Começa com banco vazio + seed |
 | 5 | Foco do MVP | **Saber quais obras precisam de ART/RRT, orientar como conseguir e controlar se ela foi entregue e conferida** |
+| 6 | **Decisões tomadas pela [Julia-1](https://supersoniclabs.ia.br/julia-1/)** (modelo de decisão estilo JEV), a partir do contexto da obra | Novo `lib/decision.ts` + §10.2. As regras de `lib/rules/` viram **piso de segurança** (a Julia pode exigir mais, nunca menos), e liberar/recusar a obra continua sendo um clique humano sobre a decisão pré-preenchida |
 
 ---
 
@@ -42,7 +43,7 @@ contratado pelo morador. Todo documento gerado pela plataforma traz esse aviso.
 | Rule Engine com políticas/regras editáveis no banco | **Uma tabela de serviços em código** (`lib/rules/services.ts`) + funções puras de risco e checklist |
 | Triagem por **chat com IA** decidindo o escopo | **Formulário** com checkboxes de serviços. IA só *sugere* os checkboxes a partir de um texto livre |
 | Pipeline documental: BullMQ + Redis + worker + OCR + análise por IA que muda status | **Humano aprova/reprova cada documento.** IA opcional dá "observações" num botão, sem mudar nada |
-| 5 agentes de IA, `LLMProvider` abstrato | **Um arquivo `lib/ai.ts`** com 2 funções. Sem chave de API, o app funciona igual |
+| 5 agentes de IA, `LLMProvider` abstrato | **`lib/decision.ts`** (Julia-1, decisões) + **`lib/ai.ts`** (Claude, 2 funções de apoio). Sem chaves de API, o app funciona só com as regras |
 | Rede de parceiros, matcher, vistorias, proposta comercial, pagamento | **Fora.** O profissional é do morador; a plataforma guarda nome, registro e número da ART/RRT |
 | Relatórios via templates + IA + Agent Skills + PDFKit | **Página HTML imprimível** (termo de liberação) → "Salvar como PDF" do navegador |
 | RAG de normas, PWA, Web Push, rate-limit Redis, Sentry | Fora |
@@ -55,7 +56,7 @@ contratado pelo morador. Todo documento gerado pela plataforma traz esse aviso.
 1. **Código chato ganha.** Função simples > classe > padrão de projeto.
 2. **Sem abstração antes do segundo uso.** Uma implementação = nenhuma interface.
 3. **Regras de negócio em funções puras** dentro de `lib/rules/`, com teste unitário. É o único lugar com teste obrigatório.
-4. **IA nunca decide.** Ela preenche sugestões que um humano confirma. Nenhuma função de IA muda status, aprova documento ou calcula risco.
+4. **A Julia-1 decide dentro de trilhos.** Ela classifica a obra e recomenda o que fazer com documentos e com a liberação, mas: (a) as regras de `lib/rules/` são o piso, e ela só pode *aumentar* exigências; (b) liberar e recusar a obra é sempre um clique humano; (c) toda decisão é gravada com contexto, resposta e justificativa. O Claude (`lib/ai.ts`) só sugere e comenta, nunca decide.
 5. **Permissão sempre no servidor.** Toda leitura/ação de obra passa por um helper que confere se o usuário pode ver/fazer aquilo.
 6. **Tudo que muda uma obra gera um `CaseEvent`.** Sem exceção.
 7. **Arquivos nunca são públicos.** Download sempre por URL assinada de curta duração.
@@ -73,7 +74,8 @@ contratado pelo morador. Todo documento gerado pela plataforma traz esse aviso.
 | Auth | Auth.js (NextAuth) com login por e-mail e senha | senha com `scrypt` do `node:crypto` |
 | Arquivos | S3-compatível via `@aws-sdk/client-s3` (MinIO local, S3/R2 em produção) | um só código para dev e prod |
 | Validação | Zod nos formulários/server actions e na saída da IA | |
-| IA | `@anthropic-ai/sdk`, modelo em `ANTHROPIC_MODEL` | usada em 2 pontos opcionais |
+| Decisões | Julia-1 (Supersonic Labs) via HTTP, `fetch` direto; URL/chave em env (nomes a confirmar na doc) | motor de decisão com contexto (§10.2) |
+| IA de apoio | `@anthropic-ai/sdk`, modelo em `ANTHROPIC_MODEL` | usada em 2 pontos opcionais |
 | Testes | Vitest só para `lib/rules/` (+ 1 smoke E2E no fim, opcional) | |
 | Dev local | `docker-compose` com Postgres + MinIO | sem Redis |
 
@@ -187,7 +189,18 @@ O risco é calculado **no servidor** ao salvar a obra e gravado na obra (não co
 
 Sempre que `requiresArt` for verdadeiro, ART/RRT entra, mesmo em nível baixo.
 
-### 8.4 Outras regras
+### 8.4 Combinação com a decisão da Julia-1 (`merge.ts`)
+
+`mergeClassification(rules, julia) → Classification`, função pura com teste. O resultado das
+regras (§8.2 e §8.3) é o **piso**:
+
+- `level` final = o **maior** entre regras e Julia.
+- `requiresArt` final = regras **OU** Julia (a Julia pode exigir ART onde a tabela não exige; nunca dispensar onde a tabela exige).
+- Documentos obrigatórios = **união** das duas listas.
+- `guidance` = orientações da tabela + orientações extras da Julia.
+- Se a Julia não responder, der erro ou a resposta não passar no Zod, vale só o resultado das regras.
+
+### 8.5 Outras regras
 
 - A plataforma não emite ART/RRT; a tela da obra e o termo imprimível trazem o aviso de responsabilidade técnica.
 - Morador só vê as próprias obras; síndico só as do seu condomínio; admin vê tudo.
@@ -249,16 +262,20 @@ model Case {
   plannedStart      DateTime?
   plannedEnd        DateTime?
   contractorName    String?    // quem executa a obra
-  // calculado no servidor por lib/rules/risk.ts
+  // classificação final = merge(regras, Julia-1) — ver §8.4
   riskScore         Int
   riskLevel         RiskLevel
   requiresArt       Boolean
+  requiredDocs      DocumentType[]
+  classifiedBy      String     // "rules" | "rules+julia"
+  juliaDecision     Json?      // última resposta da Julia-1 (classificação), já validada
   // responsável técnico (contratado pelo morador)
   professionalName  String?
   professionalType  String?    // "ENGINEER" | "ARCHITECT"
   professionalReg   String?    // número CREA/CAU
   artNumber         String?    // número da ART/RRT
   // decisão
+  releaseRecommendation Json?  // última recomendação da Julia-1 para liberar/corrigir/recusar
   approvalConditions String?
   startedAt          DateTime?
   completedAt        DateTime?
@@ -276,7 +293,8 @@ model Document {
   sizeBytes    Int
   status       DocStatus @default(PENDING)  // PENDING | APPROVED | REJECTED
   reviewNote   String?
-  aiNotes      Json?     // observações da IA (só informativas)
+  aiNotes      Json?     // observações do Claude (só informativas)
+  juliaVerdict Json?     // recomendação da Julia-1: aprovar/reprovar + motivo
   uploadedById String
   createdAt    DateTime  @default(now())
 }
@@ -288,6 +306,8 @@ model CaseEvent {
   userId     String?  // null = sistema
   type       String   // "status_changed" | "document_uploaded" | "document_reviewed"
                       // | "professional_updated" | "art_confirmed" | "comment" | "ai_suggestion"
+                      // | "julia_decision" (data = { kind, contexto enviado, resposta, justificativa,
+                      //                            versão do modelo, aceita/alterada por humano })
   fromStatus CaseStatus?
   toStatus   CaseStatus?
   message    String?
@@ -303,8 +323,17 @@ Sem `Tenant`, `Partner`, `Inspection`, `Policy`, `Rule`, `Report`, `ReportSkill`
 
 ## 10. Onde a IA entra (e onde não entra)
 
-Tudo em `lib/ai.ts`. Se `ANTHROPIC_API_KEY` não estiver definida, as funções
-não são chamadas e os botões não aparecem.
+Dois papéis separados:
+
+- **Julia-1** (`lib/decision.ts`) — **toma as decisões** dado o contexto da obra (§10.2).
+- **Claude** (`lib/ai.ts`) — **apoio**: sugere checkboxes e lê documentos (§10.1).
+
+Se as chaves não estiverem configuradas, o app funciona só com as regras de `lib/rules/`.
+
+### 10.1 Claude — apoio (`lib/ai.ts`)
+
+Se `ANTHROPIC_API_KEY` não estiver definida, as funções não são chamadas e os
+botões não aparecem.
 
 | # | Onde | O que faz | O que **não** faz |
 |---|---|---|---|
@@ -315,6 +344,39 @@ Regras:
 - Chamada síncrona dentro da server action, com timeout. Sem fila.
 - Saída sempre validada com Zod; se falhar, mostra "IA indisponível" e segue.
 - O prompt nunca contém regra de negócio (pontos, níveis, checklist) — isso está em `lib/rules/`.
+- Se a Julia-1 também ler PDF/imagem e sugerir serviços bem, **remover o Claude** e ficar com um provedor só (decidir na Fase 7).
+
+### 10.2 Julia-1 — decisões (`lib/decision.ts`)
+
+Referência: <https://supersoniclabs.ia.br/julia-1/> — modelo de decisão estilo JEV.
+
+> ⚠️ **A doc da Julia-1 ainda não foi lida neste plano** (o site estava inacessível
+> de onde o plano foi escrito). Antes de escrever qualquer código da Fase 6, o Claude
+> Code deve **abrir a página, resumir como a API funciona** (endpoint, autenticação,
+> formato de entrada/saída, limites, custo, se aceita arquivos) **e confirmar comigo**.
+> Nada de endpoint, nome de campo ou nome de variável de ambiente inventado.
+> Se a forma de uso da Julia não encaixar no desenho abaixo, adaptar o desenho e me mostrar.
+
+**Contexto enviado** (montado por `buildDecisionContext(case)` — sem PII desnecessária:
+nada de e-mail, telefone ou CPF do morador):
+dados da obra (serviços, flags, descrição, datas, executor), condomínio (cidade/UF),
+resultado das regras (§8.2/§8.3, informado como piso), responsável técnico e nº ART/RRT,
+lista de documentos com status e observações, e o histórico relevante (`CaseEvent`).
+
+**Decisões que a Julia-1 toma:**
+
+| # | Quando | Decisão | Como é aplicada |
+|---|---|---|---|
+| 1 | Obra salva/editada (`DRAFT`) | **Classificação:** nível de risco, exige ART/RRT?, documentos obrigatórios, orientação de profissional, justificativa | **Automática**, via `mergeClassification` (§8.4): só pode aumentar exigências. O morador vê a justificativa |
+| 2 | Documento anexado | **Parecer do documento:** aprovar / reprovar + motivo (ex.: "ART não cobre o serviço de gás") | **Pré-preenche** o botão do síndico/admin, que confirma ou altera com um clique |
+| 3 | Obra em `UNDER_REVIEW` com todos os documentos avaliados | **Recomendação de liberação:** liberar / liberar com condições (sugere o texto) / pedir correção (sugere o texto) / recusar + justificativa | **Pré-preenche** a tela de decisão. Liberar ou recusar é sempre clique humano, e a guarda de §7 continua valendo |
+
+**Trilhos (não negociáveis):**
+- A Julia **nunca** leva a obra para `APPROVED`, `REJECTED` ou `COMPLETED` sozinha, e nunca dispensa ART/RRT exigida pela tabela.
+- A resposta passa por Zod antes de qualquer uso; resposta inválida = ignorada (vale só a regra) + `CaseEvent` com o erro.
+- Toda chamada gera `CaseEvent` `julia_decision` com o contexto enviado, a resposta, a justificativa, a versão do modelo e, depois, se o humano **aceitou ou alterou** — isso vira base para medir a qualidade das decisões.
+- A tela mostra sempre de onde veio cada exigência: "pela tabela" ou "pela Julia-1: <motivo>".
+- Chamada síncrona na server action, com timeout curto; em falha, segue com as regras. Sem fila.
 
 ---
 
@@ -340,13 +402,16 @@ Regras:
 │   ├── auth.ts                           # Auth.js + getCurrentUser()
 │   ├── permissions.ts                    # canViewCase, canReviewCase, getCaseForUser...
 │   ├── storage.ts                        # upload(), signedUrl() — S3 client direto
-│   ├── ai.ts                             # suggestServices(), reviewDocument()
+│   ├── ai.ts                             # Claude: suggestServices(), reviewDocument()
+│   ├── decision.ts                       # Julia-1: classifyCase(), judgeDocument(), recommendRelease()
+│   │                                     #   + buildDecisionContext(); só HTTP + Zod, sem regra de negócio
 │   ├── events.ts                         # logEvent(tx, ...)
 │   ├── rules/                            # PURO, sem Prisma, sem Next, com testes
 │   │   ├── services.ts
 │   │   ├── risk.ts        risk.test.ts
 │   │   ├── checklist.ts   checklist.test.ts
-│   │   └── status.ts      status.test.ts
+│   │   ├── status.ts      status.test.ts
+│   │   └── merge.ts       merge.test.ts   # regras como piso + decisão da Julia-1
 │   └── actions/                          # server actions ("use server"), finas
 │       ├── cases.ts  documents.ts  review.ts  admin.ts
 ├── components/                           # shadcn/ui + componentes da tela
@@ -394,8 +459,8 @@ um commit, e um resumo curto do que foi feito. **Não avançar de fase sem confi
 - **Pronto quando:** `bun dev` abre uma página, `bun test` roda (0 testes ok).
 
 ### Fase 1 — Regras puras
-- [ ] `lib/rules/services.ts`, `risk.ts`, `checklist.ts`, `status.ts`
-- [ ] Testes cobrindo: cada nível de risco nos limites (20/21, 45/46, 70/71), teto 100, flags; `requiresArt` por serviço e por flag; orientações sem repetição; checklist por nível + ART forçada; todas as transições válidas e algumas inválidas; guardas de enviar (docs + dados do profissional) e liberar (docs aprovados + confirmação da ART)
+- [ ] `lib/rules/services.ts`, `risk.ts`, `checklist.ts`, `status.ts`, `merge.ts`
+- [ ] Testes cobrindo: cada nível de risco nos limites (20/21, 45/46, 70/71), teto 100, flags; `requiresArt` por serviço e por flag; orientações sem repetição; checklist por nível + ART forçada; todas as transições válidas e algumas inválidas; guardas de enviar (docs + dados do profissional) e liberar (docs aprovados + confirmação da ART); `mergeClassification` nunca reduz nível, nunca remove ART nem documento exigido pela tabela, e sem resposta da Julia devolve exatamente o resultado das regras
 - **Pronto quando:** `bun test` verde, zero import de Prisma/Next em `lib/rules/`.
 
 ### Fase 2 — Banco, login e esqueleto de telas
@@ -432,24 +497,34 @@ um commit, e um resumo curto do que foi feito. **Não avançar de fase sem confi
 - [ ] Síndico vê só o seu condomínio; admin vê todos
 - **Pronto quando:** a administradora consegue responder "quais obras precisam de ART e em que pé estão" numa tela só.
 
-### Fase 6 — IA (opcional, 2 botões)
+### Fase 6 — Decisões com a Julia-1
+- [ ] **Antes de codar:** ler <https://supersoniclabs.ia.br/julia-1/>, me apresentar um resumo da API (endpoint, auth, entrada/saída, limites, custo, suporte a arquivos) e como ela encaixa nas 3 decisões da §10.2. Esperar minha confirmação
+- [ ] Variáveis de ambiente com os nomes da doc em `.env.example`
+- [ ] `lib/decision.ts`: `buildDecisionContext(case)`, `classifyCase()`, `judgeDocument()`, `recommendRelease()` — `fetch` + timeout + Zod, sem regra de negócio
+- [ ] Decisão 1 ligada ao salvar a obra, passando por `mergeClassification`; tela mostra "pela tabela" vs "pela Julia-1: motivo"
+- [ ] Decisões 2 e 3 pré-preenchendo as telas do síndico/admin; registro de aceita/alterada no `CaseEvent`
+- [ ] Teste com resposta falsa da Julia (mock do `fetch`): resposta válida, inválida, timeout e tentativa de dispensar ART
+- **Pronto quando:** sem chave da Julia o app funciona só com regras; com chave, as 3 decisões aparecem com justificativa, nenhuma exigência da tabela é dispensada e nenhuma obra é liberada/recusada sem clique humano.
+
+### Fase 7 — Claude de apoio (opcional, 2 botões)
+- [ ] Decidir com base na Fase 6: se a Julia-1 já cobre ler documentos e sugerir serviços, **pular esta fase**
 - [ ] `lib/ai.ts` com `suggestServices(description)` e `reviewDocument(file, docType, caseSummary)`
 - [ ] Schemas Zod da saída; descartar serviços desconhecidos; timeout; fallback silencioso
 - [ ] Botões escondidos se não houver `ANTHROPIC_API_KEY`
 - **Pronto quando:** sem chave o app funciona igual; com chave os dois botões funcionam e nenhum deles altera status.
 
-### Fase 7 — Termo de liberação imprimível
+### Fase 8 — Termo de liberação imprimível
 - [ ] `/obras/[id]/imprimir` — termo de liberação (condomínio, unidade, serviços, responsável técnico e nº ART/RRT, condições, quem liberou e quando, aviso de responsabilidade técnica)
 - [ ] CSS de impressão (`@media print`); o usuário usa "Salvar como PDF"
 - **Pronto quando:** o termo imprime em A4 sem quebrar layout.
 
-### Fase 8 — Admin
+### Fase 9 — Admin
 - [ ] CRUD de condomínios (inclui `signupCode` + QR code do link de cadastro)
 - [ ] CRUD de unidades (inclusive importação por colar lista "bloco;número")
 - [ ] Criar síndico (admin define senha provisória); ativar/desativar usuário
 - **Pronto quando:** dá para colocar um condomínio novo no ar sem mexer no banco.
 
-### Fase 9 — Acabamento e produção
+### Fase 10 — Acabamento e produção
 - [ ] E-mail nas mudanças de status importantes (Resend ou SMTP, opcional por env)
 - [ ] LGPD: "Baixar meus dados" (JSON) e "Excluir minha conta" (anonimiza)
 - [ ] 1 teste E2E do caminho feliz (Playwright), se valer o esforço

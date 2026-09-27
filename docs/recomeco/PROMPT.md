@@ -44,9 +44,14 @@ Regras de trabalho:
 5. Regras de negócio só em `lib/rules/`, puras (sem Prisma, sem Next) e com
    teste. Server actions são finas: autentica → valida (Zod) → checa permissão
    → chama regra pura → grava em transação com CaseEvent → revalida.
-6. IA nunca decide nada. Ela só sugere (checkboxes de serviços) ou comenta
-   (observações de documento). Nenhuma chamada de IA muda status, aprova
-   documento ou calcula risco. O app tem que funcionar 100% sem ANTHROPIC_API_KEY.
+6. As decisões são tomadas pela Julia-1 (https://supersoniclabs.ia.br/julia-1/,
+   modelo de decisão estilo JEV) a partir do contexto da obra — ver §10.2 do
+   PLAN.md. Antes de integrar, leia essa página e me mostre como a API funciona;
+   não invente endpoint, campos ou variáveis. Trilhos: as regras de `lib/rules/`
+   são o piso (a Julia só pode exigir mais, nunca dispensar ART/documento),
+   liberar/recusar é sempre clique humano, e toda decisão vira CaseEvent com
+   contexto, resposta e justificativa. O Claude (lib/ai.ts) só sugere e comenta.
+   O app tem que funcionar 100% sem nenhuma chave de IA, só com as regras.
 7. Toda leitura e ação sobre uma obra passa por `getCaseForUser()` / permissões
    no servidor. Arquivos só por URL assinada de curta duração.
 8. Código em inglês, textos de tela em português do Brasil.
